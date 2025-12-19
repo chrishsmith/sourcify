@@ -206,7 +206,7 @@ export function calculateEffectiveTariff(
         estimatedDutyForValue: estimatedDuty,
         exclusions,
         calculatedAt: new Date(),
-        dataFreshness: 'As of December 2024',
+        dataFreshness: `As of ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
         disclaimer: 'These tariff rates are provided for informational purposes only. Actual duties may vary based on product classification, country of origin determination, and current regulations. Always verify with a licensed customs broker or CBP.',
     };
 }

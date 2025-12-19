@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { classifyProduct, getMockClassificationResult } from '@/services/ai';
 import { validateHTSCode } from '@/services/usitc';
 import { calculateEffectiveTariff, getCountryDutySummary } from '@/services/additionalDuties';
-import type { ClassificationInput, ClassificationResult } from '@/types/classification.types';
+import type { ClassificationInput, ClassificationResult, ConditionalClassification } from '@/types/classification.types';
 
 export async function POST(request: NextRequest) {
     try {
@@ -90,6 +90,21 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Detect conditional classifications (price/weight-dependent HTS codes)
+        // This only triggers when the official USITC description contains value/weight language
+        const conditionalClassification = detectConditionalClassification(
+            result.htsCode.code,
+            result.htsCode.description,
+            result.dutyRate.generalRate
+        );
+        if (conditionalClassification) {
+            result.conditionalClassifications = [conditionalClassification];
+            result.warnings = result.warnings || [];
+            result.warnings.push(
+                `📊 This classification is ${conditionalClassification.conditionLabel.toLowerCase()}-dependent. Review the HTS description to ensure your product matches.`
+            );
+        }
+
         return NextResponse.json(result);
     } catch (error) {
         console.error('[Classification API] Error:', error);
@@ -167,3 +182,85 @@ function parseSpecialPrograms(special: string | undefined): { program: string; r
     }
     return programs.slice(0, 5);
 }
+
+/**
+ * Detect if an HTS code is price/weight-dependent based on the OFFICIAL description
+ * 
+ * IMPORTANT: This function does NOT make up HTS codes. It only flags codes
+ * where the official description indicates the classification depends on value/weight.
+ * 
+ * Examples of real value-dependent descriptions from HTS:
+ * - "Valued not over 30 cents each" (Chapter 64 footwear)
+ * - "Valued over $2.50 per pair" (Gloves)
+ * - "Weighing not more than 5 kg each" (Machinery parts)
+ */
+
+function detectConditionalClassification(
+    htsCode: string,
+    description: string,
+    dutyRate: string
+): ConditionalClassification | null {
+    // Only trigger if the OFFICIAL description contains value/weight language
+    // These patterns must match real language from USITC, not assumed patterns
+
+    const valuePatterns = [
+        // Real patterns from HTS descriptions
+        /valued (?:not )?over (?:\$?[\d.]+|\w+) (?:cents?|dollars?)/i,
+        /valued at (?:not )?(?:more|less) than \$?[\d.]+/i,
+        /value (?:not )?(?:over|exceeding|under) \$?[\d.]+/i,
+        /per dozen pairs, valued (?:not )?over/i,
+    ];
+
+    const weightPatterns = [
+        /weighing (?:not )?(?:more|less) than [\d.]+ ?(?:kg|g|lb|oz)/i,
+        /weighing (?:over|under) [\d.]+ ?(?:kg|g|lb|oz)/i,
+        /weight (?:not )?exceed(?:ing)? [\d.]+ ?(?:kg|g|lb|oz)/i,
+    ];
+
+    // Check if any value pattern matches
+    for (const pattern of valuePatterns) {
+        if (pattern.test(description)) {
+            return {
+                conditionType: 'price',
+                conditionLabel: 'Unit Value',
+                conditionUnit: '$',
+                conditions: [
+                    {
+                        rangeLabel: 'As specified in description',
+                        minValue: undefined,
+                        maxValue: undefined,
+                        htsCode: htsCode,
+                        description: description,
+                        dutyRate: dutyRate,
+                    },
+                ],
+                explanation: `This HTS code's classification depends on the unit value. The description states: "${description}". If your product's value falls outside this range, you may need a different statistical suffix. Consult the full HTS schedule or a customs broker.`,
+            };
+        }
+    }
+
+    // Check if any weight pattern matches
+    for (const pattern of weightPatterns) {
+        if (pattern.test(description)) {
+            return {
+                conditionType: 'weight',
+                conditionLabel: 'Unit Weight',
+                conditionUnit: 'kg',
+                conditions: [
+                    {
+                        rangeLabel: 'As specified in description',
+                        minValue: undefined,
+                        maxValue: undefined,
+                        htsCode: htsCode,
+                        description: description,
+                        dutyRate: dutyRate,
+                    },
+                ],
+                explanation: `This HTS code's classification depends on unit weight. The description states: "${description}". If your product's weight falls outside this range, you may need a different code.`,
+            };
+        }
+    }
+
+    return null;
+}
+

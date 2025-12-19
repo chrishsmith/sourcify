@@ -1,19 +1,56 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, Button, Typography, Row, Col } from 'antd';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowLeft } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
 import { ClassificationForm } from '@/features/compliance/components/ClassificationForm';
+import { ClassificationResultDisplay } from '@/features/compliance/components/ClassificationResult';
+import { getClassificationById } from '@/services/classificationHistory';
+import type { ClassificationResult } from '@/types/classification.types';
 
 const { Title, Text } = Typography;
 
 export const ClassificationsPageContent = () => {
+    const [activeTab, setActiveTab] = useState('1');
+    const [viewingResult, setViewingResult] = useState<ClassificationResult | null>(null);
+
+    const handleViewClassification = (id: string) => {
+        const result = getClassificationById(id);
+        if (result) {
+            setViewingResult(result);
+        }
+    };
+
+    const handleBackToList = () => {
+        setViewingResult(null);
+    };
+
     const items = [
         {
             key: '1',
             label: 'My Classifications',
-            children: <ClassificationsTable />,
+            children: viewingResult ? (
+                <div>
+                    <Button
+                        type="text"
+                        icon={<ArrowLeft size={16} />}
+                        onClick={handleBackToList}
+                        className="mb-4 text-teal-600 hover:text-teal-700"
+                    >
+                        Back to My Classifications
+                    </Button>
+                    <ClassificationResultDisplay
+                        result={viewingResult}
+                        onNewClassification={() => {
+                            setViewingResult(null);
+                            setActiveTab('2');
+                        }}
+                    />
+                </div>
+            ) : (
+                <ClassificationsTable onViewClassification={handleViewClassification} />
+            ),
         },
         {
             key: '2',
@@ -41,7 +78,11 @@ export const ClassificationsPageContent = () => {
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                <Tabs defaultActiveKey="1" items={items} />
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={items}
+                />
             </div>
         </div>
     );

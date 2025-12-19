@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, Typography, Tooltip, Empty, Input, Popconfirm, message } from 'antd';
-import { Eye, Download, Trash2, Search, RefreshCw, Clock, Globe } from 'lucide-react';
+import { Eye, Trash2, Search, RefreshCw, Clock, Globe } from 'lucide-react';
 import { getClassificationHistory, deleteClassification, searchClassificationHistory, type StoredClassification } from '@/services/classificationHistory';
 
 const { Text } = Typography;
 
-export const ClassificationsTable: React.FC = () => {
+interface ClassificationsTableProps {
+    onViewClassification?: (id: string) => void;
+}
+
+export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onViewClassification }) => {
     const [history, setHistory] = useState<StoredClassification[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -44,6 +48,12 @@ export const ClassificationsTable: React.FC = () => {
         message.success('Classification deleted');
     };
 
+    const handleRowClick = (record: StoredClassification) => {
+        if (onViewClassification) {
+            onViewClassification(record.id);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
@@ -63,19 +73,38 @@ export const ClassificationsTable: React.FC = () => {
 
     const columns = [
         {
-            title: 'Product Description',
+            title: 'Product',
             dataIndex: 'productDescription',
             key: 'productDescription',
             width: '35%',
             render: (text: string, record: StoredClassification) => (
-                <div>
-                    <Text strong className="block text-slate-900 line-clamp-2">{text}...</Text>
-                    {record.countryOfOrigin && (
-                        <div className="flex items-center gap-1 mt-1">
-                            <Globe size={12} className="text-slate-400" />
-                            <Text type="secondary" className="text-xs">{record.countryOfOrigin}</Text>
-                        </div>
+                <div
+                    className="cursor-pointer hover:text-teal-600 transition-colors"
+                    onClick={() => handleRowClick(record)}
+                >
+                    {/* Show product name if available, otherwise show truncated description */}
+                    <Text strong className="block text-slate-900 line-clamp-1 hover:text-teal-600">
+                        {record.productName || text}
+                    </Text>
+                    {/* Show description as secondary text when we have a product name */}
+                    {record.productName && (
+                        <Text type="secondary" className="text-xs line-clamp-1 block mt-0.5">
+                            {text}...
+                        </Text>
                     )}
+                    <div className="flex items-center gap-3 mt-1">
+                        {record.productSku && (
+                            <Text type="secondary" className="text-xs font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                                {record.productSku}
+                            </Text>
+                        )}
+                        {record.countryOfOrigin && (
+                            <div className="flex items-center gap-1">
+                                <Globe size={12} className="text-slate-400" />
+                                <Text type="secondary" className="text-xs">{record.countryOfOrigin}</Text>
+                            </div>
+                        )}
+                    </div>
                 </div>
             ),
         },
@@ -84,8 +113,14 @@ export const ClassificationsTable: React.FC = () => {
             dataIndex: 'htsCode',
             key: 'htsCode',
             width: '15%',
-            render: (code: string) => (
-                <Tag color="blue" className="font-mono text-sm px-3 py-1">{code}</Tag>
+            render: (code: string, record: StoredClassification) => (
+                <Tag
+                    color="blue"
+                    className="font-mono text-sm px-3 py-1 cursor-pointer"
+                    onClick={() => handleRowClick(record)}
+                >
+                    {code}
+                </Tag>
             ),
         },
         {
@@ -93,8 +128,13 @@ export const ClassificationsTable: React.FC = () => {
             dataIndex: 'description',
             key: 'description',
             width: '25%',
-            render: (text: string) => (
-                <Text className="text-slate-600 text-sm line-clamp-2">{text}</Text>
+            render: (text: string, record: StoredClassification) => (
+                <Text
+                    className="text-slate-600 text-sm line-clamp-2 cursor-pointer hover:text-teal-600"
+                    onClick={() => handleRowClick(record)}
+                >
+                    {text}
+                </Text>
             ),
         },
         {
@@ -137,7 +177,8 @@ export const ClassificationsTable: React.FC = () => {
                         <Button
                             type="text"
                             size="small"
-                            icon={<Eye size={14} className="text-slate-400" />}
+                            icon={<Eye size={14} className="text-teal-600" />}
+                            onClick={() => handleRowClick(record)}
                         />
                     </Tooltip>
                     <Popconfirm
@@ -209,7 +250,10 @@ export const ClassificationsTable: React.FC = () => {
                         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} classifications`
                     }}
                     className="border border-slate-100 rounded-xl overflow-hidden"
-                    rowClassName="hover:bg-slate-50"
+                    rowClassName="hover:bg-slate-50 cursor-pointer"
+                    onRow={(record) => ({
+                        onClick: () => handleRowClick(record),
+                    })}
                 />
             )}
         </div>

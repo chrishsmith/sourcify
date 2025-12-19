@@ -63,6 +63,8 @@ export const ClassificationForm: React.FC = () => {
     }, [loading]);
 
     const onFinish = async (values: {
+        productName?: string;
+        productSku?: string;
         productDescription: string;
         countryOfOrigin?: string;
         materialComposition?: string;
@@ -73,6 +75,8 @@ export const ClassificationForm: React.FC = () => {
 
         try {
             const input: ClassificationInput = {
+                productName: values.productName,
+                productSku: values.productSku,
                 productDescription: values.productDescription,
                 classificationType: 'import',
                 countryOfOrigin: values.countryOfOrigin,
@@ -169,6 +173,39 @@ export const ClassificationForm: React.FC = () => {
                 </div>
 
                 <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
+                    {/* Product Identification - Optional but helpful */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-1">
+                        <Form.Item
+                            label={
+                                <span className="text-slate-700 font-medium">
+                                    Product Name (Optional)
+                                </span>
+                            }
+                            name="productName"
+                            tooltip="A short, friendly name for this product that you'll use to identify it later"
+                        >
+                            <Input
+                                placeholder="e.g., Widget A, Blue Connector, Safety Valve"
+                                size="large"
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            label={
+                                <span className="text-slate-700 font-medium">
+                                    SKU / Part Number (Optional)
+                                </span>
+                            }
+                            name="productSku"
+                            tooltip="Your internal part number or SKU for reference and linking to other systems"
+                        >
+                            <Input
+                                placeholder="e.g., SKU-12345, PART-001"
+                                size="large"
+                            />
+                        </Form.Item>
+                    </div>
+
                     {/* Product Description - Main Input */}
                     <Form.Item
                         label={

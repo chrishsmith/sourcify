@@ -1,6 +1,8 @@
 // Classification System Types
 
 export interface ClassificationInput {
+    productName?: string;       // User-friendly name, e.g., "Widget A"
+    productSku?: string;        // Internal part number or SKU
     productDescription: string;
     classificationType: 'import' | 'export';
     countryOfOrigin?: string;
@@ -32,6 +34,22 @@ export interface RulingReference {
     relevanceScore: number; // 0-100
 }
 
+// For HTS codes that vary based on price, weight, dimensions, etc.
+export interface ConditionalClassification {
+    conditionType: 'price' | 'weight' | 'dimension' | 'quantity';
+    conditionLabel: string;         // e.g., "Unit Value", "Weight per unit"
+    conditionUnit: string;          // e.g., "$", "kg", "cm"
+    conditions: {
+        rangeLabel: string;         // e.g., "$0.30 - $3.00", "Under 2kg"
+        minValue?: number;          // e.g., 0.30
+        maxValue?: number;          // e.g., 3.00
+        htsCode: string;            // The HTS code for this range
+        description: string;        // HTS description
+        dutyRate: string;           // e.g., "5.3%"
+    }[];
+    explanation: string;            // Why this matters for classification
+}
+
 export interface ClassificationResult {
     id: string;
     input: ClassificationInput;
@@ -45,6 +63,8 @@ export interface ClassificationResult {
     createdAt: Date;
     // Effective tariff breakdown (includes all additional duties)
     effectiveTariff?: import('./tariffLayers.types').EffectiveTariffRate;
+    // For price/weight-dependent classifications
+    conditionalClassifications?: ConditionalClassification[];
 }
 
 export interface ClassificationHistoryItem {

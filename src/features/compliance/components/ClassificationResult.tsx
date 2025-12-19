@@ -1,52 +1,152 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, Typography, Progress, Tag, Button, Tooltip, Alert, Collapse, message } from 'antd';
 import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Download } from 'lucide-react';
 import type { ClassificationResult } from '@/types/classification.types';
+import { ConditionalClassificationCard } from './ConditionalClassificationCard';
 
 const { Title, Text, Paragraph } = Typography;
 
-// Educational tooltips for trade terms - written for a 4th grader
-const TRADE_TERM_TOOLTIPS = {
-    mfn: {
-        term: 'General Rate (MFN)',
-        explanation: 'This is the regular tax most countries pay when importing goods into the US. MFN stands for "Most Favored Nation" - it\'s the standard rate for friendly trading partners.',
+// Comprehensive trade glossary - every term fully explained
+const TRADE_GLOSSARY: Record<string, { fullName: string; explanation: string }> = {
+    // Base Rate Terms
+    'MFN': {
+        fullName: 'Most Favored Nation Rate',
+        explanation: 'The standard tax rate that most countries pay. Despite the name "Most Favored," this is actually the normal rate - not a special discount. It applies to countries with normal trade relations.',
     },
-    column2: {
-        term: 'Column 2 Rate',
-        explanation: 'This is a higher tax rate for countries that don\'t have normal trade agreements with the US. It\'s rarely used but applies to a few countries.',
+    'General Rate (MFN)': {
+        fullName: 'Most Favored Nation Rate',
+        explanation: 'The standard tax rate that most countries pay. Despite the name "Most Favored," this is actually the normal rate - not a special discount. It applies to countries with normal trade relations.',
     },
-    usmca: {
-        term: 'USMCA',
-        explanation: 'United States-Mexico-Canada Agreement. If your product is made in Mexico or Canada, you might pay less or no tax at all!',
+    'Column 2 Rate': {
+        fullName: 'Column 2 (Non-NTR) Rate',
+        explanation: 'A much higher tax rate for countries without Normal Trade Relations. Currently only applies to Cuba and North Korea. These rates can be 10x higher than normal.',
     },
-    gsp: {
-        term: 'GSP',
-        explanation: 'Generalized System of Preferences. This program lets certain developing countries sell goods to the US with lower or no taxes to help their economies grow.',
+
+    // Trade Agreements
+    'USMCA': {
+        fullName: 'United States-Mexico-Canada Agreement',
+        explanation: 'The free trade deal between the US, Mexico, and Canada (replaced NAFTA in 2020). Products made in these countries often pay zero duty if they meet the origin requirements.',
     },
-    specialPrograms: {
-        term: 'Special Programs',
-        explanation: 'These are special trade deals between the US and other countries. If your product qualifies, you might pay less tax or no tax at all!',
+    'USMCA (Canada)': {
+        fullName: 'United States-Mexico-Canada Agreement (Canada)',
+        explanation: 'Free trade benefits for products made in Canada. To qualify, the product must meet specific "rules of origin" - meaning enough of it must be made in North America.',
+    },
+    'USMCA (Mexico)': {
+        fullName: 'United States-Mexico-Canada Agreement (Mexico)',
+        explanation: 'Free trade benefits for products made in Mexico. To qualify, the product must meet specific "rules of origin" - meaning enough of it must be made in North America.',
+    },
+    'GSP': {
+        fullName: 'Generalized System of Preferences',
+        explanation: 'A program giving developing countries duty-free access on certain products to help their economies grow. Note: GSP has expired and been renewed multiple times - check current status.',
+    },
+    'Australia FTA': {
+        fullName: 'US-Australia Free Trade Agreement',
+        explanation: 'Free trade deal with Australia since 2005. Most products from Australia enter duty-free or at reduced rates.',
+    },
+    'Korea FTA': {
+        fullName: 'US-Korea Free Trade Agreement (KORUS)',
+        explanation: 'Free trade deal with South Korea since 2012. Most Korean products enter duty-free.',
+    },
+    'Israel FTA': {
+        fullName: 'US-Israel Free Trade Agreement',
+        explanation: 'The first US free trade agreement, since 1985. Most Israeli products enter duty-free.',
+    },
+    'Chile FTA': {
+        fullName: 'US-Chile Free Trade Agreement',
+        explanation: 'Free trade deal with Chile since 2004. Most Chilean products enter duty-free.',
+    },
+    'Singapore FTA': {
+        fullName: 'US-Singapore Free Trade Agreement',
+        explanation: 'Free trade deal with Singapore since 2004. Nearly all Singapore products enter duty-free.',
+    },
+    'Colombia TPA': {
+        fullName: 'US-Colombia Trade Promotion Agreement',
+        explanation: 'Trade agreement with Colombia since 2012. Most Colombian products enter duty-free.',
+    },
+    'Peru TPA': {
+        fullName: 'US-Peru Trade Promotion Agreement',
+        explanation: 'Trade agreement with Peru since 2009. Most Peruvian products enter duty-free.',
+    },
+    'Panama TPA': {
+        fullName: 'US-Panama Trade Promotion Agreement',
+        explanation: 'Trade agreement with Panama since 2012. Most Panamanian products enter duty-free.',
+    },
+    'Special Programs': {
+        fullName: 'Special Tariff Programs',
+        explanation: 'Trade deals that give certain countries lower or zero tariffs. Each program has rules about where the product must be made to qualify.',
+    },
+
+    // Additional Duty Programs (Chapter 99)
+    'Section 301': {
+        fullName: 'Trade Act of 1974, Section 301',
+        explanation: 'Extra tariffs on goods from countries found to have unfair trade practices. Currently adds 7.5% to 100% on many Chinese products across multiple "Lists" (1-4).',
+    },
+    'Section 301 List 1': {
+        fullName: 'Section 301 List 1 Tariffs',
+        explanation: 'The first round of Section 301 tariffs on Chinese goods, effective July 2018. Adds 25% additional duty on ~$34 billion of products.',
+    },
+    'Section 301 List 2': {
+        fullName: 'Section 301 List 2 Tariffs',
+        explanation: 'The second round of Section 301 tariffs on Chinese goods, effective August 2018. Adds 25% additional duty on ~$16 billion of products.',
+    },
+    'Section 301 List 3': {
+        fullName: 'Section 301 List 3 Tariffs',
+        explanation: 'The third round of Section 301 tariffs, effective September 2018. Adds 25% additional duty on ~$200 billion of Chinese products.',
+    },
+    'Section 301 List 4A': {
+        fullName: 'Section 301 List 4A Tariffs',
+        explanation: 'Fourth round of Section 301 tariffs, effective September 2019. Adds 7.5% additional duty on ~$120 billion of Chinese consumer products.',
+    },
+    'IEEPA Fentanyl': {
+        fullName: 'International Emergency Economic Powers Act - Fentanyl Emergency',
+        explanation: 'Emergency tariffs declared in 2025 citing the fentanyl crisis. Adds 10-20% on ALL Chinese imports, 25% on Mexican and Canadian imports. These stack ON TOP of all other duties.',
+    },
+    'IEEPA Fentanyl Tariff': {
+        fullName: 'International Emergency Economic Powers Act - Fentanyl Emergency',
+        explanation: 'Emergency tariffs declared in 2025 citing the fentanyl crisis. Adds 10-20% on ALL Chinese imports, 25% on Mexican and Canadian imports. These stack ON TOP of all other duties.',
+    },
+    'IEEPA Reciprocal': {
+        fullName: 'International Emergency Economic Powers Act - Reciprocal Tariffs',
+        explanation: 'Additional tariffs matching what other countries charge on US goods. Part of the "fair and reciprocal trade" policy. Rates vary by country.',
+    },
+    'IEEPA Reciprocal Tariff': {
+        fullName: 'International Emergency Economic Powers Act - Reciprocal Tariffs',
+        explanation: 'Additional tariffs matching what other countries charge on US goods. Part of the "fair and reciprocal trade" policy. Rates vary by country.',
+    },
+    'Chapter 99': {
+        fullName: 'HTS Chapter 99 - Temporary Legislation',
+        explanation: 'Special chapter for temporary duty modifications. Important: These codes ADD to your base rate - they don\'t replace it! Always check which Chapter 99 provisions apply.',
+    },
+
+    // Other Important Terms
+    'AD/CVD': {
+        fullName: 'Anti-Dumping / Countervailing Duties',
+        explanation: 'Extra duties on specific products from specific companies/countries when they\'re sold below fair value (dumping) or unfairly subsidized. Rates can be 100%+ on top of normal duties.',
+    },
+    'FTZ': {
+        fullName: 'Foreign Trade Zone',
+        explanation: 'Special areas in the US where goods can be stored, manufactured, or assembled with delayed or reduced duty payments. Can save money on re-exported goods.',
+    },
+    'Drawback': {
+        fullName: 'Duty Drawback',
+        explanation: 'A refund of up to 99% of duties paid on imported goods that are later exported. Great for companies that import components and export finished products.',
+    },
+    'De Minimis': {
+        fullName: 'De Minimis Threshold',
+        explanation: 'Shipments valued under a certain amount ($800 for most countries) enter duty-free. Note: Some countries and product categories are excluded from de minimis.',
     },
 };
 
-// Tooltip for program codes
+// Get tooltip for any program - checks glossary first, then provides fallback
 const getProgramTooltip = (program: string): string => {
-    const tooltips: Record<string, string> = {
-        'GSP': 'Generalized System of Preferences - reduced rates for developing countries',
-        'USMCA (Canada)': 'US-Mexico-Canada Agreement - free trade with Canada',
-        'USMCA (Mexico)': 'US-Mexico-Canada Agreement - free trade with Mexico',
-        'Australia FTA': 'US-Australia Free Trade Agreement',
-        'Korea FTA': 'US-Korea Free Trade Agreement (KORUS)',
-        'Israel FTA': 'US-Israel Free Trade Agreement',
-        'Chile FTA': 'US-Chile Free Trade Agreement',
-        'Singapore FTA': 'US-Singapore Free Trade Agreement',
-        'Colombia TPA': 'US-Colombia Trade Promotion Agreement',
-        'Peru TPA': 'US-Peru Trade Promotion Agreement',
-        'Panama TPA': 'US-Panama Trade Promotion Agreement',
-    };
-    return tooltips[program] || `Trade preference program: ${program}`;
+    const entry = TRADE_GLOSSARY[program];
+    if (entry) {
+        return `${entry.fullName} - ${entry.explanation}`;
+    }
+    // Fallback for unknown programs
+    return `Trade preference program: ${program}`;
 };
 
 interface ClassificationResultDisplayProps {
@@ -61,6 +161,27 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
     onSelectAlternative
 }) => {
     const [copiedField, setCopiedField] = useState<string | null>(null);
+    // Track selected conditional HTS code - if user selects one from the conditional card
+    const [selectedConditionalCode, setSelectedConditionalCode] = useState<{
+        code: string;
+        description: string;
+    } | null>(null);
+
+    // Get the currently active HTS code (either selected conditional or original)
+    const activeHtsCode = selectedConditionalCode?.code || result.htsCode.code;
+    const activeHtsDescription = selectedConditionalCode?.description || result.htsCode.description;
+
+    // Stable callback for conditional code selection (prevents infinite loops)
+    const handleConditionalCodeSelect = useCallback((code: string, conditions: { htsCode: string; description: string }[]) => {
+        const matchingCond = conditions.find(c => c.htsCode === code);
+        if (matchingCond) {
+            setSelectedConditionalCode({
+                code: code,
+                description: matchingCond.description,
+            });
+            message.success(`Updated to HTS Code ${code}`);
+        }
+    }, []);
 
     const copyToClipboard = async (text: string, field: string) => {
         await navigator.clipboard.writeText(text);
@@ -93,47 +214,60 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
         return 'Low Confidence - Review Recommended';
     };
 
-    // Help icon component for tooltips
-    const HelpIcon = ({ tooltip }: { tooltip: { term: string; explanation: string } }) => (
-        <Tooltip
-            title={
-                <div className="p-1">
-                    <div className="font-semibold mb-1">{tooltip.term}</div>
-                    <div className="text-xs opacity-90">{tooltip.explanation}</div>
-                </div>
-            }
-            overlayInnerStyle={{ maxWidth: 280 }}
-        >
-            <HelpCircle size={14} className="text-slate-400 hover:text-teal-600 cursor-help ml-1" />
-        </Tooltip>
-    );
+    // Help icon component for tooltips - uses TRADE_GLOSSARY or custom tooltip
+    const HelpIcon = ({ term, customTooltip }: { term?: string; customTooltip?: { term: string; explanation: string } }) => {
+        const glossaryEntry = term ? TRADE_GLOSSARY[term] : null;
+        const tooltip = customTooltip || (glossaryEntry ? {
+            term: glossaryEntry.fullName,
+            explanation: glossaryEntry.explanation
+        } : { term: term || 'Unknown', explanation: 'No description available' });
+
+        return (
+            <Tooltip
+                title={
+                    <div className="p-2">
+                        <div className="font-semibold mb-1 text-sm">{tooltip.term}</div>
+                        <div className="text-xs opacity-90 leading-relaxed">{tooltip.explanation}</div>
+                    </div>
+                }
+                overlayInnerStyle={{ maxWidth: 320 }}
+            >
+                <HelpCircle size={14} className="text-slate-400 hover:text-teal-600 cursor-help ml-1" />
+            </Tooltip>
+        );
+    };
 
     return (
-        <div className="space-y-5">
+        <div className="flex flex-col gap-5">
             {/* Main Result Card */}
-            <Card className="border border-slate-200 shadow-sm">
+            <Card className={`border shadow-sm ${selectedConditionalCode ? 'border-green-300 ring-2 ring-green-100' : 'border-slate-200'}`}>
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 p-2">
                     {/* HTS Code Display */}
                     <div className="flex-1">
-                        <Text className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
-                            HTS Classification
-                        </Text>
+                        <div className="flex items-center gap-2">
+                            <Text className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                                HTS Classification
+                            </Text>
+                            {selectedConditionalCode && (
+                                <Tag color="green" className="text-xs">✓ Updated</Tag>
+                            )}
+                        </div>
                         <div className="flex items-center gap-3 mt-3">
-                            <Title level={2} className="m-0 font-mono text-slate-900 tracking-tight">
-                                {result.htsCode.code}
+                            <Title level={2} className={`m-0 font-mono tracking-tight ${selectedConditionalCode ? 'text-green-700' : 'text-slate-900'}`}>
+                                {activeHtsCode}
                             </Title>
                             <Tooltip title={copiedField === 'hts' ? 'Copied!' : 'Copy HTS Code'}>
                                 <Button
                                     type="text"
                                     size="small"
                                     icon={copiedField === 'hts' ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
-                                    onClick={() => copyToClipboard(result.htsCode.code, 'hts')}
+                                    onClick={() => copyToClipboard(activeHtsCode, 'hts')}
                                     className="text-slate-400 hover:text-teal-600"
                                 />
                             </Tooltip>
                         </div>
                         <Paragraph className="text-slate-600 mt-3 mb-0 text-base leading-relaxed">
-                            {result.htsCode.description}
+                            {activeHtsDescription}
                         </Paragraph>
                         <div className="flex flex-wrap gap-2 mt-4">
                             <Tag color="blue" className="px-3 py-1">Chapter {result.htsCode.chapter}</Tag>
@@ -181,7 +315,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                     <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200">
                         <div className="flex items-center">
                             <Text className="text-slate-600 text-sm font-medium">General Rate (MFN)</Text>
-                            <HelpIcon tooltip={TRADE_TERM_TOOLTIPS.mfn} />
+                            <HelpIcon term="General Rate (MFN)" />
                         </div>
                         <Title level={2} className="m-0 mt-2 text-teal-600">{result.dutyRate.generalRate}</Title>
                     </div>
@@ -191,7 +325,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                         <div className="bg-gradient-to-br from-red-50 to-red-100 p-5 rounded-xl border border-red-200">
                             <div className="flex items-center">
                                 <Text className="text-slate-600 text-sm font-medium">Column 2 Rate</Text>
-                                <HelpIcon tooltip={TRADE_TERM_TOOLTIPS.column2} />
+                                <HelpIcon term="Column 2 Rate" />
                             </div>
                             <Title level={2} className="m-0 mt-2 text-red-500">{result.dutyRate.column2Rate}</Title>
                         </div>
@@ -201,7 +335,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                     <div className="bg-gradient-to-br from-green-50 to-emerald-100 p-5 rounded-xl border border-green-200">
                         <div className="flex items-center mb-3">
                             <Text className="text-slate-600 text-sm font-medium">Special Programs</Text>
-                            <HelpIcon tooltip={TRADE_TERM_TOOLTIPS.specialPrograms} />
+                            <HelpIcon term="Special Programs" />
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {result.dutyRate.specialPrograms && result.dutyRate.specialPrograms.length > 0 ? (
@@ -220,6 +354,19 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 </div>
             </Card>
 
+            {/* CONDITIONAL CLASSIFICATION - When HTS varies by price/weight/etc */}
+            {result.conditionalClassifications && result.conditionalClassifications.length > 0 && (
+                <>
+                    {result.conditionalClassifications.map((conditional, idx) => (
+                        <ConditionalClassificationCard
+                            key={idx}
+                            conditional={conditional}
+                            onSelectCode={(code) => handleConditionalCodeSelect(code, conditional.conditions)}
+                        />
+                    ))}
+                </>
+            )}
+
             {/* EFFECTIVE DUTY BREAKDOWN - Shows all tariff layers */}
             {result.effectiveTariff && result.effectiveTariff.additionalDuties.length > 0 && (
                 <Card className="border-2 border-amber-200 shadow-sm bg-gradient-to-br from-amber-50 to-orange-50">
@@ -237,14 +384,17 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                         </Tag>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-3">
                         {/* Base MFN Rate Row */}
-                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+                        <div className={`flex items-center justify-between p-3 bg-white rounded-lg border ${selectedConditionalCode ? 'border-green-300 ring-2 ring-green-100' : 'border-slate-200'}`}>
                             <div className="flex items-center gap-3">
-                                <Tag color="blue" className="font-mono text-xs">{result.htsCode.code}</Tag>
+                                <Tag color={selectedConditionalCode ? 'green' : 'blue'} className="font-mono text-xs">{activeHtsCode}</Tag>
                                 <div>
                                     <Text strong className="text-slate-800">Base MFN Rate</Text>
                                     <Text className="text-slate-500 text-xs block">Standard import duty</Text>
+                                    {selectedConditionalCode && (
+                                        <Text className="text-green-600 text-xs block mt-1">✓ Updated based on your unit value</Text>
+                                    )}
                                 </div>
                             </div>
                             <Text strong className="text-lg text-teal-600">{result.effectiveTariff.baseMfnRate.rate}</Text>
