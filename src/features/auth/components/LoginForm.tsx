@@ -1,37 +1,99 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Form, Input, Button, Checkbox, message, Divider } from 'antd';
+import { Form, Input, Button, Checkbox, message, Divider, Tabs } from 'antd';
 import { User, Lock, ArrowRight, Github } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
 
 export const LoginForm: React.FC = () => {
     const [loading, setLoading] = useState(false);
+    const [mode, setMode] = useState<'signin' | 'signup'>('signin');
     const router = useRouter();
+    const [form] = Form.useForm();
 
-    const onFinish = async (values: { email: string; password: string }) => {
+    const onFinish = async (values: any) => {
         setLoading(true);
-        // Mock login delay
-        console.log('Login values:', values);
-        setTimeout(() => {
+        try {
+            if (mode === 'signup') {
+                const { data, error } = await authClient.signUp.email({
+                    email: values.email,
+                    password: values.password,
+                    name: values.name || values.email.split('@')[0],
+                });
+
+                console.log('Sign-up response:', { data, error });
+
+                if (error) {
+                    console.error('Sign-up error details:', error);
+                    message.error(error.message || 'Failed to create account');
+                    return;
+                }
+
+                message.success('Account created! You are now signed in.');
+                router.push('/dashboard');
+            } else {
+                const { data, error } = await authClient.signIn.email({
+                    email: values.email,
+                    password: values.password,
+                });
+
+                if (error) {
+                    message.error(error.message || 'Invalid credentials');
+                    return;
+                }
+
+                message.success('Welcome back to Sourcify');
+                router.push('/dashboard');
+            }
+        } catch (err) {
+            message.error('An unexpected error occurred');
+            console.error(err);
+        } finally {
             setLoading(false);
-            message.success('Welcome back to Sourcify');
-            router.push('/onboarding'); // Redirect to isolated onboarding flow
-        }, 1500);
+        }
     };
 
     return (
         <div className="w-full">
+            <Tabs
+                activeKey={mode}
+                onChange={(key) => setMode(key as 'signin' | 'signup')}
+                centered
+                items={[
+                    { key: 'signin', label: 'Sign In' },
+                    { key: 'signup', label: 'Create Account' },
+                ]}
+                className="mb-6"
+            />
+
             <Form
-                name="login"
+                form={form}
+                name="auth_form"
                 initialValues={{ remember: true }}
                 onFinish={onFinish}
                 layout="vertical"
                 size="large"
             >
+                {mode === 'signup' && (
+                    <Form.Item
+                        name="name"
+                        rules={[{ required: true, message: 'Please input your name!' }]}
+                    >
+                        <Input
+                            prefix={<User size={18} className="text-slate-400" />}
+                            placeholder="Full Name"
+                            className="rounded-lg"
+                        />
+                    </Form.Item>
+                )}
+
                 <Form.Item
                     name="email"
-                    rules={[{ required: true, message: 'Please input your email!' }]}
+                    rules={[
+                        { required: true, message: 'Please input your email!' },
+                        { type: 'email', message: 'Please enter a valid email!' }
+                    ]}
                 >
                     <Input
                         prefix={<User size={18} className="text-slate-400" />}
@@ -51,16 +113,18 @@ export const LoginForm: React.FC = () => {
                     />
                 </Form.Item>
 
-                <Form.Item>
-                    <div className="flex justify-between items-center">
-                        <Form.Item name="remember" valuePropName="checked" noStyle>
-                            <Checkbox>Remember me</Checkbox>
-                        </Form.Item>
-                        <a href="#" className="text-teal-600 hover:text-teal-700 font-medium text-sm">
-                            Forgot password?
-                        </a>
-                    </div>
-                </Form.Item>
+                {mode === 'signin' && (
+                    <Form.Item>
+                        <div className="flex justify-between items-center">
+                            <Form.Item name="remember" valuePropName="checked" noStyle>
+                                <Checkbox>Remember me</Checkbox>
+                            </Form.Item>
+                            <a href="#" className="text-teal-600 hover:text-teal-700 font-medium text-sm">
+                                Forgot password?
+                            </a>
+                        </div>
+                    </Form.Item>
+                )}
 
                 <Form.Item>
                     <Button
@@ -71,7 +135,7 @@ export const LoginForm: React.FC = () => {
                         icon={<ArrowRight size={18} />}
                         className="h-12 bg-teal-600 hover:bg-teal-500 border-none shadow-lg shadow-teal-600/30 font-medium text-base"
                     >
-                        Sign In
+                        {mode === 'signin' ? 'Sign In' : 'Create Account'}
                     </Button>
                 </Form.Item>
             </Form>

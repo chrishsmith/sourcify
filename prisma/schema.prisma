@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified Boolean?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  products      Product[]
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id           String    @id @default(cuid())
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  password     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model Product {
+  id                  String   @id @default(cuid())
+  userId              String
+  name                String
+  description         String
+  sku                 String?
+  countryOfOrigin     String?
+  materialComposition String?
+  intendedUse         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  user            User @relation(fields: [userId], references: [id])
+  classifications Classification[]
+
+  @@map("product")
+}
+
+model Classification {
+  id           String   @id @default(cuid())
+  productId    String
+  
+  htsCode      String
+  confidence   Float
+  
+  // Stored as JSONB because the structures are complex and variable
+  dutyRate     Json
+  rulings      Json
+  rationale    String   @db.Text
+  
+  status       ClassificationStatus @default(PENDING)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product      Product @relation(fields: [productId], references: [id])
+
+  @@map("classification")
+}
+
+enum ClassificationStatus {
+  PENDING
+  COMPLETED
+  REVIEW_NEEDED
+}
+
+model Supplier {
+  id                 String   @id @default(cuid())
+  name               String
+  website            String?
+  verificationStatus Boolean  @default(false)
+  capabilities       String[] // PostgreSQL Array
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("supplier")
+}
