@@ -63,8 +63,9 @@ export interface ClassificationResult {
     createdAt: Date;
     // Effective tariff breakdown (includes all additional duties)
     effectiveTariff?: import('./tariffLayers.types').EffectiveTariffRate;
-    // For price/weight-dependent classifications
     conditionalClassifications?: ConditionalClassification[];
+    // Hierarchical path (e.g., "Plastics > Articles of Plastic > Other")
+    humanReadablePath?: string;
 }
 
 export interface ClassificationHistoryItem {
@@ -75,4 +76,12 @@ export interface ClassificationHistoryItem {
     dutyRate: string;
     status: 'completed' | 'pending' | 'needs_review';
     createdAt: Date;
+}
+
+export interface USITCCandidate {
+    htsno: string;
+    description: string;
+    general: string;
+    special: string;
+    other: string;
 }

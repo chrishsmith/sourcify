@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Select, Typography, Steps, message } from 'antd';
+import { Form, Input, Button, Card, Select, Typography, Steps, message, App } from 'antd';
 import { Sparkles, Globe, Package, Wrench, Search, CheckCircle, Database, Loader2 } from 'lucide-react';
 import { ClassificationResultDisplay } from './ClassificationResult';
 import { saveClassification } from '@/services/classificationHistory';
@@ -30,14 +30,15 @@ const COUNTRIES = [
 
 // Loading steps for progress indicator
 const LOADING_STEPS = [
-    { title: 'Analyzing Product', description: 'Understanding your product details' },
-    { title: 'AI Classification', description: 'Consulting Grok for HTS code' },
-    { title: 'USITC Validation', description: 'Verifying against official database' },
+    { title: 'USITC Search', description: 'Finding verified HTS candidates' },
+    { title: 'AI Selection', description: 'Identifying the best HTS match' },
+    { title: 'Rate Calculation', description: 'Calculating taxes and additional duties' },
     { title: 'Complete', description: 'Classification ready' },
 ];
 
 export const ClassificationForm: React.FC = () => {
     const [form] = Form.useForm();
+    const [messageApi, contextHolder] = message.useMessage();
     const [loading, setLoading] = useState(false);
     const [loadingStep, setLoadingStep] = useState(0);
     const [result, setResult] = useState<ClassificationResult | null>(null);
@@ -104,10 +105,10 @@ export const ClassificationForm: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 500));
 
             setResult(classificationResult);
-            message.success('Classification complete!');
+            messageApi.success('Classification complete!');
         } catch (error) {
             console.error('Classification failed:', error);
-            message.error('Classification failed. Please try again.');
+            messageApi.error('Classification failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -120,13 +121,19 @@ export const ClassificationForm: React.FC = () => {
 
     // Show result if we have one
     if (result) {
-        return <ClassificationResultDisplay result={result} onNewClassification={handleNewClassification} />;
+        return (
+            <>
+                {contextHolder}
+                <ClassificationResultDisplay result={result} onNewClassification={handleNewClassification} />
+            </>
+        );
     }
 
     // Loading state with steps
     if (loading) {
         return (
             <div className="max-w-2xl mx-auto">
+                {contextHolder}
                 <Card className="border border-slate-200 shadow-sm">
                     <div className="py-8 px-4">
                         <div className="text-center mb-8">
@@ -164,6 +171,7 @@ export const ClassificationForm: React.FC = () => {
 
     return (
         <div className="max-w-3xl">
+            {contextHolder}
             <Card className="border border-slate-200 shadow-sm">
                 <div className="mb-6">
                     <Title level={4} className="m-0 text-slate-900">Product Details</Title>
@@ -230,7 +238,7 @@ export const ClassificationForm: React.FC = () => {
                     </Form.Item>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {/* Country of Origin */}
+                        {/* Country of Origin - REQUIRED for accurate tariff calculation */}
                         <Form.Item
                             label={
                                 <span className="flex items-center gap-2 text-slate-700 font-medium">
@@ -239,6 +247,10 @@ export const ClassificationForm: React.FC = () => {
                                 </span>
                             }
                             name="countryOfOrigin"
+                            rules={[
+                                { required: true, message: 'Required for accurate tariff calculation' }
+                            ]}
+                            tooltip="We need this to calculate all applicable tariffs including Section 301, IEEPA, and trade agreements"
                         >
                             <Select
                                 placeholder="Select country"
@@ -247,7 +259,6 @@ export const ClassificationForm: React.FC = () => {
                                 filterOption={(input, option) =>
                                     (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                                 }
-                                allowClear
                                 size="large"
                             />
                         </Form.Item>

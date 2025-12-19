@@ -149,6 +149,28 @@ const getProgramTooltip = (program: string): string => {
     return `Trade preference program: ${program}`;
 };
 
+// Get country flag emoji from country code
+const getCountryFlag = (code: string | undefined): string => {
+    const flags: Record<string, string> = {
+        'CN': '🇨🇳', 'MX': '🇲🇽', 'CA': '🇨🇦', 'DE': '🇩🇪', 'JP': '🇯🇵',
+        'KR': '🇰🇷', 'VN': '🇻🇳', 'IN': '🇮🇳', 'TW': '🇹🇼', 'TH': '🇹🇭',
+        'GB': '🇬🇧', 'IT': '🇮🇹', 'FR': '🇫🇷', 'HK': '🇭🇰', 'BR': '🇧🇷',
+        'RU': '🇷🇺', 'TR': '🇹🇷', 'ID': '🇮🇩', 'MY': '🇲🇾', 'PH': '🇵🇭',
+    };
+    return flags[code || ''] || '🌍';
+};
+
+// Get country name from country code
+const getCountryName = (code: string | undefined): string => {
+    const names: Record<string, string> = {
+        'CN': 'China', 'MX': 'Mexico', 'CA': 'Canada', 'DE': 'Germany', 'JP': 'Japan',
+        'KR': 'South Korea', 'VN': 'Vietnam', 'IN': 'India', 'TW': 'Taiwan', 'TH': 'Thailand',
+        'GB': 'United Kingdom', 'IT': 'Italy', 'FR': 'France', 'HK': 'Hong Kong', 'BR': 'Brazil',
+        'RU': 'Russia', 'TR': 'Turkey', 'ID': 'Indonesia', 'MY': 'Malaysia', 'PH': 'Philippines',
+    };
+    return names[code || ''] || code || 'Unknown';
+};
+
 interface ClassificationResultDisplayProps {
     result: ClassificationResult;
     onNewClassification: () => void;
@@ -266,6 +288,21 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                                 />
                             </Tooltip>
                         </div>
+
+                        {/* Human Readable Path */}
+                        {result.humanReadablePath && (
+                            <div className="mt-2 text-sm text-slate-500 font-medium flex items-center gap-1 flex-wrap">
+                                {result.humanReadablePath.split(' › ').map((part, i, arr) => (
+                                    <React.Fragment key={i}>
+                                        <span className={i === arr.length - 1 ? 'text-teal-700 font-semibold' : ''}>
+                                            {part}
+                                        </span>
+                                        {i < arr.length - 1 && <span className="text-slate-300">›</span>}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        )}
+
                         <Paragraph className="text-slate-600 mt-3 mb-0 text-base leading-relaxed">
                             {activeHtsDescription}
                         </Paragraph>
@@ -302,57 +339,168 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 </div>
             </Card>
 
-            {/* Duty Rate Card */}
-            <Card className="border border-slate-200 shadow-sm">
-                <Title level={5} className="m-0 mb-5 text-slate-900 flex items-center">
-                    Duty Rates
-                    <Tooltip title="These are the taxes you pay when importing this product into the US. Different rates apply depending on where your product comes from.">
-                        <HelpCircle size={14} className="text-slate-400 hover:text-teal-600 cursor-help ml-2" />
-                    </Tooltip>
-                </Title>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {/* General Rate */}
-                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200">
+            {/* HYPER-FOCUSED DUTY DISPLAY - Shows only applicable tariffs */}
+            {result.effectiveTariff ? (
+                // If we have effective tariff calculation, show the breakdown
+                <Card className="border-2 border-teal-200 shadow-sm bg-gradient-to-br from-teal-50/50 to-slate-50">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <Title level={5} className="m-0 text-slate-900">
+                                Your Effective Duty Rate
+                            </Title>
+                            <Tooltip title="This is the TOTAL duty you'll pay for this product from your origin country, including all applicable tariffs (base rate + Section 301 + IEEPA, etc.)">
+                                <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                            </Tooltip>
+                        </div>
+                        <div className="text-right">
+                            <Tag color="blue" className="text-lg px-4 py-1 font-bold">
+                                {result.effectiveTariff.effectiveRate.rate}
+                            </Tag>
+                        </div>
+                    </div>
+
+                    {/* Origin Country Context */}
+                    <div className="mb-4 p-3 bg-white rounded-lg border border-slate-200">
+                        <Text className="text-slate-600 text-sm">
+                            From <span className="font-semibold">{getCountryFlag(result.input.countryOfOrigin)} {getCountryName(result.input.countryOfOrigin)}</span> → <span className="font-semibold">🇺🇸 United States</span>
+                        </Text>
+                    </div>
+
+                    {/* Rate Breakdown */}
+                    <div className="flex flex-col gap-2">
+                        {/* Base MFN Rate */}
+                        <div className={`flex items-center justify-between p-3 bg-white rounded-lg border ${selectedConditionalCode ? 'border-green-300' : 'border-slate-200'}`}>
+                            <div className="flex items-center gap-3">
+                                <Tag color={selectedConditionalCode ? 'green' : 'blue'} className="font-mono text-xs">{activeHtsCode}</Tag>
+                                <div>
+                                    <Text strong className="text-slate-800">Base Rate (MFN)</Text>
+                                    {selectedConditionalCode && (
+                                        <Text className="text-green-600 text-xs block">✓ Updated for your product</Text>
+                                    )}
+                                </div>
+                            </div>
+                            <Text strong className="text-teal-600">{result.effectiveTariff.baseMfnRate.rate}</Text>
+                        </div>
+
+                        {/* Additional Duties (only if applicable) */}
+                        {result.effectiveTariff.additionalDuties.map((duty, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                <div className="flex items-center gap-3">
+                                    <Tag color="orange" className="font-mono text-xs">{duty.htsCode}</Tag>
+                                    <div>
+                                        <Tooltip title={duty.description}>
+                                            <Text strong className="text-slate-800 cursor-help">{duty.programName}</Text>
+                                        </Tooltip>
+                                        <Text className="text-slate-500 text-xs block">{duty.authority}</Text>
+                                    </div>
+                                </div>
+                                <Text strong className="text-amber-600">+{duty.rate.rate}</Text>
+                            </div>
+                        ))}
+
+                        {/* Total Row */}
+                        {result.effectiveTariff.additionalDuties.length > 0 && (
+                            <div className="flex items-center justify-between p-4 bg-teal-100 rounded-lg border-2 border-teal-300 mt-2">
+                                <div>
+                                    <Text strong className="text-slate-900 text-lg">TOTAL EFFECTIVE RATE</Text>
+                                </div>
+                                <Title level={3} className="m-0 text-teal-700">
+                                    {result.effectiveTariff.effectiveRate.rate}
+                                </Title>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div className="mt-4 p-3 bg-white/50 rounded-lg">
+                        <Text className="text-xs text-slate-500 italic">
+                            {result.effectiveTariff.disclaimer}
+                        </Text>
+                    </div>
+                </Card>
+            ) : (
+                // Fallback: Simple MFN rate display when no effective tariff calculated
+                <Card className="border border-slate-200 shadow-sm">
+                    <Title level={5} className="m-0 mb-5 text-slate-900 flex items-center">
+                        Duty Rate
+                        <Tooltip title="The standard import duty for this product.">
+                            <HelpCircle size={14} className="text-slate-400 hover:text-teal-600 cursor-help ml-2" />
+                        </Tooltip>
+                    </Title>
+                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 p-6 rounded-xl border border-teal-200">
                         <div className="flex items-center">
-                            <Text className="text-slate-600 text-sm font-medium">General Rate (MFN)</Text>
+                            <Text className="text-slate-600 text-sm font-medium">Base Rate (MFN)</Text>
                             <HelpIcon term="General Rate (MFN)" />
                         </div>
                         <Title level={2} className="m-0 mt-2 text-teal-600">{result.dutyRate.generalRate}</Title>
+                        {result.input.countryOfOrigin && (
+                            <Text className="text-slate-500 text-sm mt-2 block">
+                                Additional duties may apply based on origin country. Contact support for detailed analysis.
+                            </Text>
+                        )}
                     </div>
+                </Card>
+            )}
 
-                    {/* Column 2 Rate */}
-                    {result.dutyRate.column2Rate && (
-                        <div className="bg-gradient-to-br from-red-50 to-red-100 p-5 rounded-xl border border-red-200">
-                            <div className="flex items-center">
-                                <Text className="text-slate-600 text-sm font-medium">Column 2 Rate</Text>
-                                <HelpIcon term="Column 2 Rate" />
-                            </div>
-                            <Title level={2} className="m-0 mt-2 text-red-500">{result.dutyRate.column2Rate}</Title>
+            {/* AD/CVD WARNING - Shows only when applicable */}
+            {result.effectiveTariff?.adcvdWarning && (
+                <Alert
+                    type={result.effectiveTariff.adcvdWarning.isCountryAffected ? 'error' : 'warning'}
+                    showIcon
+                    icon={<AlertTriangle size={20} />}
+                    message={
+                        <span className="font-semibold">
+                            {result.effectiveTariff.adcvdWarning.isCountryAffected
+                                ? '⚠️ AD/CVD Orders May Apply'
+                                : '📋 AD/CVD Notice'}
+                        </span>
+                    }
+                    description={
+                        <div>
+                            <p className="mb-2">{result.effectiveTariff.adcvdWarning.message}</p>
+                            <a
+                                href={result.effectiveTariff.adcvdWarning.lookupUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                                Check AD/CVD Orders <ExternalLink size={14} />
+                            </a>
                         </div>
-                    )}
+                    }
+                    className="border"
+                />
+            )}
 
-                    {/* Special Programs */}
-                    <div className="bg-gradient-to-br from-green-50 to-emerald-100 p-5 rounded-xl border border-green-200">
-                        <div className="flex items-center mb-3">
-                            <Text className="text-slate-600 text-sm font-medium">Special Programs</Text>
-                            <HelpIcon term="Special Programs" />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {result.dutyRate.specialPrograms && result.dutyRate.specialPrograms.length > 0 ? (
-                                result.dutyRate.specialPrograms.map((prog, idx) => (
-                                    <Tooltip key={idx} title={getProgramTooltip(prog.program)}>
-                                        <Tag color="green" className="px-3 py-1 cursor-help text-sm">
-                                            {prog.program}: {prog.rate}
-                                        </Tag>
-                                    </Tooltip>
-                                ))
-                            ) : (
-                                <Text className="text-slate-500 text-sm">No special programs available</Text>
-                            )}
-                        </div>
+            {/* ALTERNATIVE SOURCING TEASER */}
+            {result.effectiveTariff && result.effectiveTariff.additionalDuties.length > 0 && (
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">💡</span>
+                        <Text strong className="text-indigo-900">Explore Sourcing Alternatives</Text>
                     </div>
+                    <div className="flex flex-wrap gap-3 mb-3">
+                        {result.input.countryOfOrigin !== 'VN' && (
+                            <Tag color="purple" className="px-3 py-1">
+                                🇻🇳 Vietnam: ~{result.dutyRate.generalRate}
+                            </Tag>
+                        )}
+                        {result.input.countryOfOrigin !== 'MX' && (
+                            <Tag color="green" className="px-3 py-1">
+                                🇲🇽 Mexico (USMCA): Free*
+                            </Tag>
+                        )}
+                        {result.input.countryOfOrigin !== 'IN' && (
+                            <Tag color="blue" className="px-3 py-1">
+                                🇮🇳 India: ~{result.dutyRate.generalRate}
+                            </Tag>
+                        )}
+                    </div>
+                    <Text className="text-indigo-700 text-xs">
+                        *Subject to USMCA rules of origin requirements. Full sourcing analysis coming soon.
+                    </Text>
                 </div>
-            </Card>
+            )}
 
             {/* CONDITIONAL CLASSIFICATION - When HTS varies by price/weight/etc */}
             {result.conditionalClassifications && result.conditionalClassifications.length > 0 && (
@@ -367,80 +515,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 </>
             )}
 
-            {/* EFFECTIVE DUTY BREAKDOWN - Shows all tariff layers */}
-            {result.effectiveTariff && result.effectiveTariff.additionalDuties.length > 0 && (
-                <Card className="border-2 border-amber-200 shadow-sm bg-gradient-to-br from-amber-50 to-orange-50">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <Title level={5} className="m-0 text-slate-900">
-                                ⚠️ Effective Duty Breakdown
-                            </Title>
-                            <Tooltip title="This shows TOTAL duties you'll pay, including the base rate plus all additional tariffs from trade policies (Section 301, IEEPA, etc.)">
-                                <HelpCircle size={14} className="text-slate-400 cursor-help" />
-                            </Tooltip>
-                        </div>
-                        <Tag color="orange" className="text-lg px-4 py-1 font-bold">
-                            TOTAL: {result.effectiveTariff.effectiveRate.rate}
-                        </Tag>
-                    </div>
 
-                    <div className="flex flex-col gap-3">
-                        {/* Base MFN Rate Row */}
-                        <div className={`flex items-center justify-between p-3 bg-white rounded-lg border ${selectedConditionalCode ? 'border-green-300 ring-2 ring-green-100' : 'border-slate-200'}`}>
-                            <div className="flex items-center gap-3">
-                                <Tag color={selectedConditionalCode ? 'green' : 'blue'} className="font-mono text-xs">{activeHtsCode}</Tag>
-                                <div>
-                                    <Text strong className="text-slate-800">Base MFN Rate</Text>
-                                    <Text className="text-slate-500 text-xs block">Standard import duty</Text>
-                                    {selectedConditionalCode && (
-                                        <Text className="text-green-600 text-xs block mt-1">✓ Updated based on your unit value</Text>
-                                    )}
-                                </div>
-                            </div>
-                            <Text strong className="text-lg text-teal-600">{result.effectiveTariff.baseMfnRate.rate}</Text>
-                        </div>
-
-                        {/* Additional Duty Rows */}
-                        {result.effectiveTariff.additionalDuties.map((duty, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-200">
-                                <div className="flex items-center gap-3">
-                                    <Tag color="orange" className="font-mono text-xs">{duty.htsCode}</Tag>
-                                    <div>
-                                        <Tooltip title={duty.description}>
-                                            <Text strong className="text-slate-800 cursor-help">{duty.programName}</Text>
-                                        </Tooltip>
-                                        <Text className="text-slate-500 text-xs block">{duty.authority}</Text>
-                                    </div>
-                                </div>
-                                <Text strong className="text-lg text-amber-600">+{duty.rate.rate}</Text>
-                            </div>
-                        ))}
-
-                        {/* Total Row */}
-                        <div className="flex items-center justify-between p-4 bg-amber-100 rounded-lg border-2 border-amber-300 mt-3">
-                            <div>
-                                <Text strong className="text-slate-900 text-lg">EFFECTIVE TOTAL RATE</Text>
-                                <Text className="text-slate-600 text-sm block">
-                                    From {result.input.countryOfOrigin || 'origin country'} → USA
-                                </Text>
-                            </div>
-                            <Title level={3} className="m-0 text-amber-700">
-                                {result.effectiveTariff.effectiveRate.rate}
-                            </Title>
-                        </div>
-                    </div>
-
-                    {/* Disclaimer */}
-                    <div className="mt-4 p-3 bg-white/50 rounded-lg">
-                        <Text className="text-xs text-slate-500 italic">
-                            {result.effectiveTariff.disclaimer}
-                        </Text>
-                        <Text className="text-xs text-slate-400 block mt-1">
-                            Data freshness: {result.effectiveTariff.dataFreshness}
-                        </Text>
-                    </div>
-                </Card>
-            )}
 
             {/* Warnings/Compliance Notes */}
             {result.warnings && result.warnings.length > 0 && (
@@ -571,6 +646,7 @@ function generateTextReport(result: ClassificationResult): string {
         '',
         '─── HTS CODE ───────────────────────────────────────────────',
         `Code: ${result.htsCode.code}`,
+        result.humanReadablePath ? `Path: ${result.humanReadablePath}` : undefined,
         `Description: ${result.htsCode.description}`,
         `Chapter: ${result.htsCode.chapter}`,
         `Heading: ${result.htsCode.heading}`,

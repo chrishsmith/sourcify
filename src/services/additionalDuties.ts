@@ -10,6 +10,7 @@ import type {
     TariffExclusion
 } from '@/types/tariffLayers.types';
 import { findSection301Lists, getSection301Rate } from '@/data/section301Lists';
+import { checkADCVDWarning } from '@/data/adcvdOrders';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COUNTRY-SPECIFIC TARIFF PROFILES
@@ -177,6 +178,9 @@ export function calculateEffectiveTariff(
         // For now, we show both scenarios
     }
 
+    // 4. Check for AD/CVD warnings
+    const adcvdCheck = checkADCVDWarning(htsCode, countryOfOrigin);
+
     // Calculate effective rate
     const effectiveRate: TariffRate = {
         rate: `${totalAdValorem}%`,
@@ -205,6 +209,7 @@ export function calculateEffectiveTariff(
         totalAdValorem,
         estimatedDutyForValue: estimatedDuty,
         exclusions,
+        adcvdWarning: adcvdCheck.hasWarning ? adcvdCheck.warning : undefined,
         calculatedAt: new Date(),
         dataFreshness: `As of ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
         disclaimer: 'These tariff rates are provided for informational purposes only. Actual duties may vary based on product classification, country of origin determination, and current regulations. Always verify with a licensed customs broker or CBP.',

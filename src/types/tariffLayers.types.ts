@@ -25,6 +25,15 @@ export interface EffectiveTariffRate {
     // Applicable exclusions
     exclusions: TariffExclusion[];
 
+    // AD/CVD warning (if applicable)
+    adcvdWarning?: {
+        productCategory: string;
+        message: string;
+        affectedCountries: string[];
+        lookupUrl: string;
+        isCountryAffected: boolean;
+    };
+
     // Metadata
     calculatedAt: Date;
     dataFreshness: string;       // e.g., "As of December 2024"

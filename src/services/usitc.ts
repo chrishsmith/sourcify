@@ -29,7 +29,7 @@ const HTS_API_BASE = 'https://hts.usitc.gov/reststop';
 export async function searchHTSCodes(query: string): Promise<HTSSearchResult[]> {
     try {
         const response = await fetch(
-            `${HTS_API_BASE}/search?query=${encodeURIComponent(query)}`,
+            `${HTS_API_BASE}/search?keyword=${encodeURIComponent(query)}`,
             {
                 method: 'GET',
                 headers: {
@@ -52,15 +52,16 @@ export async function searchHTSCodes(query: string): Promise<HTSSearchResult[]> 
 
 /**
  * Validate an HTS code exists and get official data
+ * If the exact code doesn't exist, searches for valid codes with the same base
  */
 export async function validateHTSCode(htsCode: string): Promise<HTSValidationResult> {
     try {
         // Clean the code (remove dots for search)
         const cleanCode = htsCode.replace(/\./g, '');
 
-        // Search for the exact code
+        // First, try exact code search
         const response = await fetch(
-            `${HTS_API_BASE}/search?query=${cleanCode}`,
+            `${HTS_API_BASE}/search?keyword=${cleanCode}`,
             {
                 method: 'GET',
                 headers: {
@@ -91,7 +92,74 @@ export async function validateHTSCode(htsCode: string): Promise<HTSValidationRes
             };
         }
 
-        // If no exact match, return suggestions
+        // No exact match - search by base code (first 8 digits without dots)
+        // This finds all valid statistical suffixes for the heading
+        const baseCode = cleanCode.substring(0, 8); // e.g., "39269099" from "3926909985"
+
+        console.log('[USITC] No exact match for', htsCode, '- searching base code:', baseCode);
+
+        const baseResponse = await fetch(
+            `${HTS_API_BASE}/search?keyword=${baseCode}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                },
+            }
+        );
+
+        if (baseResponse.ok) {
+            const baseResults: HTSSearchResult[] = await baseResponse.json();
+
+            // Find codes that match the base (same first 8 digits)
+            const matchingCodes = baseResults.filter(r => {
+                const code = r.htsno.replace(/\./g, '');
+                return code.startsWith(baseCode) && code.length >= 10;
+            });
+
+            console.log('[USITC] Found', matchingCodes.length, 'valid codes with base', baseCode);
+
+            if (matchingCodes.length > 0) {
+                // Return suggestions - the first is likely the best match
+                return {
+                    isValid: false,
+                    suggestedCodes: matchingCodes.slice(0, 10),
+                    error: `Code ${htsCode} not found. Found ${matchingCodes.length} valid codes with same base.`,
+                };
+            }
+        }
+
+        // Still no match - try even shorter base (6 digits - subheading level)
+        const subheadingCode = cleanCode.substring(0, 6);
+        console.log('[USITC] Trying subheading search:', subheadingCode);
+
+        const subheadingResponse = await fetch(
+            `${HTS_API_BASE}/search?keyword=${subheadingCode}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                },
+            }
+        );
+
+        if (subheadingResponse.ok) {
+            const subheadingResults: HTSSearchResult[] = await subheadingResponse.json();
+            const validCodes = subheadingResults.filter(r => {
+                const code = r.htsno.replace(/\./g, '');
+                return code.length >= 10; // Only full 10-digit codes
+            });
+
+            if (validCodes.length > 0) {
+                return {
+                    isValid: false,
+                    suggestedCodes: validCodes.slice(0, 10),
+                    error: `Code ${htsCode} not found. Found valid codes in same subheading.`,
+                };
+            }
+        }
+
+        // Return what we have as suggestions
         return {
             isValid: false,
             suggestedCodes: results.slice(0, 5),
