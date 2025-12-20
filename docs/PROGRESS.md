@@ -25,6 +25,19 @@
 | 3.5 Dashboard Intelligence Summary Card | 🔲 Pending | Quick summary on main dashboard |
 | 3.6 Automated daily sync (cron) | 🔲 Deferred | Until go-live |
 
+### UI/UX Improvements (Completed Dec 20)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Classification Path - Hybrid Approach | ✅ Complete | Clean direct lineage with expandable siblings |
+| Remove Classification Rationale | ✅ Complete | Was undermining confidence; removed |
+
+**Details:**
+- New `ClassificationPath.tsx` component shows only direct path to HTS code by default
+- Users can expand to see sibling codes (alternatives) at each level on demand
+- Removed verbose AI rationale section - the 95% confidence badge says enough
+- Updated `htsHierarchy.ts` to properly track direct ancestors vs siblings
+
 ---
 
 ## 📋 Previous Sprint: Sprint 2 (Complete ✅)
@@ -129,6 +142,7 @@
 - [x] **Dec 19, 2024** - USITC DataWeb API integrated - REAL import data! 📊
 - [x] **Dec 20, 2025** - Country Tariff Registry LIVE - 199 countries, 7 data sources 🌍
 - [x] **Dec 20, 2025** - Tariff Alerts service migrated to registry ✅
+- [x] **Dec 20, 2025** - Classification Path UI redesigned - clean lineage + expandable siblings 🎨
 - [ ] Intelligence dashboard launched
 - [ ] Automated daily sync configured
 - [ ] First paying customer

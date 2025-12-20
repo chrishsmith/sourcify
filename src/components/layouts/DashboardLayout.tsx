@@ -6,7 +6,6 @@ import type { MenuProps } from 'antd';
 import {
     LayoutDashboard,
     ShieldCheck,
-    TrendingUp,
     Search,
     Settings,
     Bell,
@@ -39,11 +38,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             key: '/dashboard/classifications',
             icon: <ShieldCheck size={18} />,
             label: 'Classifications',
-        },
-        {
-            key: '/dashboard/monitoring',
-            icon: <TrendingUp size={18} />,
-            label: 'Tariff Monitoring',
         },
         {
             key: '/dashboard/suppliers',
