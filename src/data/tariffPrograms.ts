@@ -309,9 +309,12 @@ export const SECTION_232_PROGRAMS: TariffProgram[] = [
         rate: 25,
         rateType: 'ad_valorem',
         productScope: 'specific',
-        htsPrefixes: ['72', '7301', '7302', '7303', '7304', '7305', '7306', '7307', '7308', '7309', '7310', '7311', '7312', '7313', '7317', '7318', '7320', '7321', '7322', '7323', '7324', '7325', '7326'],
+        // Section 232 covers raw/semi-finished steel and structural articles
+        // NOT covered: household goods (7323), sanitary ware (7324), consumer products
+        htsPrefixes: ['72', '7301', '7302', '7303', '7304', '7305', '7306', '7307', '7308', '7309', '7310', '7311', '7312', '7313'],
         notes: [
-            'Applies to steel mill products (Chapter 72) and articles (Chapter 73)',
+            'Applies to steel mill products (Chapter 72) and structural articles (7301-7313)',
+            'NOT covered: Household kitchenware (7323), sanitary ware, consumer goods',
             'Some countries exempt via quotas or agreements (varies)',
             'USMCA countries: Subject to quotas/exemptions',
             'Rate increased to 25% in March 2025',
@@ -785,21 +788,67 @@ export function getCountryProfile(countryCode: string): CountryTariffSummary | u
 }
 
 /**
- * Check if a product is subject to Section 232
+ * Check if a product is subject to Section 232 steel/aluminum tariffs
+ * 
+ * IMPORTANT: Section 232 covers RAW/SEMI-FINISHED steel, not consumer goods!
+ * 
+ * Per Proclamation 9705 (March 2018), Section 232 steel covers:
+ * - Chapter 72: All (iron/steel in primary forms, semi-finished, flat-rolled, etc.)
+ * - Chapter 73: Only SPECIFIC industrial/structural steel articles
+ *   - 7301-7313: Structural steel, pipes, tubes, wire, etc.
+ *   - Some 7317: Nails/tacks (industrial)
+ *   - Some 7318: Screws/bolts (industrial fasteners)
+ * 
+ * NOT COVERED (finished consumer goods):
+ * - 7314: Fencing wire cloth
+ * - 7315: Chain
+ * - 7316: Anchors
+ * - 7319: Needles, pins
+ * - 7320: Springs
+ * - 7321: Stoves, ranges, cookers
+ * - 7322: Radiators, air heaters
+ * - 7323: HOUSEHOLD/KITCHEN ARTICLES (pots, pans, water bottles, etc.)
+ * - 7324: Sanitary ware
+ * - 7325: Other cast articles
+ * - 7326: Other articles of iron/steel
+ * 
+ * Source: https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel
  */
 export function isSection232Product(htsCode: string): { steel: boolean; aluminum: boolean; auto: boolean } {
     const cleanCode = htsCode.replace(/\./g, '');
     const chapter = cleanCode.substring(0, 2);
     const heading = cleanCode.substring(0, 4);
     
-    // Steel: Chapter 72 and specific headings in 73
-    const steelPrefixes = ['72', '7301', '7302', '7303', '7304', '7305', '7306', '7307', '7308', '7309', '7310', '7311', '7312', '7313', '7317', '7318', '7320', '7321', '7322', '7323', '7324', '7325', '7326'];
-    const isSteel = steelPrefixes.some(p => cleanCode.startsWith(p));
+    // Steel: Chapter 72 FULLY covered
+    // Chapter 73: Only industrial/structural headings (NOT household goods)
+    const section232SteelPrefixes = [
+        '72',     // All of Chapter 72 (iron/steel primary forms)
+        '7301',   // Sheet piling
+        '7302',   // Railway track construction
+        '7303',   // Tubes, pipes of cast iron
+        '7304',   // Seamless tubes/pipes/hollow profiles
+        '7305',   // Tubes/pipes > 406.4mm (welded)
+        '7306',   // Other tubes/pipes (welded, riveted)
+        '7307',   // Tube/pipe fittings
+        '7308',   // Structures (bridges, towers, etc.)
+        '7309',   // Reservoirs, tanks, vats > 300L
+        '7310',   // Tanks, casks, drums < 300L
+        '7311',   // Containers for compressed gas
+        '7312',   // Stranded wire, ropes, cables
+        '7313',   // Barbed wire, twisted hoop
+        // 7314-7316: NOT covered (fencing, chain, anchors)
+        // 7317-7318: PARTIAL coverage - only certain industrial fasteners
+        // For simplicity, we exclude these as most consumer products are exempt
+        // 7319-7326: NOT covered (consumer/household goods)
+    ];
     
-    // Aluminum: Chapter 76
+    const isSteel = section232SteelPrefixes.some(prefix => cleanCode.startsWith(prefix));
+    
+    // Aluminum: Chapter 76 (unwrought aluminum and certain articles)
+    // Note: Some finished aluminum products may also be excluded
     const isAluminum = chapter === '76';
     
-    // Auto: 8703, 8704
+    // Auto: 8703, 8704 (passenger vehicles, light trucks)
     const isAuto = ['8703', '8704'].includes(heading);
     
     return { steel: isSteel, aluminum: isAluminum, auto: isAuto };

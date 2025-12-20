@@ -3,6 +3,7 @@
 import React from 'react';
 import { Card, Row, Col, Statistic, Table, Typography, Tag, Progress } from 'antd';
 import { ShieldCheck, TrendingDown, DollarSign, Globe, ArrowUpRight } from 'lucide-react';
+import { TariffIntelligenceCard } from './TariffIntelligenceCard';
 
 const { Title, Text } = Typography;
 
@@ -100,37 +101,10 @@ export const DashboardOverview = () => {
                 {/* Sidebar Widgets */}
                 <Col xs={24} lg={8}>
                     <div className="space-y-6">
-                        <div className="bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl shadow-slate-200/50 rounded-3xl p-6">
-                            <Title level={5} className="mb-6">Compliance Health</Title>
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <Text className="text-slate-600 font-medium">HTS Accuracy</Text>
-                                        <Text strong className="text-teal-700">98%</Text>
-                                    </div>
-                                    <Progress
-                                        percent={98}
-                                        strokeColor={{ '0%': '#14B8A6', '100%': '#0F766E' }}
-                                        railColor="rgba(203, 213, 225, 0.4)"
-                                        showInfo={false}
-                                        size={['100%', 8]}
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <Text className="text-slate-600 font-medium">Missing Docs</Text>
-                                        <Text strong className="text-amber-600">12%</Text>
-                                    </div>
-                                    <Progress
-                                        percent={12}
-                                        strokeColor={{ '0%': '#FCD34D', '100%': '#D97706' }}
-                                        railColor="rgba(203, 213, 225, 0.4)"
-                                        showInfo={false}
-                                        size={['100%', 8]}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                        {/* Tariff Intelligence Card - Real data */}
+                        <TariffIntelligenceCard 
+                            className="bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl shadow-slate-200/50 rounded-3xl"
+                        />
 
                         <div className="bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl shadow-slate-200/50 rounded-3xl p-0 overflow-hidden">
                             <div className="p-6 pb-2 border-b border-slate-100">

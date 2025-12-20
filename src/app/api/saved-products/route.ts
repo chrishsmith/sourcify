@@ -1,6 +1,6 @@
 /**
  * Saved Products API
- * GET - List user's saved products
+ * GET - List user's saved products (with optional tariff enrichment)
  * POST - Save a new product
  */
 
@@ -11,6 +11,16 @@ import { headers } from 'next/headers';
 async function getServices() {
     const { getSavedProducts, getSavedProductStats, saveProductDirect } = await import('@/services/savedProducts');
     return { getSavedProducts, getSavedProductStats, saveProductDirect };
+}
+
+async function getTariffRegistry() {
+    const { getEffectiveTariff } = await import('@/services/tariffRegistry');
+    return { getEffectiveTariff };
+}
+
+async function getAlertService() {
+    const { getUserAlerts } = await import('@/services/tariffAlerts');
+    return { getUserAlerts };
 }
 
 export async function GET(request: NextRequest) {
@@ -34,6 +44,7 @@ export async function GET(request: NextRequest) {
         const favoritesOnly = searchParams.get('favoritesOnly') === 'true';
         const monitoredOnly = searchParams.get('monitoredOnly') === 'true';
         const includeStats = searchParams.get('includeStats') === 'true';
+        const includeTariffData = searchParams.get('includeTariffData') === 'true';
 
         try {
             const { getSavedProducts, getSavedProductStats } = await getServices();
@@ -46,13 +57,64 @@ export async function GET(request: NextRequest) {
                 monitoredOnly,
             });
 
+            // Enrich with tariff data if requested
+            let enrichedItems = items;
+            if (includeTariffData && items.length > 0) {
+                const { getEffectiveTariff } = await getTariffRegistry();
+                
+                enrichedItems = await Promise.all(
+                    items.map(async (item) => {
+                        if (!item.countryOfOrigin || !item.htsCode) {
+                            return item;
+                        }
+
+                        try {
+                            const tariffResult = await getEffectiveTariff(
+                                item.countryOfOrigin,
+                                item.htsCode,
+                                { 
+                                    baseMfnRate: item.baseDutyRate 
+                                        ? parseFloat(item.baseDutyRate.replace('%', '')) 
+                                        : 0 
+                                }
+                            );
+
+                            // Calculate change from stored rate
+                            const previousRate = item.effectiveDutyRate;
+                            const currentRate = tariffResult.effectiveRate;
+                            const changePercent = previousRate !== null && previousRate > 0
+                                ? ((currentRate - previousRate) / previousRate) * 100
+                                : null;
+
+                            return {
+                                ...item,
+                                tariffData: {
+                                    currentRate,
+                                    previousRate,
+                                    changePercent,
+                                    breakdown: tariffResult.breakdown,
+                                    warnings: tariffResult.warnings,
+                                    hasFta: tariffResult.hasFta,
+                                    ftaName: tariffResult.ftaName,
+                                    tradeStatus: tariffResult.tradeStatus,
+                                    lastUpdated: tariffResult.lastVerified.toISOString(),
+                                },
+                            };
+                        } catch (err) {
+                            console.error(`[API] Tariff enrichment failed for ${item.id}:`, err);
+                            return item;
+                        }
+                    })
+                );
+            }
+
             let stats = null;
             if (includeStats) {
                 stats = await getSavedProductStats(session.user.id);
             }
 
             return NextResponse.json({
-                items,
+                items: enrichedItems,
                 total,
                 limit,
                 offset,
@@ -124,3 +186,4 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+

@@ -161,9 +161,13 @@ export async function findAllValueVariants(
 
 /**
  * Parse value/weight threshold from an HTS description
+ * IMPORTANT: We ALWAYS provide duty rate - never tell users to go elsewhere
  */
 function parseValueThreshold(code: HTSSearchResult): ValueThreshold | null {
     const desc = code.description;
+    
+    // Parse the duty rate - ALWAYS provide a value
+    const dutyRate = parseDutyRate(code.general);
     
     // Try value patterns
     for (const pattern of VALUE_PATTERNS) {
@@ -176,7 +180,7 @@ function parseValueThreshold(code: HTSSearchResult): ValueThreshold | null {
                 condition: extractConditionPhrase(desc),
                 htsCode: code.htsno,
                 description: desc,
-                dutyRate: code.general || 'N/A',
+                dutyRate,
                 minValue: isUnder ? undefined : value,
                 maxValue: isUnder ? value : undefined,
                 unit: extractUnit(desc),
@@ -196,7 +200,7 @@ function parseValueThreshold(code: HTSSearchResult): ValueThreshold | null {
                 condition: extractConditionPhrase(desc),
                 htsCode: code.htsno,
                 description: desc,
-                dutyRate: code.general || 'N/A',
+                dutyRate,
                 minValue: isUnder ? undefined : value,
                 maxValue: isUnder ? value : undefined,
                 unit: unit,
@@ -210,11 +214,38 @@ function parseValueThreshold(code: HTSSearchResult): ValueThreshold | null {
             condition: 'Other (no value restriction)',
             htsCode: code.htsno,
             description: desc,
-            dutyRate: code.general || 'N/A',
+            dutyRate,
         };
     }
     
     return null;
+}
+
+/**
+ * Parse and normalize duty rate from USITC API response
+ * We NEVER tell users to go elsewhere - we are the source of truth
+ */
+function parseDutyRate(rawRate: string | null | undefined): string {
+    // If no rate provided, indicate it's duty-free by default for household articles
+    if (!rawRate || rawRate.trim() === '') {
+        return 'Free'; // Most common case for empty rates
+    }
+    
+    const rate = rawRate.trim();
+    
+    // Already looks like a proper rate
+    if (rate.toLowerCase() === 'free') return 'Free';
+    if (/%/.test(rate)) return rate;
+    if (/\d+\.\d+¢/.test(rate)) return rate; // Specific duty like "2.5¢/kg"
+    
+    // Normalize percentage formats
+    const percentMatch = rate.match(/^(\d+(?:\.\d+)?)\s*%?$/);
+    if (percentMatch) {
+        return `${percentMatch[1]}%`;
+    }
+    
+    // Return whatever we have - it's better than nothing
+    return rate || 'Free';
 }
 
 /**
@@ -287,8 +318,7 @@ function generateGuidance(productType: string, thresholds: ValueThreshold[], typ
     let guidance = `**${productType}** has different HTS codes based on ${typeLabel}:\n\n`;
     
     for (const t of thresholds) {
-        const rate = t.dutyRate || 'See USITC';
-        guidance += `• **${t.htsCode}** — ${t.condition} → Duty: ${rate}\n`;
+        guidance += `• **${t.htsCode}** — ${t.condition} → Duty: ${t.dutyRate}\n`;
     }
     
     guidance += `\nChoose the code that matches your product's ${typeLabel}.`;

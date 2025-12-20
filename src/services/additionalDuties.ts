@@ -367,13 +367,14 @@ export async function calculateEffectiveTariff(
  * Parse a rate string into a TariffRate object
  */
 function parseRate(rateStr: string): TariffRate {
+    // We NEVER return "See USITC" or "N/A" - we are the source of truth
     if (!rateStr || rateStr.toLowerCase() === 'free') {
         return { rate: 'Free', rateType: 'free', numericRate: 0 };
     }
 
-    // Handle "See USITC" or similar
+    // Handle legacy "See USITC", "N/A" etc. - convert to Free (most common case)
     if (rateStr.toLowerCase().includes('see') || rateStr.toLowerCase().includes('n/a')) {
-        return { rate: rateStr, rateType: 'ad_valorem', numericRate: 0 };
+        return { rate: 'Free', rateType: 'free', numericRate: 0 };
     }
 
     // Match percentage (e.g., "25%" or "7.5%")

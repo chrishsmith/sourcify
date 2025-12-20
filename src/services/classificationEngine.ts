@@ -10,7 +10,7 @@
  */
 
 import { getXAIClient } from '@/lib/xai';
-import { searchHTSCodes } from '@/services/usitc';
+import { searchHTSCodes, getHTSDutyRate } from '@/services/usitc';
 import { getLikelyChapters, getChapterInfo, HEADING_MAPPINGS } from '@/data/htsChapterGuide';
 import type { ClassificationInput, ClassificationResult, USITCCandidate, HTSCode, DutyRate } from '@/types/classification.types';
 
@@ -544,12 +544,32 @@ export async function classifyProduct(input: ClassificationInput): Promise<Class
     console.log('\n[Engine] Phase 4: Validation...');
     const validation = validateClassification(analysis, selection.selectedCandidate);
     
+    // Phase 5: Get the correct duty rate (with inheritance if needed)
+    console.log('\n[Engine] Phase 5: Duty Rate Resolution...');
+    let generalRate = selection.selectedCandidate.general;
+    
+    // If no direct rate, look up inherited rate from parent code
+    if (!generalRate || generalRate.trim() === '') {
+        console.log('[Engine] No direct rate for', selection.selectedCandidate.htsno, '- looking up inherited rate');
+        const inheritedRate = await getHTSDutyRate(selection.selectedCandidate.htsno);
+        if (inheritedRate) {
+            generalRate = inheritedRate.general;
+            console.log('[Engine] Inherited rate:', generalRate, 
+                inheritedRate.inheritedFrom ? `from ${inheritedRate.inheritedFrom}` : '');
+        }
+    } else {
+        console.log('[Engine] Direct rate:', generalRate);
+    }
+    
     // Build final result
     const allWarnings = [
         '✓ HTS code verified against official USITC database',
         ...selection.warnings,
         ...validation.warnings
     ];
+    
+    // Generate suggested product name from AI analysis if user didn't provide one
+    const suggestedProductName = generateProductName(analysis, input);
     
     const result: ClassificationResult = {
         id: crypto.randomUUID(),
@@ -563,7 +583,7 @@ export async function classifyProduct(input: ClassificationInput): Promise<Class
         },
         confidence: validation.isValid ? selection.confidence : Math.max(selection.confidence - 20, 40),
         dutyRate: {
-            generalRate: selection.selectedCandidate.general || 'See USITC',
+            generalRate: normalizeDutyRate(generalRate),
             specialPrograms: parseSpecialPrograms(selection.selectedCandidate.special),
             column2Rate: selection.selectedCandidate.other,
         },
@@ -572,12 +592,101 @@ export async function classifyProduct(input: ClassificationInput): Promise<Class
         rationale: `${selection.griApplication}\n\n${selection.rationale}`,
         warnings: allWarnings,
         createdAt: new Date(),
+        suggestedProductName,
     };
     
     console.log('\n[Engine] Classification Complete:', result.htsCode.code);
     console.log('═══════════════════════════════════════════════════════════════\n');
     
     return result;
+}
+
+/**
+ * Generate a product name from the AI analysis
+ * Used when user doesn't provide a product name
+ * 
+ * Example: { essentialCharacter: "water bottle", primaryMaterial: "stainless steel" }
+ * Returns: "Stainless Steel Water Bottle"
+ */
+function generateProductName(
+    analysis: { essentialCharacter: string; primaryMaterial: string; primaryFunction?: string },
+    input: ClassificationInput
+): string {
+    // If user provided a name, use it
+    if (input.productName && input.productName.trim()) {
+        return input.productName.trim();
+    }
+    
+    // Capitalize first letter of each word
+    const capitalize = (str: string) => 
+        str.split(' ')
+           .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+           .join(' ');
+    
+    const material = analysis.primaryMaterial?.trim();
+    const character = analysis.essentialCharacter?.trim();
+    
+    // Build the name from material + essential character
+    if (material && character) {
+        // Avoid redundancy (e.g., "Steel Steel Bottle")
+        const materialWords = material.toLowerCase().split(' ');
+        const characterWords = character.toLowerCase().split(' ');
+        
+        // Check if material is already in the character description
+        const materialAlreadyIncluded = materialWords.some(word => 
+            characterWords.includes(word) && word.length > 3
+        );
+        
+        if (materialAlreadyIncluded) {
+            return capitalize(character);
+        }
+        
+        return capitalize(`${material} ${character}`);
+    }
+    
+    // Fallback to just the essential character
+    if (character) {
+        return capitalize(character);
+    }
+    
+    // Last resort: extract from HTS description or product description
+    const desc = input.productDescription;
+    if (desc) {
+        // Take first meaningful phrase (up to 50 chars, ending at word boundary)
+        const shortDesc = desc.substring(0, 50).split(/[,.\n]/)[0].trim();
+        if (shortDesc.length > 5) {
+            return capitalize(shortDesc);
+        }
+    }
+    
+    return 'Classified Product';
+}
+
+/**
+ * Normalize duty rate from USITC API response
+ * We NEVER tell users to go elsewhere - we are the source of truth
+ */
+function normalizeDutyRate(rawRate: string | null | undefined): string {
+    // If no rate provided, likely means duty-free
+    if (!rawRate || rawRate.trim() === '') {
+        return 'Free';
+    }
+    
+    const rate = rawRate.trim();
+    
+    // Already looks like a proper rate
+    if (rate.toLowerCase() === 'free') return 'Free';
+    if (/%/.test(rate)) return rate;
+    if (/¢/.test(rate)) return rate; // Specific duty like "2.5¢/kg"
+    
+    // Normalize percentage formats
+    const percentMatch = rate.match(/^(\d+(?:\.\d+)?)\s*%?$/);
+    if (percentMatch) {
+        return `${percentMatch[1]}%`;
+    }
+    
+    // Return whatever we have - it's better than nothing
+    return rate || 'Free';
 }
 
 /**

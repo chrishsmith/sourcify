@@ -175,27 +175,51 @@ function parseDataWebResponse(responseData: any, years: number[]): DataWebRow[] 
         const rows = rowGroups[0]?.rowsNew || [];
         console.log('[DataWeb] Found', rows.length, 'data rows');
         
+        // Debug first row structure
+        if (rows.length > 0 && rows[0]?.rowEntries) {
+            console.log('[DataWeb] First row columns:', rows[0].rowEntries.length);
+            console.log('[DataWeb] First row sample:', rows[0].rowEntries.slice(0, 5).map((e: any) => e?.value));
+        }
+        
         for (const row of rows) {
             const entries = row.rowEntries || [];
-            if (entries.length >= 3) {
+            if (entries.length >= 2) {
                 const country = entries[0]?.value || '';
-                const quantityDesc = entries[1]?.value || '';
                 
-                // Parse numeric values (remove commas)
+                // Parse numeric values (remove commas, handle decimals)
                 const parseNum = (val: string) => {
-                    if (!val || val === '') return 0;
-                    return parseInt(val.replace(/,/g, ''), 10) || 0;
+                    if (!val || val === '' || val === 'X' || val === 'D') return 0;
+                    // Handle values like "1,234" or "1234.56"
+                    return parseFloat(val.replace(/,/g, '')) || 0;
                 };
                 
-                const year2023 = parseNum(entries[2]?.value);
-                const year2024 = entries[3] ? parseNum(entries[3]?.value) : 0;
+                // Column structure varies by query type:
+                // QUANTITY: [Country, Unit, Year1, Year2, ...]
+                // VALUE: [Country, Year1, Year2, ...] (no unit column)
+                let quantityDesc = '';
+                let year1 = 0;
+                let year2 = 0;
                 
-                if (country && (year2023 > 0 || year2024 > 0)) {
+                if (entries.length >= 4) {
+                    // Has unit description column (QUANTITY query)
+                    quantityDesc = entries[1]?.value || '';
+                    year1 = parseNum(entries[2]?.value);
+                    year2 = parseNum(entries[3]?.value);
+                } else if (entries.length >= 3) {
+                    // No unit column (VALUE query)
+                    year1 = parseNum(entries[1]?.value);
+                    year2 = parseNum(entries[2]?.value);
+                } else if (entries.length === 2) {
+                    // Single year data
+                    year1 = parseNum(entries[1]?.value);
+                }
+                
+                if (country && (year1 > 0 || year2 > 0)) {
                     results.push({
                         country,
                         quantityDesc,
-                        year2023,
-                        year2024,
+                        year2023: year1,  // First year in query
+                        year2024: year2,  // Second year in query
                     });
                 }
             }
@@ -209,56 +233,50 @@ function parseDataWebResponse(responseData: any, years: number[]): DataWebRow[] 
 
 /**
  * Map DataWeb country names to ISO codes
+ * Includes comprehensive list of trading partners
  */
 function mapCountryToCode(countryName: string): string | null {
     const mapping: Record<string, string> = {
+        // Major Asian manufacturing
         'China': 'CN',
         'Vietnam': 'VN',
         'India': 'IN',
         'Bangladesh': 'BD',
         'Thailand': 'TH',
         'Indonesia': 'ID',
-        'Mexico': 'MX',
-        'Canada': 'CA',
-        'Germany': 'DE',
-        'Italy': 'IT',
         'Japan': 'JP',
         'South Korea': 'KR',
         'Korea, South': 'KR',
+        'Korea': 'KR',
         'Taiwan': 'TW',
         'Malaysia': 'MY',
         'Philippines': 'PH',
         'Pakistan': 'PK',
-        'Turkey': 'TR',
-        'Turkiye': 'TR',
         'Cambodia': 'KH',
         'Sri Lanka': 'LK',
-        'Brazil': 'BR',
-        'Poland': 'PL',
-        'United Kingdom': 'GB',
+        'Myanmar (Burma)': 'MM',
+        'Myanmar': 'MM',
+        'Singapore': 'SG',
+        'Hong Kong': 'HK',
+        'Laos': 'LA',
+        'Nepal': 'NP',
+        'Mongolia': 'MN',
+        
+        // North America (USMCA)
+        'Mexico': 'MX',
+        'Canada': 'CA',
+        
+        // Europe
+        'Germany': 'DE',
+        'Italy': 'IT',
         'France': 'FR',
         'Spain': 'ES',
         'Netherlands': 'NL',
         'Belgium': 'BE',
-        'Singapore': 'SG',
-        'Hong Kong': 'HK',
-        'Australia': 'AU',
-        'Dominican Republic': 'DO',
-        'Honduras': 'HN',
-        'Guatemala': 'GT',
-        'El Salvador': 'SV',
-        'Nicaragua': 'NI',
-        'Costa Rica': 'CR',
-        'Peru': 'PE',
-        'Colombia': 'CO',
-        'Chile': 'CL',
-        'Argentina': 'AR',
-        'Myanmar (Burma)': 'MM',
+        'United Kingdom': 'GB',
+        'Poland': 'PL',
         'Romania': 'RO',
-        'Ukraine': 'UA',
-        'Morocco': 'MA',
         'Ireland': 'IE',
-        'Israel': 'IL',
         'Sweden': 'SE',
         'Switzerland': 'CH',
         'Denmark': 'DK',
@@ -266,11 +284,112 @@ function mapCountryToCode(countryName: string): string | null {
         'Finland': 'FI',
         'Austria': 'AT',
         'Czechia (Czech Republic)': 'CZ',
+        'Czech Republic': 'CZ',
+        'Czechia': 'CZ',
         'Hungary': 'HU',
         'Portugal': 'PT',
-        'New Zealand': 'NZ',
-        'South Africa': 'ZA',
+        'Greece': 'GR',
+        'Bulgaria': 'BG',
+        'Slovakia': 'SK',
+        'Slovenia': 'SI',
+        'Croatia': 'HR',
+        'Lithuania': 'LT',
+        'Latvia': 'LV',
+        'Estonia': 'EE',
+        'Luxembourg': 'LU',
+        'Malta': 'MT',
+        'Cyprus': 'CY',
+        'Albania': 'AL',
+        'Serbia': 'RS',
+        'Bosnia and Herzegovina': 'BA',
+        'North Macedonia': 'MK',
+        'Montenegro': 'ME',
+        'Kosovo': 'XK',
+        'Moldova': 'MD',
+        'Belarus': 'BY',
+        'Ukraine': 'UA',
+        'Russia': 'RU',
+        
+        // Turkey
+        'Turkey': 'TR',
+        'Turkiye': 'TR',
+        
+        // Middle East
         'United Arab Emirates': 'AE',
+        'Saudi Arabia': 'SA',
+        'Israel': 'IL',
+        'Jordan': 'JO',
+        'Kuwait': 'KW',
+        'Qatar': 'QA',
+        'Bahrain': 'BH',
+        'Oman': 'OM',
+        'Lebanon': 'LB',
+        'Iran': 'IR',
+        'Iraq': 'IQ',
+        
+        // Africa
+        'South Africa': 'ZA',
+        'Morocco': 'MA',
+        'Egypt': 'EG',
+        'Tunisia': 'TN',
+        'Kenya': 'KE',
+        'Ethiopia': 'ET',
+        'Nigeria': 'NG',
+        'Ghana': 'GH',
+        'Tanzania': 'TZ',
+        'Mauritius': 'MU',
+        'Madagascar': 'MG',
+        'Lesotho': 'LS',
+        'Swaziland': 'SZ',
+        'Eswatini': 'SZ',
+        'Cameroon': 'CM',
+        
+        // Latin America
+        'Brazil': 'BR',
+        'Argentina': 'AR',
+        'Peru': 'PE',
+        'Colombia': 'CO',
+        'Chile': 'CL',
+        'Ecuador': 'EC',
+        'Dominican Republic': 'DO',
+        'Honduras': 'HN',
+        'Guatemala': 'GT',
+        'El Salvador': 'SV',
+        'Nicaragua': 'NI',
+        'Costa Rica': 'CR',
+        'Panama': 'PA',
+        'Haiti': 'HT',
+        'Jamaica': 'JM',
+        'Trinidad and Tobago': 'TT',
+        'Uruguay': 'UY',
+        'Paraguay': 'PY',
+        'Bolivia': 'BO',
+        'Venezuela': 'VE',
+        
+        // Oceania
+        'Australia': 'AU',
+        'New Zealand': 'NZ',
+        'Fiji': 'FJ',
+        
+        // Central Asia
+        'Kazakhstan': 'KZ',
+        'Uzbekistan': 'UZ',
+        'Turkmenistan': 'TM',
+        'Kyrgyzstan': 'KG',
+        'Tajikistan': 'TJ',
+        'Azerbaijan': 'AZ',
+        'Georgia': 'GE',
+        'Armenia': 'AM',
+        'Afghanistan': 'AF',
+        
+        // Special characters / alternate spellings
+        'Côte d`Ivoire': 'CI',
+        "Côte d'Ivoire": 'CI',
+        'Ivory Coast': 'CI',
+        'New Caledonia': 'NC',
+        'Syria': 'SY',
+        'Syrian Arab Republic': 'SY',
+        'Yemen': 'YE',
     };
     
     return mapping[countryName] || null;
@@ -354,7 +473,9 @@ export async function getImportStatsByHTS(
     
     // Query customs value data
     const valueResponse = await queryDataWeb(htsCode, years, 'CONS_CUSTOMS_VALUE');
+    console.log('[DataWeb] Value response tables:', valueResponse?.dto?.tables?.length || 0);
     const valueData = valueResponse ? parseDataWebResponse(valueResponse, years) : [];
+    console.log('[DataWeb] Parsed value records:', valueData.length);
     
     // Create a map of country -> value
     const valueByCountry = new Map<string, { year2023: number; year2024: number }>();
@@ -365,15 +486,47 @@ export async function getImportStatsByHTS(
     // Combine quantity and value data
     const stats: ImportStatsByCountry[] = [];
     
+    // Debug: Log first few countries to understand data format
+    console.log('[DataWeb] Sample quantity data:', quantityData.slice(0, 3).map(r => ({
+        country: r.country,
+        qty2023: r.year2023,
+        qty2024: r.year2024,
+    })));
+    console.log('[DataWeb] Sample value data:', valueData.slice(0, 3).map(r => ({
+        country: r.country,
+        val2023: r.year2023,
+        val2024: r.year2024,
+    })));
+    
+    let unmappedCountries = 0;
+    let lowQuantity = 0;
+    let noValue = 0;
+    let invalidAvg = 0;
+    
     for (const qtyRow of quantityData) {
         const countryCode = mapCountryToCode(qtyRow.country);
-        if (!countryCode) continue;
+        if (!countryCode) {
+            unmappedCountries++;
+            // Log first few unmapped
+            if (unmappedCountries <= 5) {
+                console.log('[DataWeb] Unmapped country:', qtyRow.country);
+            }
+            continue;
+        }
         
         const totalQuantity = qtyRow.year2023 + qtyRow.year2024;
-        if (totalQuantity < minQuantity) continue;
+        if (totalQuantity < minQuantity) {
+            lowQuantity++;
+            continue;
+        }
         
         const valueRow = valueByCountry.get(qtyRow.country);
         const totalValue = valueRow ? (valueRow.year2023 + valueRow.year2024) : 0;
+        
+        if (!valueRow) {
+            noValue++;
+            continue;
+        }
         
         // Calculate average unit value (value / quantity)
         const avgUnitValue = totalQuantity > 0 && totalValue > 0
@@ -392,8 +545,13 @@ export async function getImportStatsByHTS(
                 shipmentCount: Math.ceil(totalQuantity / 10000), // Estimate
                 dataYears: years,
             });
+        } else {
+            invalidAvg++;
         }
     }
+    
+    console.log('[DataWeb] Filter summary: unmapped=' + unmappedCountries + 
+        ', lowQty=' + lowQuantity + ', noValue=' + noValue + ', invalidAvg=' + invalidAvg);
     
     // Sort by total value descending
     stats.sort((a, b) => b.totalValue - a.totalValue);

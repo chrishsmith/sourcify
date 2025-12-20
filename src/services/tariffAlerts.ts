@@ -3,10 +3,13 @@
  * 
  * Monitors tariff rates and creates alerts when they change.
  * Users can set up alerts for specific HTS codes/countries.
+ * 
+ * UPDATED: Now uses the centralized Country Tariff Registry
+ * @see docs/ARCHITECTURE_TARIFF_REGISTRY.md
  */
 
 import { prisma } from '@/lib/db';
-import { calculateEffectiveTariff } from '@/services/additionalDuties';
+import { getEffectiveTariff } from '@/services/tariffRegistry';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -207,17 +210,18 @@ export async function checkAndUpdateAlerts(): Promise<{
 
     for (const alert of activeAlerts) {
         try {
-            // Get current rate
-            const effectiveTariff = await calculateEffectiveTariff(
+            // Get current rate from centralized tariff registry
+            const effectiveTariff = await getEffectiveTariff(
+                alert.countryOfOrigin || 'CN',
                 alert.htsCode,
-                '', // Description not needed for rate check
-                '0', // Base rate will be fetched
-                alert.countryOfOrigin || 'CN'
+                { baseMfnRate: 0 } // Base rate will be determined by registry
             );
 
-            const newRate = effectiveTariff.totalAdValorem;
+            const newRate = effectiveTariff.effectiveRate;
             const previousRate = alert.currentRate ?? alert.originalRate;
-            const changePercent = ((newRate - previousRate) / previousRate) * 100;
+            const changePercent = previousRate > 0 
+                ? ((newRate - previousRate) / previousRate) * 100 
+                : 0;
 
             // Check if alert should trigger
             const shouldTrigger = checkTriggerCondition(
@@ -237,7 +241,9 @@ export async function checkAndUpdateAlerts(): Promise<{
             });
 
             if (shouldTrigger) {
-                // Create event
+                // Create event with reason from registry breakdown
+                const changeReason = determineChangeReasonFromRegistry(effectiveTariff);
+                
                 await prisma.tariffAlertEvent.create({
                     data: {
                         alertId: alert.id,
@@ -245,7 +251,7 @@ export async function checkAndUpdateAlerts(): Promise<{
                         newRate,
                         changePercent,
                         changeType: newRate > previousRate ? 'increase' : 'decrease',
-                        changeReason: determineChangeReason(effectiveTariff),
+                        changeReason,
                     },
                 });
 
@@ -284,17 +290,30 @@ function checkTriggerCondition(
     }
 }
 
-function determineChangeReason(effectiveTariff: Awaited<ReturnType<typeof calculateEffectiveTariff>>): string {
+/**
+ * Determine the reason for rate change from registry breakdown
+ */
+function determineChangeReasonFromRegistry(
+    effectiveTariff: Awaited<ReturnType<typeof getEffectiveTariff>>
+): string {
     const reasons: string[] = [];
     
-    for (const duty of effectiveTariff.additionalDuties) {
-        if (duty.applicable) {
-            reasons.push(duty.programName);
+    // Check each component from the registry breakdown
+    for (const item of effectiveTariff.breakdown) {
+        if (item.rate > 0) {
+            reasons.push(item.program);
         }
     }
 
+    // Add any warnings as context
+    if (effectiveTariff.warnings.length > 0) {
+        return reasons.length > 0 
+            ? `Changes in: ${reasons.join(', ')}. ${effectiveTariff.warnings[0]}`
+            : effectiveTariff.warnings[0];
+    }
+
     return reasons.length > 0 
-        ? `Changes in: ${reasons.join(', ')}` 
+        ? `Active programs: ${reasons.join(', ')}` 
         : 'Rate adjustment';
 }
 
@@ -330,4 +349,5 @@ export async function getAlertStats(userId: string): Promise<{
         avgRateChange: Math.round(avgRateChange * 10) / 10,
     };
 }
+
 

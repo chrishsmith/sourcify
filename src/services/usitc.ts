@@ -176,23 +176,139 @@ export async function validateHTSCode(htsCode: string): Promise<HTSValidationRes
 
 /**
  * Get duty rate info for a specific HTS code
+ * Uses RATE INHERITANCE: If a 10-digit code has no rate, inherit from parent (8-digit, then 6-digit)
+ * We NEVER return "N/A" or "See USITC" - we are the source of truth
  */
 export async function getHTSDutyRate(htsCode: string): Promise<{
     general: string;
     special: string;
     column2: string;
+    inheritedFrom?: string; // The code level the rate was inherited from
 } | null> {
     const validation = await validateHTSCode(htsCode);
 
     if (validation.isValid && validation.officialData) {
+        const directRate = validation.officialData.general;
+        
+        // If the code has a rate, use it directly
+        if (directRate && directRate.trim() !== '') {
+            return {
+                general: normalizeDutyRate(directRate),
+                special: validation.officialData.special || 'None',
+                column2: validation.officialData.other || 'Free',
+            };
+        }
+        
+        // No direct rate - need to inherit from parent
+        const inheritedRate = await getInheritedRate(htsCode);
         return {
-            general: validation.officialData.general || 'N/A',
-            special: validation.officialData.special || 'N/A',
-            column2: validation.officialData.other || 'N/A',
+            general: inheritedRate.rate,
+            special: validation.officialData.special || 'None',
+            column2: validation.officialData.other || 'Free',
+            inheritedFrom: inheritedRate.from,
         };
     }
 
     return null;
+}
+
+/**
+ * Get the duty rate by looking up parent codes in the HTS hierarchy
+ * HTS rates inherit from parent: 10-digit inherits from 8-digit, which inherits from 6-digit
+ * 
+ * Example: 7323.93.00.80 (Other stainless steel) has no rate, but 7323.93.00 (Of stainless steel) = 2%
+ */
+async function getInheritedRate(htsCode: string): Promise<{ rate: string; from: string }> {
+    const cleanCode = htsCode.replace(/\./g, '');
+    
+    // Try 8-digit parent (subheading level with statistical suffix stripped)
+    if (cleanCode.length >= 8) {
+        const parentCode8 = cleanCode.substring(0, 8);
+        console.log(`[USITC] Looking up parent rate for ${parentCode8}`);
+        
+        const results = await searchHTSCodes(parentCode8);
+        
+        // Find the exact 8-digit parent code
+        const parent = results.find(r => {
+            const code = r.htsno.replace(/\./g, '');
+            return code === parentCode8 || code.startsWith(parentCode8.substring(0, 6));
+        });
+        
+        // Look for the subheading level code (e.g., 7323.93.00) which typically has the rate
+        const subheadingMatch = results.find(r => {
+            const code = r.htsno.replace(/\./g, '');
+            return code.length === 8 && code === parentCode8;
+        });
+        
+        if (subheadingMatch && subheadingMatch.general && subheadingMatch.general.trim() !== '') {
+            console.log(`[USITC] Found rate ${subheadingMatch.general} from ${subheadingMatch.htsno}`);
+            return { 
+                rate: normalizeDutyRate(subheadingMatch.general), 
+                from: subheadingMatch.htsno 
+            };
+        }
+        
+        // Sometimes the rate is at the 6-digit subheading level
+        const subheading6 = cleanCode.substring(0, 6);
+        const subheading6Match = results.find(r => {
+            const code = r.htsno.replace(/\./g, '');
+            return code === subheading6 || code === subheading6 + '00';
+        });
+        
+        if (subheading6Match && subheading6Match.general && subheading6Match.general.trim() !== '') {
+            console.log(`[USITC] Found rate ${subheading6Match.general} from ${subheading6Match.htsno}`);
+            return { 
+                rate: normalizeDutyRate(subheading6Match.general), 
+                from: subheading6Match.htsno 
+            };
+        }
+    }
+    
+    // Try 6-digit parent (subheading level)
+    if (cleanCode.length >= 6) {
+        const parentCode6 = cleanCode.substring(0, 6);
+        console.log(`[USITC] Looking up 6-digit parent rate for ${parentCode6}`);
+        
+        const results = await searchHTSCodes(parentCode6);
+        const parent = results.find(r => {
+            const code = r.htsno.replace(/\./g, '');
+            // Match 6-digit or 8-digit versions (e.g., 732393 or 73239300)
+            return code === parentCode6 || code === parentCode6 + '00';
+        });
+        
+        if (parent && parent.general && parent.general.trim() !== '') {
+            console.log(`[USITC] Found rate ${parent.general} from ${parent.htsno}`);
+            return { 
+                rate: normalizeDutyRate(parent.general), 
+                from: parent.htsno 
+            };
+        }
+    }
+    
+    // If we still can't find a rate, it truly is Free
+    console.log(`[USITC] No inherited rate found for ${htsCode}, defaulting to Free`);
+    return { rate: 'Free', from: 'default' };
+}
+
+/**
+ * Normalize duty rate format
+ */
+function normalizeDutyRate(rawRate: string | null | undefined): string {
+    if (!rawRate || rawRate.trim() === '') {
+        return 'Free';
+    }
+    
+    const rate = rawRate.trim();
+    if (rate.toLowerCase() === 'free') return 'Free';
+    if (/%/.test(rate)) return rate;
+    if (/¢/.test(rate)) return rate;
+    
+    const percentMatch = rate.match(/^(\d+(?:\.\d+)?)\s*%?$/);
+    if (percentMatch) {
+        return `${percentMatch[1]}%`;
+    }
+    
+    return rate;
 }
 
 /**

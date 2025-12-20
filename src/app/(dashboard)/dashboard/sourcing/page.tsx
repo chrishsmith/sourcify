@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Typography, Tabs, Input, Button, Card, Select, Skeleton, Steps, message } from 'antd';
-import { Search, TrendingDown, Users, Package, Loader2, CheckCircle, Sparkles } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { Typography, Tabs, Input, Button, Card, Select, Skeleton, Steps, message, Badge } from 'antd';
+import { Search, TrendingDown, Users, Package, Loader2, CheckCircle, Sparkles, Bell } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { SupplierExplorer } from '@/features/sourcing/components/SupplierExplorer';
 import { SourcingRecommendations } from '@/features/sourcing/components/SourcingRecommendations';
+import { TariffMonitoringTab } from '@/features/sourcing/components/TariffMonitoringTab';
 import { ProductInputForm, ProductInputValues, COUNTRIES, getCountryName } from '@/components/shared';
 
 const { Title, Text, Paragraph } = Typography;
@@ -19,6 +20,7 @@ const LOADING_STEPS = [
 
 function SourcingPageContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const [messageApi, contextHolder] = message.useMessage();
     
     const [activeTab, setActiveTab] = useState('analyze');
@@ -30,18 +32,38 @@ function SourcingPageContent() {
     const [inputMode, setInputMode] = useState<'hts' | 'describe'>('hts');
     const [loading, setLoading] = useState(false);
     const [loadingStep, setLoadingStep] = useState(0);
+    const [monitoredCount, setMonitoredCount] = useState<number>(0);
     
     // Supplier explorer filter state
     const [supplierFilterCountry, setSupplierFilterCountry] = useState<string | undefined>();
     const [supplierFilterHts, setSupplierFilterHts] = useState<string | undefined>();
+    
+    // Fetch monitored count for badge
+    useEffect(() => {
+        async function fetchMonitoredCount() {
+            try {
+                const response = await fetch('/api/saved-products?monitoredOnly=true&includeStats=true&limit=1');
+                if (response.ok) {
+                    const data = await response.json();
+                    setMonitoredCount(data.stats?.monitoredProducts || 0);
+                }
+            } catch {
+                // Silently fail - badge just won't show count
+            }
+        }
+        fetchMonitoredCount();
+    }, []);
     
     // Handle URL parameters on mount
     useEffect(() => {
         const htsParam = searchParams.get('hts');
         const fromParam = searchParams.get('from');
         const descParam = searchParams.get('desc');
+        const tabParam = searchParams.get('tab');
         
-        if (htsParam) {
+        if (tabParam === 'monitoring') {
+            setActiveTab('monitoring');
+        } else if (htsParam) {
             setHtsCode(htsParam);
             if (fromParam) {
                 setCurrentCountry(fromParam);
@@ -124,6 +146,22 @@ function SourcingPageContent() {
         setSupplierFilterCountry(countryCode);
         setSupplierFilterHts(hts);
         setActiveTab('suppliers');
+    };
+    
+    // Handle analyze from monitoring tab
+    const handleAnalyzeFromMonitoring = (hts: string, countryCode: string) => {
+        setHtsCode(hts);
+        setCurrentCountry(countryCode);
+        setShowAnalysis(true);
+        setIsFromNavigation(false);
+        setActiveTab('analyze');
+    };
+    
+    // Handle view product detail
+    const handleViewProduct = (productId: string) => {
+        // Navigate to product detail modal or page
+        // For now, we'll just log - can expand later
+        console.log('[Sourcing] View product:', productId);
     };
     
     // Clear supplier filters when switching back to analyze tab
@@ -399,6 +437,28 @@ function SourcingPageContent() {
                             />
                         ),
                     },
+                    {
+                        key: 'monitoring',
+                        label: (
+                            <span className="flex items-center gap-2">
+                                <Bell size={16} />
+                                Tariff Monitoring
+                                {monitoredCount > 0 && (
+                                    <Badge 
+                                        count={monitoredCount} 
+                                        size="small"
+                                        style={{ backgroundColor: '#0d9488' }}
+                                    />
+                                )}
+                            </span>
+                        ),
+                        children: (
+                            <TariffMonitoringTab
+                                onViewProduct={handleViewProduct}
+                                onAnalyzeProduct={handleAnalyzeFromMonitoring}
+                            />
+                        ),
+                    },
                 ]}
             />
         </div>
@@ -426,3 +486,4 @@ export default function SourcingPage() {
         </Suspense>
     );
 }
+

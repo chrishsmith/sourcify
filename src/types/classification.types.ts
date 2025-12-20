@@ -72,6 +72,9 @@ export interface ClassificationResult {
     valueDependentClassification?: ValueDependentClassification;
     // Database reference for history
     searchHistoryId?: string;
+    // Auto-generated product name if user didn't provide one
+    // Generated from AI analysis (essentialCharacter + primaryMaterial)
+    suggestedProductName?: string;
 }
 
 export interface ClassificationHistoryItem {

@@ -100,7 +100,7 @@ export async function fetchLiveChapter99Rate(htsCode: string): Promise<LiveTarif
             const liveRate: LiveTariffRate = {
                 htsCode: match.htsno,
                 description: match.description,
-                rate: match.general || 'N/A',
+                rate: match.general || 'Free',
                 numericRate: rate,
                 source: 'usitc_api',
                 fetchedAt: new Date(),
@@ -138,7 +138,7 @@ export async function fetchProgramRates(programPrefix: string): Promise<LiveTari
             .map(r => ({
                 htsCode: r.htsno,
                 description: r.description,
-                rate: r.general || 'N/A',
+                rate: r.general || 'Free',
                 numericRate: parseRateFromUSITC(r.general),
                 source: 'usitc_api' as const,
                 fetchedAt: new Date(),

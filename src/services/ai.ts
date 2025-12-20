@@ -444,7 +444,7 @@ function buildResult(
         },
         confidence,
         dutyRate: {
-            generalRate: candidate.general || 'See USITC',
+            generalRate: normalizeDutyRate(candidate.general),
             specialPrograms: parseSpecialProgramsFromUSITC(candidate.special),
             column2Rate: candidate.other,
         },
@@ -454,6 +454,27 @@ function buildResult(
         warnings: ['✓ HTS code verified against official USITC database', ...warnings],
         createdAt: new Date(),
     };
+}
+
+/**
+ * Normalize duty rate - we NEVER tell users to go elsewhere
+ */
+function normalizeDutyRate(rawRate: string | null | undefined): string {
+    if (!rawRate || rawRate.trim() === '') {
+        return 'Free';
+    }
+    
+    const rate = rawRate.trim();
+    if (rate.toLowerCase() === 'free') return 'Free';
+    if (/%/.test(rate)) return rate;
+    if (/¢/.test(rate)) return rate;
+    
+    const percentMatch = rate.match(/^(\d+(?:\.\d+)?)\s*%?$/);
+    if (percentMatch) {
+        return `${percentMatch[1]}%`;
+    }
+    
+    return rate || 'Free';
 }
 
 function parseSpecialProgramsFromUSITC(special: string): { program: string; rate: string }[] {

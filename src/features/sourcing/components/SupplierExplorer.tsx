@@ -342,7 +342,7 @@ export const SupplierExplorer: React.FC<SupplierExplorerProps> = ({
                 }
                 open={!!selectedSupplier}
                 onClose={() => setSelectedSupplier(null)}
-                width={500}
+                size="large"
             >
                 {selectedSupplier && (
                     <div className="space-y-6">

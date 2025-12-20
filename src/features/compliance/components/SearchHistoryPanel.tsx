@@ -17,6 +17,7 @@ import {
     Col,
     message,
     Dropdown,
+    Tooltip,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import { 
@@ -482,4 +483,5 @@ export const SearchHistoryPanel: React.FC = () => {
 };
 
 export default SearchHistoryPanel;
+
 

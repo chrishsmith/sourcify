@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Card, Typography, Progress, Tag, Button, Tooltip, Alert, Collapse, message } from 'antd';
-import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Download, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Card, Typography, Progress, Tag, Button, Tooltip, Alert, Collapse, message, Dropdown, Space } from 'antd';
+import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Download, Bookmark, BookmarkCheck, Bell, ChevronDown } from 'lucide-react';
 import type { ClassificationResult } from '@/types/classification.types';
 import { ConditionalClassificationCard } from './ConditionalClassificationCard';
 import { TariffBreakdown } from './TariffBreakdown';
@@ -187,6 +187,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [isSaved, setIsSaved] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isMonitored, setIsMonitored] = useState(false);
     
     // Track selected conditional HTS code - if user selects one from the conditional card
     const [selectedConditionalCode, setSelectedConditionalCode] = useState<{
@@ -229,14 +230,14 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
         message.success('Report downloaded!');
     };
 
-    const saveToLibrary = async () => {
+    const saveToLibrary = async (withMonitoring: boolean = false) => {
         setIsSaving(true);
         try {
             const response = await fetch('/api/saved-products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: result.input.productName || 'Untitled Product',
+                    name: result.input.productName || result.suggestedProductName || 'Classified Product',
                     description: result.input.productDescription,
                     sku: result.input.productSku,
                     htsCode: result.htsCode.code,
@@ -247,6 +248,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                     baseDutyRate: result.dutyRate.generalRate,
                     effectiveDutyRate: result.effectiveTariff?.totalAdValorem,
                     latestClassification: result,
+                    isMonitored: withMonitoring,
                 }),
             });
 
@@ -260,7 +262,20 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
             }
 
             setIsSaved(true);
-            message.success('Product saved to your library!');
+            setIsMonitored(withMonitoring);
+            
+            if (withMonitoring) {
+                message.success(
+                    <span>
+                        Product saved with tariff monitoring! 
+                        <a href="/dashboard/sourcing?tab=monitoring" className="ml-2 text-teal-600 underline">
+                            View →
+                        </a>
+                    </span>
+                );
+            } else {
+                message.success('Product saved to your library!');
+            }
         } catch (error) {
             console.error('Failed to save product:', error);
             message.error('Failed to save product');
@@ -314,7 +329,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                             Product Details
                         </Text>
                         <Title level={4} className="m-0 mt-1 text-slate-900">
-                            {result.input.productName || 'Untitled Product'}
+                            {result.input.productName || result.suggestedProductName || 'Classified Product'}
                         </Title>
                     </div>
                     {result.input.countryOfOrigin && (
@@ -550,7 +565,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                                             color={isSelected ? 'green' : 'blue'} 
                                             className="font-semibold px-3"
                                         >
-                                            {threshold.dutyRate || 'See USITC'}
+                                            {threshold.dutyRate}
                                         </Tag>
                                     </div>
                                     <div className="flex items-center gap-2 mb-1">
@@ -772,16 +787,56 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 <Button type="primary" size="large" onClick={onNewClassification} className="h-12 px-6">
                     New Classification
                 </Button>
-                <Button
-                    size="large"
-                    icon={isSaved ? <BookmarkCheck size={16} className="text-green-600" /> : <Bookmark size={16} />}
-                    onClick={saveToLibrary}
-                    loading={isSaving}
-                    disabled={isSaved}
-                    className="h-12 px-6"
-                >
-                    {isSaved ? 'Saved to Library' : 'Save to Library'}
-                </Button>
+                
+                {/* Save with monitoring dropdown */}
+                {!isSaved ? (
+                    <Space.Compact>
+                        <Button
+                            type="primary"
+                            size="large"
+                            loading={isSaving}
+                            onClick={() => saveToLibrary(true)}
+                            className="bg-teal-600 hover:bg-teal-700 h-12 px-6"
+                            icon={<Bell size={16} />}
+                        >
+                            Save & Monitor Tariffs
+                        </Button>
+                        <Dropdown
+                            menu={{
+                                items: [
+                                    {
+                                        key: 'save-only',
+                                        icon: <Bookmark size={14} />,
+                                        label: 'Save without monitoring',
+                                        onClick: () => saveToLibrary(false),
+                                    },
+                                ],
+                            }}
+                            trigger={['click']}
+                        >
+                            <Button
+                                type="primary"
+                                size="large"
+                                className="bg-teal-600 hover:bg-teal-700 h-12 px-2"
+                                icon={<ChevronDown size={14} />}
+                            />
+                        </Dropdown>
+                    </Space.Compact>
+                ) : (
+                    <Button
+                        size="large"
+                        disabled
+                        icon={
+                            isMonitored 
+                                ? <Bell size={16} className="text-teal-600" />
+                                : <BookmarkCheck size={16} className="text-green-600" />
+                        }
+                        className="h-12 px-6"
+                    >
+                        {isMonitored ? 'Saved & Monitoring' : 'Saved to Library'}
+                    </Button>
+                )}
+                
                 <Button
                     size="large"
                     icon={<Download size={16} />}

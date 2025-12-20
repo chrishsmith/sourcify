@@ -1,108 +1,81 @@
 # Sourcify Development Progress
 
 > **Last Updated:** December 20, 2025  
-> **Current Phase:** Phase 1.5 - Tariff Data Infrastructure  
-> **Current Sprint:** Sprint 2
+> **Current Phase:** Phase 2 - Trade Intelligence  
+> **Current Sprint:** Sprint 3
 
 ---
 
-## 🎯 Current Sprint: Sprint 2
+## 🎯 Current Sprint: Sprint 3
+
+**Theme:** Tariff Monitoring UI  
+**Dates:** Dec 20 - Dec 27, 2025  
+**Goal:** Build the Tariff Monitoring UI (backend already complete)
+
+> **📐 Design Doc:** See [`ARCHITECTURE_TARIFF_MONITORING.md`](./ARCHITECTURE_TARIFF_MONITORING.md) for full wireframes and specs.
+
+### Priorities This Sprint
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 3.1 Migrate tariffAlerts.ts to use registry | ✅ Complete | Now uses `tariffRegistry.ts` |
+| 3.2 Create Monitoring Tab in Sourcing | 🔲 Pending | `MonitoringTab.tsx`, `MonitoredProductsTable.tsx` |
+| 3.3 Create Product Detail Drawer | 🔲 Pending | Rate breakdown, history, alternatives |
+| 3.4 Add "Save & Monitor" to Classification | 🔲 Pending | Entry point from classification results |
+| 3.5 Dashboard Intelligence Summary Card | 🔲 Pending | Quick summary on main dashboard |
+| 3.6 Automated daily sync (cron) | 🔲 Deferred | Until go-live |
+
+---
+
+## 📋 Previous Sprint: Sprint 2 (Complete ✅)
 
 **Theme:** Country Tariff Registry (Single Source of Truth)  
-**Dates:** Dec 20 - Dec 23, 2025  
+**Dates:** Dec 19 - Dec 20, 2025  
 **Goal:** Centralized, accurate tariff data consumed by all services
 
-### Why This Sprint?
-
-We identified that tariff data was scattered across multiple files with inconsistent rates:
-- Classification and sourcing were showing different tariffs for the same country
-- FTA countries like Singapore were incorrectly shown as "duty-free" when they actually face 10% IEEPA
-- The April 2025 tariff landscape changes weren't properly reflected
-
-### Tasks
+### Tasks Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
 | 2.1 Architecture Documentation | ✅ Complete | See `docs/ARCHITECTURE_TARIFF_REGISTRY.md` |
 | 2.2 Prisma Schema | ✅ Complete | CountryTariffProfile, TariffProgram, HtsTariffOverride |
-| 2.3 TariffRegistry Service | ✅ Complete | `getTariffProfile()`, `getEffectiveTariff()` in `services/tariffRegistry.ts` |
-| 2.4 Data Sync Service | ✅ Complete | `services/tariffRegistrySync.ts` - syncs 196 countries from real sources |
-| 2.5 Migrate Classification | 🔲 Pending | Use registry instead of scattered logic |
-| 2.6 Migrate Sourcing | 🔲 Pending | Use registry for landed cost |
+| 2.3 TariffRegistry Service | ✅ Complete | `getTariffProfile()`, `getEffectiveTariff()` |
+| 2.4 Data Sync Service | ✅ Complete | `tariffRegistrySync.ts` - 7 data sources |
+| 2.5 Migrate Sourcing (landedCost) | ✅ Complete | Uses `getEffectiveTariff` from registry |
+| 2.6 API Endpoint | ✅ Complete | `POST /api/tariff-registry/sync` |
 
-### Key Decisions
-- **Single Source of Truth:** All tariff data lives in the registry
-- **FTA Clarification:** FTAs waive BASE duty but NOT IEEPA (except USMCA)
-- **Universal Baseline:** 10% IEEPA applies to nearly all countries as of April 2025
+### Key Achievements
+
+- **199 countries** loaded from ISO 3166-1
+- **7 active data sources**: USITC HTS API, DataWeb, Federal Register, FTA list, OFAC, AD/CVD
+- **20 FTA partners** with proper IEEPA handling (FTAs waive base duty but NOT IEEPA!)
+- **Comprehensive sync** endpoint working
 
 ---
 
-## 📋 Previous Sprint: Sprint 1 (Complete ✅)
+## 📋 Sprint 1 (Complete ✅)
 
 **Theme:** Classification → Sourcing Flow  
 **Dates:** Dec 19 - Dec 22, 2024  
 **Goal:** Users can click from classification result to sourcing analysis
 
-### Tasks
+### Tasks Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
 | 1.1 Dynamic Sourcing CTA | ✅ Complete | SourcingPreview component + API |
 | 1.2 URL Parameter Support | ✅ Complete | Sourcing page accepts ?hts=X&from=Y |
 | 1.3 Natural Language Input | ✅ Complete | Shared ProductInputForm component |
-| 1.4 Results Enhancement | ✅ Complete | Current source highlight, skeleton loading, better table |
+| 1.4 Results Enhancement | ✅ Complete | Current source highlight, skeleton loading |
 | 1.5 Supplier Integration | ✅ Complete | Click country → filtered suppliers |
-| UI/UX Polish | ✅ Complete | Concise tariff breakdown, teal badges, spacing |
-
-### Daily Log
-
-#### Dec 19, 2024 (cont.) - MAJOR: Real Data Integration! 🎉
-- [x] **USITC DataWeb API Integration** - REAL import statistics!
-  - Created `/services/usitcDataWeb.ts` with full API integration
-  - Queries actual US import data by HTS code and country
-  - Returns customs value, quantity, avg unit value for 40+ countries
-  - Tested with HTS 851830 (earphones): China $3.57B, Vietnam $3.18B imports
-  - API docs: https://www.usitc.gov/applications/dataweb/api/dataweb_query_api.html
-- [x] `/api/sourcing/sync-data` endpoint for syncing USITC data to DB
-- [x] Verified end-to-end flow with real data
-
-#### Dec 19, 2024
-- [x] Created product roadmap document
-- [x] Created progress tracker
-- [x] Created `/api/sourcing/quick` endpoint for lightweight preview data
-- [x] Created `SourcingPreview` component with real cost data
-- [x] Replaced static teaser in `ClassificationResult.tsx` with dynamic preview
-- [x] Added URL parameter support to sourcing page with Suspense
-- [x] Added context banner when navigating from classification
-- [x] UI/UX Polish:
-  - Simplified TariffBreakdown to show concise +X% rates
-  - Added teal HTS code badges with inline styles
-  - Removed row-by-row coloring, kept severity color for total rate
-  - Fixed card spacing with inline marginBottom (24px) for Ant Design compatibility
-- [x] Test end-to-end flow in browser
-- [x] Created shared components architecture:
-  - `/components/shared/ProductInputForm.tsx` - Reusable product input
-  - `/components/shared/constants.ts` - Shared COUNTRIES with helpers
-  - Refactored ClassificationForm to use shared component
-  - Added "Describe my product" mode to Sourcing page (classify → analyze flow)
-- [x] Results Enhancement (1.4):
-  - Added "Current Source" highlight card when country provided
-  - Added "CURRENT" and "BEST" tags in comparison table
-  - Row highlighting for current vs best option
-  - Improved skeleton loading states
-  - Better "vs Current" column with directional arrows
-- [x] Supplier Integration (1.5):
-  - Added "Find Suppliers" button per country row in analysis
-  - SupplierExplorer now accepts initialCountry/initialHtsCode props
-  - Clicking suppliers switches tab with pre-filtered results
-  - "Back to Analysis" button to return to cost comparison
-  - Filter indicator dot on tab when filtered
+| UI/UX Polish | ✅ Complete | Concise tariff breakdown, teal badges |
 
 ---
 
 ## 📊 Overall Progress
 
-### Phase 1: Sourcing Intelligence
+### Phase 1: Sourcing Intelligence ✅ 100%
+
 | Task | Status | Completion |
 |------|--------|------------|
 | 1.1 Dynamic Sourcing CTA | ✅ | 100% |
@@ -113,23 +86,39 @@ We identified that tariff data was scattered across multiple files with inconsis
 
 **Phase 1 Overall: 100% ✅**
 
-### Phase 2: Trade Intelligence
+### Phase 1.5: Country Tariff Registry ✅ 100%
+
 | Task | Status | Completion |
 |------|--------|------------|
-| 2.1 Tariff Alert System | 🔲 | 0% |
+| Architecture & Schema | ✅ | 100% |
+| TariffRegistry Service | ✅ | 100% |
+| TariffRegistrySync Service | ✅ | 100% |
+| Sourcing Migration | ✅ | 100% |
+| Sync API Endpoint | ✅ | 100% |
+
+**Phase 1.5 Overall: 100% ✅**
+
+### Phase 2: Trade Intelligence ~35%
+
+| Task | Status | Completion |
+|------|--------|------------|
+| 2.1 Tariff Alert System | ⚠️ | 60% - Service done, needs UI |
 | 2.2 Saved Products Monitoring | 🔲 | 0% |
 | 2.3 Intelligence Dashboard | 🔲 | 0% |
 | 2.4 Weekly Digest Email | 🔲 | 0% |
 | 2.5 Data Sources Integration | ✅ | 100% |
 
-**Phase 2 Overall: 20%** (Real data sources integrated!)
+**Phase 2 Overall: 35%**
 
-### Data Sources Integrated
-| Source | Type | Status |
-|--------|------|--------|
-| USITC DataWeb API | Import Statistics | ✅ Live |
-| USITC HTS API | Tariff Rates | ✅ Live |
-| Grok AI | Analysis & Insights | ✅ Live |
+---
+
+## 🔧 Technical Debt / Known Issues
+
+| Issue | Priority | Notes |
+|-------|----------|-------|
+| Classification engine not using registry | High | Still uses inline tariff logic |
+| No automated daily sync | High | Must run sync manually |
+| Email notifications not set up | Medium | No Resend/SendGrid integration |
 
 ---
 
@@ -138,57 +127,58 @@ We identified that tariff data was scattered across multiple files with inconsis
 - [x] **Dec 19, 2024** - Product roadmap created
 - [x] **Dec 19, 2024** - Phase 1: Sourcing Intelligence complete! 🎉
 - [x] **Dec 19, 2024** - USITC DataWeb API integrated - REAL import data! 📊
-- [ ] Tariff alerts launched
+- [x] **Dec 20, 2025** - Country Tariff Registry LIVE - 199 countries, 7 data sources 🌍
+- [x] **Dec 20, 2025** - Tariff Alerts service migrated to registry ✅
 - [ ] Intelligence dashboard launched
+- [ ] Automated daily sync configured
 - [ ] First paying customer
 
 ---
 
-## ⚠️ Critical Updates (December 2025)
+## ⚠️ Critical Reminders
 
-### Tariff Accuracy Enhancement
-**Date:** December 20, 2025
+### Daily Sync Required
 
-We identified and fixed a significant gap in tariff calculation accuracy:
+The tariff registry **must be synced** to stay accurate. Until automated:
 
-1. **Problem Identified:**
-   - USITC DataWeb provides import VOLUME/VALUE statistics, NOT tariff rates
-   - Sourcing intelligence was using simplified/hardcoded tariff rates
-   - FTA countries were incorrectly shown as "duty-free" when they now face 10% IEEPA
+```bash
+# Run this after deploying or when tariff news breaks
+curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
+```
 
-2. **April 2025 Tariff Changes:**
-   - Universal 10% IEEPA reciprocal baseline now applies to NEARLY ALL countries
-   - FTAs (Singapore, Korea, Australia, etc.) do NOT exempt from this 10%
-   - Only USMCA (MX/CA) may have exemptions for compliant goods
-   - Some countries have even HIGHER reciprocal rates (Vietnam 46%, Cambodia 49%)
+### FTA ≠ Duty Free
 
-3. **Changes Made:**
-   - Updated `tariffPrograms.ts` with universal baseline + country-specific rates
-   - Updated `landedCost.ts` to use centralized tariff calculation
-   - Updated `usitcDataWeb.ts` with proper tariff data and documentation
-   - FTA treatment now correctly shows: "Base duty waived but IEEPA still applies"
-
-4. **Sources:**
-   - Enterprise Singapore FAQs (USSFTA impact)
-   - Reuters, PwC trade analyses from 2025
-   - U.S. trade policy announcements (Executive Orders 14195, 14257)
+As of April 2025:
+- FTAs (Singapore, Korea, etc.) waive **base duty** only
+- **10% IEEPA still applies** to most FTA countries
+- Only USMCA (MX/CA) may fully exempt compliant goods
 
 ---
 
-## 🐛 Known Issues / Blockers
+## 🗃️ Data Sources Status
 
-| Issue | Priority | Status |
-|-------|----------|--------|
-| None currently | - | - |
+### Active (7)
 
----
+| Source | Status | Last Sync |
+|--------|--------|-----------|
+| ISO 3166-1 Countries | ✅ | Dec 20, 2025 |
+| USITC HTS API | ✅ | Dec 20, 2025 |
+| USITC DataWeb | ✅ | Dec 20, 2025 |
+| Federal Register | ✅ | Dec 20, 2025 |
+| USTR FTA List | ✅ | Dec 20, 2025 |
+| OFAC Sanctions | ✅ | Dec 20, 2025 |
+| AD/CVD Orders | ✅ | Dec 20, 2025 |
 
-## 📝 Notes & Decisions
+### Planned (6)
 
-### Dec 19, 2024
-- Decided to prioritize sourcing flow (Phase 1) before intelligence (Phase 2)
-- MVP will focus on connecting classification → sourcing seamlessly
-- Will use free tariff data sources initially, paid data for competitor intel later
+| Source | Status |
+|--------|--------|
+| Census Bureau API | 🔲 Sprint 4 |
+| CBP CROSS | 🔲 Sprint 4 |
+| UN Comtrade | 🔲 Sprint 5 |
+| ImportYeti | 🔲 Future |
+| FDA Import Alerts | 🔲 Future |
+| CPSC Recalls | 🔲 Future |
 
 ---
 
@@ -198,6 +188,7 @@ We identified and fixed a significant gap in tariff calculation accuracy:
 |--------|---------|
 | 🔲 | Not Started |
 | 🟡 | In Progress |
+| ⚠️ | Partial / Needs Work |
 | ✅ | Complete |
 | ❌ | Blocked |
 | ⏸️ | On Hold |
