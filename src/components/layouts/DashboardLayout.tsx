@@ -13,7 +13,8 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    Anchor
+    Anchor,
+    Globe,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -48,6 +49,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             key: '/dashboard/suppliers',
             icon: <Search size={18} />,
             label: 'Supplier Explorer',
+        },
+        {
+            key: '/dashboard/sourcing',
+            icon: <Globe size={18} />,
+            label: 'Sourcing Intelligence',
         },
         {
             type: 'divider',

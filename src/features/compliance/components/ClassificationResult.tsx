@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Card, Typography, Progress, Tag, Button, Tooltip, Alert, Collapse, message } from 'antd';
-import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Download } from 'lucide-react';
+import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Download, Bookmark, BookmarkCheck } from 'lucide-react';
 import type { ClassificationResult } from '@/types/classification.types';
 import { ConditionalClassificationCard } from './ConditionalClassificationCard';
 import { TariffBreakdown } from './TariffBreakdown';
@@ -184,6 +184,9 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
     onSelectAlternative
 }) => {
     const [copiedField, setCopiedField] = useState<string | null>(null);
+    const [isSaved, setIsSaved] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    
     // Track selected conditional HTS code - if user selects one from the conditional card
     const [selectedConditionalCode, setSelectedConditionalCode] = useState<{
         code: string;
@@ -225,6 +228,46 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
         message.success('Report downloaded!');
     };
 
+    const saveToLibrary = async () => {
+        setIsSaving(true);
+        try {
+            const response = await fetch('/api/saved-products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: result.input.productName || 'Untitled Product',
+                    description: result.input.productDescription,
+                    sku: result.input.productSku,
+                    htsCode: result.htsCode.code,
+                    htsDescription: result.htsCode.description,
+                    countryOfOrigin: result.input.countryOfOrigin,
+                    materialComposition: result.input.materialComposition,
+                    intendedUse: result.input.intendedUse,
+                    baseDutyRate: result.dutyRate.generalRate,
+                    effectiveDutyRate: result.effectiveTariff?.totalAdValorem,
+                    latestClassification: result,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                if (response.status === 401) {
+                    message.warning('Please sign in to save products to your library');
+                    return;
+                }
+                throw new Error(data.error || 'Failed to save');
+            }
+
+            setIsSaved(true);
+            message.success('Product saved to your library!');
+        } catch (error) {
+            console.error('Failed to save product:', error);
+            message.error('Failed to save product');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const getConfidenceColor = (confidence: number) => {
         if (confidence >= 90) return '#10B981';
         if (confidence >= 70) return '#F59E0B';
@@ -262,6 +305,65 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
 
     return (
         <div className="flex flex-col gap-5">
+            {/* Product Input Summary Card */}
+            <Card className="border border-slate-200 shadow-sm bg-gradient-to-br from-slate-50 to-white">
+                <div className="flex items-start justify-between mb-4">
+                    <div>
+                        <Text className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                            Product Details
+                        </Text>
+                        <Title level={4} className="m-0 mt-1 text-slate-900">
+                            {result.input.productName || 'Untitled Product'}
+                        </Title>
+                    </div>
+                    {result.input.countryOfOrigin && (
+                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg">
+                            <span className="text-lg">{getCountryFlag(result.input.countryOfOrigin)}</span>
+                            <div>
+                                <Text className="text-xs text-slate-500 block">Origin</Text>
+                                <Text strong className="text-slate-800">{getCountryName(result.input.countryOfOrigin)}</Text>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Description */}
+                    <div className="md:col-span-2">
+                        <Text className="text-xs text-slate-500 font-medium block mb-1">Description</Text>
+                        <Paragraph className="text-slate-700 mb-0 bg-white p-3 rounded-lg border border-slate-100">
+                            {result.input.productDescription}
+                        </Paragraph>
+                    </div>
+                    
+                    {/* SKU */}
+                    {result.input.productSku && (
+                        <div>
+                            <Text className="text-xs text-slate-500 font-medium block mb-1">SKU / Part Number</Text>
+                            <Tag className="font-mono bg-slate-100 border-slate-200 text-slate-700 px-3 py-1">
+                                {result.input.productSku}
+                            </Tag>
+                        </div>
+                    )}
+                    
+                    {/* Material */}
+                    {result.input.materialComposition && (
+                        <div>
+                            <Text className="text-xs text-slate-500 font-medium block mb-1">Material Composition</Text>
+                            <Text className="text-slate-700">{result.input.materialComposition}</Text>
+                        </div>
+                    )}
+                    
+                    {/* Intended Use */}
+                    {result.input.intendedUse && (
+                        <div className={result.input.productSku || result.input.materialComposition ? '' : 'md:col-span-2'}>
+                            <Text className="text-xs text-slate-500 font-medium block mb-1">Intended Use</Text>
+                            <Text className="text-slate-700">{result.input.intendedUse}</Text>
+                        </div>
+                    )}
+                </div>
+            </Card>
+
             {/* Main Result Card */}
             <Card className={`border shadow-sm ${selectedConditionalCode ? 'border-green-300 ring-2 ring-green-100' : 'border-slate-200'}`}>
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 p-2">
@@ -689,6 +791,16 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
             <div className="flex flex-wrap gap-3 pt-2">
                 <Button type="primary" size="large" onClick={onNewClassification} className="h-12 px-6">
                     New Classification
+                </Button>
+                <Button
+                    size="large"
+                    icon={isSaved ? <BookmarkCheck size={16} className="text-green-600" /> : <Bookmark size={16} />}
+                    onClick={saveToLibrary}
+                    loading={isSaving}
+                    disabled={isSaved}
+                    className="h-12 px-6"
+                >
+                    {isSaved ? 'Saved to Library' : 'Save to Library'}
                 </Button>
                 <Button
                     size="large"

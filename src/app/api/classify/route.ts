@@ -8,13 +8,17 @@
  * 4. Validation Layer
  * 5. Full Hierarchy Path
  * 6. Value-Dependent Classification Detection
+ * 7. Automatic History Saving
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 import { classifyProduct } from '@/services/classificationEngine';
 import { calculateEffectiveTariff } from '@/services/additionalDuties';
 import { getHTSHierarchy } from '@/services/htsHierarchy';
 import { detectValueDependentCodes } from '@/services/valueClassification';
+import { saveSearchToHistory } from '@/services/searchHistory';
 import type { ClassificationInput, ClassificationResult } from '@/types/classification.types';
 import type { ConditionalClassification } from '@/types/classification.types';
 
@@ -128,6 +132,29 @@ export async function POST(request: NextRequest) {
         console.log('\n[API] Final Classification:', result.htsCode.code);
         console.log('[API] Confidence:', result.confidence);
         console.log('════════════════════════════════════════════════════════════════\n');
+
+        // ═══════════════════════════════════════════════════════════════
+        // SAVE TO SEARCH HISTORY
+        // Every search is saved for history and supplier upsell
+        // ═══════════════════════════════════════════════════════════════
+        try {
+            const session = await auth.api.getSession({
+                headers: await headers(),
+            });
+
+            const searchId = await saveSearchToHistory(
+                input,
+                result,
+                session?.user?.id
+            );
+
+            // Add search ID to result so UI can link to it
+            result.searchHistoryId = searchId;
+            console.log('[API] Saved to history:', searchId);
+        } catch (historyError) {
+            // Don't fail the classification if history save fails
+            console.warn('[API] Failed to save to history:', historyError);
+        }
 
         return NextResponse.json(result);
     } catch (error) {

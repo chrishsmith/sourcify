@@ -1,19 +1,15 @@
 import { PrismaClient } from '@prisma/client';
-import { Pool } from '@neondatabase/serverless';
-import { PrismaNeon } from '@prisma/adapter-neon';
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-// Use Neon Adapter for serverless connection pooling
-const connectionString = process.env.DATABASE_URL!;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaNeon(pool as any);
-
+// Use standard PrismaClient - it works well with Neon's connection pooler
+// The driverAdapters feature is optional and can cause issues in some environments
 export const prisma =
     globalForPrisma.prisma ||
     new PrismaClient({
-        adapter,
-        log: ['query'],
+        log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.prisma = prisma;
+}

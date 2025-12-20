@@ -1,127 +1,343 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Input, Card, List, Tag, Button, Rate, Space, Avatar, Typography, Badge, Row, Col } from 'antd';
-import { Search, MapPin, Building2, Zap, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Input, Card, Tag, Button, Avatar, Typography, Badge, Row, Col, Select, Skeleton, Empty, Drawer, Descriptions, Statistic } from 'antd';
+import { Search, MapPin, Building2, Zap, Filter, CheckCircle, Star, Clock, DollarSign, Globe, X } from 'lucide-react';
 
 const { Text, Title, Paragraph } = Typography;
 
 interface Supplier {
     id: string;
     name: string;
-    country: string;
-    matchScore: number;
-    tier: string;
-    tags: string[];
+    slug: string;
     description: string;
+    website?: string;
+    countryCode: string;
+    countryName: string;
+    region?: string;
+    city?: string;
+    productCategories: string[];
+    htsChapters: string[];
+    materials: string[];
+    certifications: string[];
+    isVerified: boolean;
+    tier: string;
+    reliabilityScore: number;
+    qualityScore: number;
+    communicationScore: number;
+    overallScore: number;
+    costTier: string;
+    minOrderValue?: number;
+    typicalLeadDays?: number;
+    employeeCount?: string;
 }
 
-const mockSuppliers: Supplier[] = [
-    {
-        id: '1',
-        name: 'Dongguan Tex-Pro Manufacturing',
-        country: 'China',
-        matchScore: 94,
-        tier: 'Tier 1',
-        tags: ['ISO 9001', 'Cotton', 'Fast Turnaround'],
-        description: 'Specializes in high-volume cotton knits with automated cutting lines.',
-    },
-    {
-        id: '2',
-        name: 'Viet-Style Garment Co.',
-        country: 'Vietnam',
-        matchScore: 88,
-        tier: 'Tier 1',
-        tags: ['Eco-Certified', 'Duty Free', 'Low MOQ'],
-        description: 'Sustainable production facility focusing on organic materials.',
-    },
-    {
-        id: '3',
-        name: 'Ankara Textiles Ltd.',
-        country: 'Turkey',
-        matchScore: 82,
-        tier: 'Tier 2',
-        tags: ['Near-Shore', 'High Quality', 'Denim'],
-        description: 'Premium textile mill supplying major European brands.',
-    },
-];
+interface CountryFilter {
+    code: string;
+    name: string;
+    count: number;
+}
 
 export const SupplierExplorer: React.FC = () => {
+    const [loading, setLoading] = useState(true);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [total, setTotal] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
+    const [countryFilter, setCountryFilter] = useState<string | undefined>();
+    const [countries, setCountries] = useState<CountryFilter[]>([]);
+    const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
+    const fetchSuppliers = async () => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (searchTerm) params.set('q', searchTerm);
+            if (countryFilter) params.set('country', countryFilter);
+            params.set('verifiedOnly', 'true');
+            params.set('limit', '20');
+
+            const response = await fetch(`/api/suppliers?${params.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const data = await response.json();
+            setSuppliers(data.suppliers);
+            setTotal(data.total);
+            setCountries(data.filters?.countries || []);
+        } catch (error) {
+            console.error('Failed to fetch suppliers:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSuppliers();
+    }, [countryFilter]);
+
+    const handleSearch = () => {
+        fetchSuppliers();
+    };
+
+    const getTierLabel = (tier: string) => {
+        switch (tier) {
+            case 'PREMIUM': return { label: 'Premium', color: 'gold' };
+            case 'VERIFIED': return { label: 'Verified', color: 'green' };
+            case 'BASIC': return { label: 'Basic', color: 'blue' };
+            default: return { label: 'Unverified', color: 'default' };
+        }
+    };
+
+    const getCostLabel = (costTier: string) => {
+        switch (costTier) {
+            case 'LOW': return { label: '$ Low Cost', color: 'green' };
+            case 'MEDIUM': return { label: '$$ Medium', color: 'gold' };
+            case 'HIGH': return { label: '$$$ Premium', color: 'red' };
+            default: return { label: 'Unknown', color: 'default' };
+        }
+    };
 
     return (
         <div className="space-y-6">
-            {/* Search Area */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            {/* Hero Search Area */}
+            <div className="bg-gradient-to-br from-teal-50 to-emerald-50 p-8 rounded-2xl border border-teal-100">
                 <div className="max-w-2xl mx-auto">
-                    <Title level={3} className="text-center mb-6 text-slate-800">Find Verified Suppliers</Title>
+                    <Title level={3} className="text-center mb-2 text-slate-800">Find Verified Suppliers</Title>
+                    <Text className="text-center block mb-6 text-slate-600">
+                        Connect with vetted manufacturers from around the world
+                    </Text>
                     <div className="flex gap-2">
                         <Input
                             size="large"
                             placeholder="Search by product, material, or HTS code..."
                             prefix={<Search className="text-slate-400" size={18} />}
+                            value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
+                            onPressEnter={handleSearch}
                             className="rounded-lg"
                         />
-                        <Button size="large" icon={<Filter size={18} />}>Filters</Button>
-                        <Button type="primary" size="large" className="bg-teal-600">Search</Button>
+                        <Select
+                            size="large"
+                            placeholder="Country"
+                            allowClear
+                            style={{ width: 180 }}
+                            value={countryFilter}
+                            onChange={setCountryFilter}
+                            options={countries.map(c => ({
+                                value: c.code,
+                                label: `${c.name} (${c.count})`,
+                            }))}
+                        />
+                        <Button 
+                            type="primary" 
+                            size="large" 
+                            className="bg-teal-600"
+                            onClick={handleSearch}
+                            loading={loading}
+                        >
+                            Search
+                        </Button>
                     </div>
                     <div className="mt-3 text-center">
                         <Text type="secondary" className="text-xs">
-                            Popular: <Tag>Cotton T-Shirt</Tag> <Tag>PCB Board</Tag> <Tag>Aluminum</Tag>
+                            Popular: 
+                            <Tag className="ml-2 cursor-pointer" onClick={() => { setSearchTerm('Cotton'); handleSearch(); }}>Cotton</Tag>
+                            <Tag className="cursor-pointer" onClick={() => { setSearchTerm('Electronics'); handleSearch(); }}>Electronics</Tag>
+                            <Tag className="cursor-pointer" onClick={() => { setSearchTerm('Leather'); handleSearch(); }}>Leather</Tag>
                         </Text>
                     </div>
                 </div>
             </div>
 
-            {/* Results Grid */}
-            <Row gutter={[16, 16]}>
-                {mockSuppliers.map(supplier => (
-                    <Col xs={24} md={12} xl={8} key={supplier.id}>
-                        <Card
-                            hoverable
-                            variant="borderless"
-                            className="h-full shadow-sm hover:shadow-md transition-shadow"
-                            actions={[
-                                <Button key="contact" type="link">Contact</Button>,
-                                <Button key="save" type="link">Save Profile</Button>
-                            ]}
-                        >
-                            <Card.Meta
-                                avatar={<Avatar shape="square" size={48} icon={<Building2 size={24} />} className="bg-slate-100 text-slate-500" />}
-                                title={
-                                    <div className="flex justify-between items-start">
-                                        <span className="truncate pr-2" title={supplier.name}>{supplier.name}</span>
-                                        <Badge count={`${supplier.matchScore}% Match`} style={{ backgroundColor: '#0D9488' }} />
-                                    </div>
-                                }
-                                description={
-                                    <div className="space-y-3 mt-2">
-                                        <div className="flex items-center text-xs text-slate-500">
-                                            <MapPin size={12} className="mr-1" /> {supplier.country}
-                                            <span className="mx-2">•</span>
-                                            <Zap size={12} className="mr-1 text-amber-500" /> {supplier.tier}
-                                        </div>
-                                        <Paragraph ellipsis={{ rows: 2 }} className="text-slate-600 text-sm mb-0">
-                                            {supplier.description}
-                                        </Paragraph>
-                                        <div className="flex flex-wrap gap-1">
-                                            {supplier.tags.map(tag => <Tag key={tag} className="text-xs m-0">{tag}</Tag>)}
-                                        </div>
-                                    </div>
-                                }
-                            />
-                        </Card>
-                    </Col>
-                ))}
-
-                {/* Mock "Load More" */}
-                <Col xs={24}>
-                    <div className="text-center py-8">
-                        <Text type="secondary">Showing 3 of 11,204 results</Text>
+            {/* Results */}
+            {loading ? (
+                <Row gutter={[16, 16]}>
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <Col xs={24} md={12} xl={8} key={i}>
+                            <Card className="h-full"><Skeleton active /></Card>
+                        </Col>
+                    ))}
+                </Row>
+            ) : suppliers.length === 0 ? (
+                <Empty
+                    description={
+                        <div className="text-center">
+                            <Text type="secondary">No suppliers found</Text>
+                            <br />
+                            <Text type="secondary" className="text-xs">
+                                Try adjusting your search criteria
+                            </Text>
+                        </div>
+                    }
+                />
+            ) : (
+                <>
+                    <div className="flex justify-between items-center">
+                        <Text type="secondary">{total} verified suppliers found</Text>
                     </div>
-                </Col>
-            </Row>
+
+                    <Row gutter={[16, 16]}>
+                        {suppliers.map(supplier => {
+                            const tierInfo = getTierLabel(supplier.tier);
+                            const costInfo = getCostLabel(supplier.costTier);
+
+                            return (
+                                <Col xs={24} md={12} xl={8} key={supplier.id}>
+                                    <Card
+                                        hoverable
+                                        className="h-full shadow-sm hover:shadow-md transition-shadow border-slate-100"
+                                        onClick={() => setSelectedSupplier(supplier)}
+                                    >
+                                        <div className="space-y-3">
+                                            <div className="flex items-start gap-3">
+                                                <Avatar 
+                                                    shape="square" 
+                                                    size={48} 
+                                                    icon={<Building2 size={24} />} 
+                                                    className="bg-slate-100 text-slate-500 shrink-0" 
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <Text strong className="truncate block">{supplier.name}</Text>
+                                                        {supplier.isVerified && (
+                                                            <CheckCircle size={14} className="text-green-500 shrink-0" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <MapPin size={12} className="text-slate-400" />
+                                                        <Text type="secondary" className="text-xs">
+                                                            {supplier.city || supplier.region}, {supplier.countryName}
+                                                        </Text>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <Paragraph 
+                                                ellipsis={{ rows: 2 }} 
+                                                className="text-slate-600 text-sm mb-0"
+                                            >
+                                                {supplier.description}
+                                            </Paragraph>
+
+                                            <div className="flex items-center gap-3 text-xs">
+                                                <div className="flex items-center gap-1">
+                                                    <Star size={12} className="text-amber-500" />
+                                                    <span>{supplier.overallScore?.toFixed(0)}</span>
+                                                </div>
+                                                <Tag color={tierInfo.color} className="m-0">{tierInfo.label}</Tag>
+                                                <Tag color={costInfo.color} className="m-0">{costInfo.label}</Tag>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-1">
+                                                {supplier.certifications?.slice(0, 3).map(cert => (
+                                                    <Tag key={cert} className="text-xs m-0 bg-slate-50">{cert}</Tag>
+                                                ))}
+                                                {(supplier.certifications?.length || 0) > 3 && (
+                                                    <Tag className="text-xs m-0">+{supplier.certifications.length - 3}</Tag>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </Card>
+                                </Col>
+                            );
+                        })}
+                    </Row>
+                </>
+            )}
+
+            {/* Supplier Detail Drawer */}
+            <Drawer
+                title={
+                    <div className="flex items-center gap-3">
+                        <Avatar shape="square" size={40} icon={<Building2 />} className="bg-teal-100 text-teal-600" />
+                        <div>
+                            <Text strong>{selectedSupplier?.name}</Text>
+                            <div className="flex items-center gap-2">
+                                <MapPin size={12} className="text-slate-400" />
+                                <Text type="secondary" className="text-xs">
+                                    {selectedSupplier?.countryName}
+                                </Text>
+                            </div>
+                        </div>
+                    </div>
+                }
+                open={!!selectedSupplier}
+                onClose={() => setSelectedSupplier(null)}
+                width={500}
+            >
+                {selectedSupplier && (
+                    <div className="space-y-6">
+                        <Paragraph>{selectedSupplier.description}</Paragraph>
+
+                        <Row gutter={[16, 16]}>
+                            <Col span={8}>
+                                <Statistic 
+                                    title="Quality" 
+                                    value={selectedSupplier.qualityScore} 
+                                    suffix="/100"
+                                    valueStyle={{ color: '#0D9488' }}
+                                />
+                            </Col>
+                            <Col span={8}>
+                                <Statistic 
+                                    title="Reliability" 
+                                    value={selectedSupplier.reliabilityScore} 
+                                    suffix="/100"
+                                    valueStyle={{ color: '#0D9488' }}
+                                />
+                            </Col>
+                            <Col span={8}>
+                                <Statistic 
+                                    title="Response" 
+                                    value={selectedSupplier.communicationScore} 
+                                    suffix="/100"
+                                    valueStyle={{ color: '#0D9488' }}
+                                />
+                            </Col>
+                        </Row>
+
+                        <Descriptions column={1} size="small">
+                            <Descriptions.Item label="Location">
+                                {[selectedSupplier.city, selectedSupplier.region, selectedSupplier.countryName]
+                                    .filter(Boolean).join(', ')}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Min Order">
+                                {selectedSupplier.minOrderValue 
+                                    ? `$${selectedSupplier.minOrderValue.toLocaleString()}`
+                                    : 'Contact for MOQ'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Lead Time">
+                                {selectedSupplier.typicalLeadDays 
+                                    ? `${selectedSupplier.typicalLeadDays} days`
+                                    : 'Varies'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Categories">
+                                {selectedSupplier.productCategories?.join(', ')}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Materials">
+                                {selectedSupplier.materials?.join(', ')}
+                            </Descriptions.Item>
+                        </Descriptions>
+
+                        <div>
+                            <Text strong className="block mb-2">Certifications</Text>
+                            <div className="flex flex-wrap gap-1">
+                                {selectedSupplier.certifications?.map(cert => (
+                                    <Tag key={cert} color="green">{cert}</Tag>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button type="primary" className="flex-1 bg-teal-600">
+                                Request Quote
+                            </Button>
+                            <Button className="flex-1">
+                                Save Supplier
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Drawer>
         </div>
     );
 };

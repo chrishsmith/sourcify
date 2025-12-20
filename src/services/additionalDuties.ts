@@ -435,6 +435,34 @@ function checkSection232Exemption(countryCode: string, productType: string): boo
 // UTILITY EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Re-export getSection301Rate for use in other modules
+export { getSection301Rate } from '@/data/section301Lists';
+
+/**
+ * Get IEEPA rate for a country (Fentanyl + Reciprocal combined)
+ */
+export function getIEEPARate(countryCode: string): number {
+    let totalRate = 0;
+    
+    // Check Fentanyl IEEPA
+    const fentanylProgram = IEEPA_PROGRAMS.find(p => 
+        p.id.includes('fentanyl') && p.affectedCountries.includes(countryCode)
+    );
+    if (fentanylProgram) {
+        totalRate += fentanylProgram.rate;
+    }
+    
+    // Check Reciprocal IEEPA
+    const reciprocalProgram = IEEPA_PROGRAMS.find(p => 
+        p.id.includes('reciprocal') && p.affectedCountries.includes(countryCode)
+    );
+    if (reciprocalProgram) {
+        totalRate += reciprocalProgram.rate;
+    }
+    
+    return totalRate;
+}
+
 /**
  * Get quick summary of additional duties for a country
  */

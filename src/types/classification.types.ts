@@ -70,6 +70,8 @@ export interface ClassificationResult {
     hierarchy?: HTSHierarchy;
     // Value-dependent classification (when product has multiple codes based on value/weight)
     valueDependentClassification?: ValueDependentClassification;
+    // Database reference for history
+    searchHistoryId?: string;
 }
 
 export interface ClassificationHistoryItem {

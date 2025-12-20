@@ -1,12 +1,15 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTHENTICATION MODELS (Better-Auth managed)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
   id            String    @id @default(cuid())
@@ -17,9 +20,15 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
-  products      Product[]
-  sessions      Session[]
-  accounts      Account[]
+  // Core relationships
+  sessions        Session[]
+  accounts        Account[]
+  
+  // TradeForge data
+  searchHistory   SearchHistory[]
+  savedProducts   SavedProduct[]
+  tariffAlerts    TariffAlert[]
+  savedSuppliers  UserSavedSupplier[]
 
   @@map("user")
 }
@@ -65,60 +74,702 @@ model Verification {
   @@map("verification")
 }
 
-model Product {
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCH & CLASSIFICATION HISTORY
+// Every search a user runs is saved here for future reference
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SearchHistory {
+  id              String   @id @default(cuid())
+  userId          String?  // Nullable for anonymous searches
+  
+  // Search Input (what the user entered)
+  productName     String?
+  productSku      String?
+  productDescription String @db.Text
+  countryOfOrigin String?
+  materialComposition String?
+  intendedUse     String?
+  
+  // Classification Result
+  htsCode         String
+  htsDescription  String   @db.Text
+  confidence      Float
+  
+  // Full result stored as JSONB (complete ClassificationResult)
+  fullResult      Json
+  
+  // Quick-access fields for filtering/display
+  baseDutyRate    String?           // e.g., "5.3%"
+  effectiveRate   Float?            // Total with all duties (numeric)
+  hasAdditionalDuties Boolean @default(false)
+  
+  // Status
+  status          SearchStatus @default(COMPLETED)
+  
+  // Metadata
+  searchType      SearchType @default(SINGLE)
+  batchId         String?           // For bulk imports
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  user            User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  savedProduct    SavedProduct?     // If user saves this search as a product
+  tariffAlerts    TariffAlert[]     // Alerts monitoring this search
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([htsCode])
+  @@index([batchId])
+  @@map("search_history")
+}
+
+enum SearchStatus {
+  COMPLETED
+  FAILED
+  PENDING
+}
+
+enum SearchType {
+  SINGLE
+  BULK_CSV
+  API
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SAVED PRODUCTS
+// Products the user wants to track long-term (for monitoring, supplier matching)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SavedProduct {
   id                  String   @id @default(cuid())
   userId              String
+  
+  // Product Details
   name                String
-  description         String
+  description         String   @db.Text
   sku                 String?
+  
+  // Classification Details (cached from latest search)
+  htsCode             String
+  htsDescription      String   @db.Text
   countryOfOrigin     String?
   materialComposition String?
   intendedUse         String?
+  
+  // Cost Summary (for quick display)
+  baseDutyRate        String?
+  effectiveDutyRate   Float?
+  
+  // Current Classification Result
+  latestClassification Json?
+  
+  // Flags
+  isMonitored         Boolean  @default(false)  // Receive tariff alerts
+  isFavorite          Boolean  @default(false)
+  
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   
-  user            User @relation(fields: [userId], references: [id])
-  classifications Classification[]
+  // Relations
+  user                User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceSearch        SearchHistory? @relation(fields: [sourceSearchId], references: [id])
+  sourceSearchId      String? @unique
+  
+  tariffAlerts        TariffAlert[]
+  costComparisons     CostComparison[]
+  supplierMatches     SupplierMatch[]
 
-  @@map("product")
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([htsCode])
+  @@map("saved_product")
 }
 
-model Classification {
-  id           String   @id @default(cuid())
-  productId    String
-  
-  htsCode      String
-  confidence   Float
-  
-  // Stored as JSONB because the structures are complex and variable
-  dutyRate     Json
-  rulings      Json
-  rationale    String   @db.Text
-  
-  status       ClassificationStatus @default(PENDING)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// ═══════════════════════════════════════════════════════════════════════════════
+// TARIFF MONITORING & ALERTS
+// Track tariff changes and notify users
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  product      Product @relation(fields: [productId], references: [id])
+model TariffAlert {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // What we're monitoring
+  htsCode         String
+  countryOfOrigin String?
+  
+  // Rate at time of creation (to detect changes)
+  originalRate    Float
+  currentRate     Float?
+  
+  // Alert settings
+  alertType       AlertType @default(ANY_CHANGE)
+  threshold       Float?    // For THRESHOLD type: alert if change > X%
+  
+  // Status
+  isActive        Boolean   @default(true)
+  lastChecked     DateTime?
+  lastAlertSent   DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedProduct    SavedProduct? @relation(fields: [savedProductId], references: [id])
+  savedProductId  String?
+  searchHistory   SearchHistory? @relation(fields: [searchHistoryId], references: [id])
+  searchHistoryId String?
+  
+  alertEvents     TariffAlertEvent[]
 
-  @@map("classification")
+  @@index([htsCode, countryOfOrigin])
+  @@index([userId, isActive])
+  @@map("tariff_alert")
 }
 
-enum ClassificationStatus {
-  PENDING
-  COMPLETED
-  REVIEW_NEEDED
+enum AlertType {
+  ANY_CHANGE
+  INCREASE_ONLY
+  DECREASE_ONLY
+  THRESHOLD
 }
+
+model TariffAlertEvent {
+  id            String   @id @default(cuid())
+  alertId       String
+  
+  previousRate  Float
+  newRate       Float
+  changePercent Float
+  changeType    String   // "increase" | "decrease"
+  
+  // What changed (Section 301, IEEPA, etc.)
+  changeReason  String?
+  details       Json?
+  
+  // Notification status
+  notifiedAt    DateTime?
+  notifyMethod  String?   // "email" | "webhook" | "in_app"
+  
+  createdAt     DateTime @default(now())
+  
+  alert         TariffAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId, createdAt(sort: Desc)])
+  @@map("tariff_alert_event")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPPLIER DATABASE
+// Curated, verified suppliers from around the world
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model Supplier {
-  id                 String   @id @default(cuid())
-  name               String
-  website            String?
-  verificationStatus Boolean  @default(false)
-  capabilities       String[] // PostgreSQL Array
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  
+  // Basic Info
+  name                String
+  slug                String   @unique  // URL-friendly name
+  description         String?  @db.Text
+  website             String?
+  email               String?
+  phone               String?
+  
+  // Location
+  countryCode         String   // ISO 2-letter code (CN, VN, MX, etc.)
+  countryName         String
+  region              String?  // e.g., "Guangdong", "Ho Chi Minh"
+  city                String?
+  address             String?
+  
+  // Capabilities (what they can make)
+  productCategories   String[] // e.g., ["Electronics", "Textiles", "Plastics"]
+  htsChapters         String[] // HTS chapters they specialize in: ["84", "85", "39"]
+  materials           String[] // e.g., ["Cotton", "Polyester", "Aluminum"]
+  
+  // Business Details
+  employeeCount       EmployeeRange?
+  yearEstablished     Int?
+  annualRevenue       RevenueRange?
+  exportPercentage    Int?     // % of production exported
+  
+  // Certifications & Trust
+  certifications      String[] // e.g., ["ISO 9001", "BSCI", "SA8000"]
+  isVerified          Boolean  @default(false)
+  verificationDate    DateTime?
+  verificationNotes   String?
+  
+  // Quality Indicators
+  reliabilityScore    Float?   // 0-100
+  qualityScore        Float?   // 0-100
+  communicationScore  Float?   // 0-100
+  overallScore        Float?   // Weighted average
+  
+  // Cost Indicators (relative, not absolute)
+  costTier            CostTier? // LOW, MEDIUM, HIGH
+  minOrderValue       Float?    // USD
+  typicalLeadDays     Int?
+  
+  // Sourcing
+  tier                SupplierTier @default(UNVERIFIED)
+  
+  // Data sourcing metadata
+  dataSource          String?   // Where we found this supplier
+  lastScrapedAt       DateTime? // Last time we updated from external source
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  savedByUsers        UserSavedSupplier[]
+  productMatches      SupplierMatch[]
+  costData            SupplierCostData[]
+  verification        SupplierVerification?
+  htsSpecializations  SupplierHtsSpecialization[]
 
+  @@index([countryCode])
+  @@index([htsChapters])
+  @@index([overallScore(sort: Desc)])
   @@map("supplier")
+}
+
+enum EmployeeRange {
+  SMALL       // 1-50
+  MEDIUM      // 51-200
+  LARGE       // 201-1000
+  ENTERPRISE  // 1000+
+}
+
+enum RevenueRange {
+  UNDER_1M
+  ONE_TO_10M
+  TEN_TO_50M
+  FIFTY_TO_100M
+  OVER_100M
+}
+
+enum CostTier {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SupplierTier {
+  UNVERIFIED
+  BASIC       // Basic verification done
+  VERIFIED    // Full verification
+  PREMIUM     // Premium partner
+}
+
+model UserSavedSupplier {
+  id          String   @id @default(cuid())
+  userId      String
+  supplierId  String
+  
+  notes       String?  @db.Text
+  tags        String[]
+  isFavorite  Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, supplierId])
+  @@map("user_saved_supplier")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COUNTRY MANUFACTURING COST DATA
+// Powers the interactive global map - cost comparison by country
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model CountryManufacturingCost {
+  id              String   @id @default(cuid())
+  
+  // Country
+  countryCode     String   // ISO 2-letter
+  countryName     String
+  
+  // HTS Chapter (costs vary by product type)
+  htsChapter      String?  // Null = general country average
+  productCategory String?  // e.g., "Electronics", "Textiles"
+  
+  // Cost Factors (indexed relative to China = 100)
+  laborCostIndex      Float    // Manufacturing labor cost
+  overheadCostIndex   Float?   // Factory overhead, utilities
+  materialCostIndex   Float?   // Raw material availability
+  
+  // Shipping to USA
+  shippingCostIndex   Float?   // Relative shipping cost
+  typicalTransitDays  Int?
+  
+  // Trade & Tariffs
+  baseTariffRate      Float?   // MFN rate for this category
+  additionalDuties    Float?   // Section 301, IEEPA, etc.
+  effectiveTariffRate Float?   // Total tariff burden
+  hasFTA              Boolean  @default(false)
+  ftaName             String?  // e.g., "USMCA", "Korea FTA"
+  
+  // Risk & Reliability
+  politicalRiskScore  Float?   // 0-100 (100 = low risk)
+  supplyChainRisk     Float?   // 0-100
+  qualityReputation   Float?   // 0-100
+  
+  // Overall Score (for ranking)
+  overallCostScore    Float?   // Weighted composite
+  
+  // Metadata
+  dataSource          String?
+  lastUpdated         DateTime @default(now())
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([countryCode, htsChapter])
+  @@index([htsChapter, overallCostScore])
+  @@map("country_manufacturing_cost")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPPLIER MATCHING & COST COMPARISON
+// Links products to potential suppliers with cost estimates
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SupplierMatch {
+  id              String   @id @default(cuid())
+  
+  savedProductId  String
+  supplierId      String
+  
+  // Match Quality
+  matchScore      Float    // 0-100 how well supplier fits product
+  matchReasons    String[] // Why this supplier matches
+  
+  // Estimated Costs
+  estimatedUnitCost     Float?
+  estimatedDutyRate     Float?
+  estimatedShippingCost Float?
+  estimatedTotalCost    Float?
+  estimatedSavings      Float?  // vs current country
+  
+  createdAt       DateTime @default(now())
+  
+  savedProduct    SavedProduct @relation(fields: [savedProductId], references: [id], onDelete: Cascade)
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([savedProductId, supplierId])
+  @@index([matchScore(sort: Desc)])
+  @@map("supplier_match")
+}
+
+model CostComparison {
+  id              String   @id @default(cuid())
+  
+  savedProductId  String
+  
+  // Country being compared
+  countryCode     String
+  countryName     String
+  
+  // Cost Breakdown
+  estimatedLaborCost    Float?
+  estimatedMaterialCost Float?
+  estimatedShippingCost Float?
+  estimatedDutyRate     Float?
+  estimatedTotalCost    Float?
+  
+  // Comparison to current
+  savingsVsCurrent      Float?   // Positive = cheaper
+  savingsPercent        Float?
+  
+  // Factors considered
+  assumptions     Json?
+  
+  createdAt       DateTime @default(now())
+  
+  savedProduct    SavedProduct @relation(fields: [savedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([savedProductId, countryCode])
+  @@index([savingsPercent(sort: Desc)])
+  @@map("cost_comparison")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPPLIER COST DATA (Per-Supplier, Per-Product Category)
+// More granular than country-level data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SupplierCostData {
+  id              String   @id @default(cuid())
+  
+  supplierId      String
+  
+  // Product Category
+  htsChapter      String?
+  productCategory String
+  
+  // Costs
+  minUnitCost     Float?
+  maxUnitCost     Float?
+  typicalUnitCost Float?
+  currency        String   @default("USD")
+  
+  // MOQ & Lead Time
+  minOrderQty     Int?
+  minOrderValue   Float?
+  typicalLeadDays Int?
+  
+  // Validity
+  quotedAt        DateTime?
+  validUntil      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, productCategory])
+  @@map("supplier_cost_data")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BULK IMPORT BATCHES
+// Track CSV/bulk imports
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model BulkImportBatch {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // File info
+  fileName        String
+  fileUrl         String?
+  
+  // Status
+  status          BatchStatus @default(PENDING)
+  totalRows       Int
+  processedRows   Int      @default(0)
+  successCount    Int      @default(0)
+  errorCount      Int      @default(0)
+  
+  // Errors
+  errors          Json?    // Array of { row, error }
+  
+  // Timing
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("bulk_import_batch")
+}
+
+enum BatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHIPMENT RECORDS (BOL DATA)
+// Raw import/shipment records from Bill of Lading data
+// Used to derive HTS costs by country and verify suppliers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model ShipmentRecord {
+  id                  String    @id @default(cuid())
+  
+  // Shipment identification
+  billOfLading        String?
+  masterBol           String?
+  
+  // Parties - Foreign supplier
+  shipperName         String
+  shipperCountry      String    // ISO 2-letter code
+  shipperAddress      String?
+  
+  // Parties - US importer
+  consigneeName       String
+  consigneeAddress    String?
+  
+  // Product details
+  htsCode             String    // 6 or 10 digit HTS code
+  productDescription  String?   @db.Text
+  quantity            Float?
+  quantityUnit        String?   // "PCS", "KG", "DOZ", "LB", etc.
+  declaredValue       Float?    // USD
+  weight              Float?
+  weightUnit          String?   // "KG", "LB"
+  
+  // Logistics
+  portOfLading        String?   // Origin port
+  portOfUnlading      String?   // US destination port
+  carrier             String?   // Shipping carrier
+  vesselName          String?
+  arrivalDate         DateTime?
+  
+  // Metadata
+  dataSource          String    // "cbp", "importgenius", "panjiva", etc.
+  sourceRecordId      String?   // Original record ID from source
+  scrapedAt           DateTime  @default(now())
+  
+  // Computed fields
+  unitValue           Float?    // declaredValue / quantity
+  
+  createdAt           DateTime  @default(now())
+
+  @@unique([dataSource, sourceRecordId])
+  @@index([htsCode, shipperCountry])
+  @@index([shipperName])
+  @@index([consigneeName])
+  @@index([arrivalDate])
+  @@index([htsCode])
+  @@map("shipment_record")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HTS COST BY COUNTRY
+// Aggregated cost data derived from ShipmentRecords
+// THE KEY TABLE for "what does HTS X cost from country Y"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model HtsCostByCountry {
+  id                  String    @id @default(cuid())
+  
+  // HTS + Country identifier
+  htsCode             String    // 6-digit (subheading) or 10-digit
+  countryCode         String    // ISO 2-letter code
+  countryName         String
+  
+  // Derived from aggregating shipment records
+  avgUnitValue        Float     // Average $/unit from BOL data
+  medianUnitValue     Float?    // Median (outlier-resistant)
+  minUnitValue        Float?
+  maxUnitValue        Float?
+  stdDeviation        Float?    // For confidence calculation
+  
+  // Volume metrics
+  shipmentCount       Int       // Number of shipments aggregated
+  totalQuantity       Float     // Total units across all shipments
+  totalValue          Float     // Total USD value
+  
+  // Time range of data
+  oldestShipment      DateTime?
+  newestShipment      DateTime?
+  
+  // Tariff data (enriched from USITC)
+  baseTariffRate      Float?    // MFN rate for this HTS
+  section301Rate      Float?    // Section 301 rate if applicable
+  ieepaRate           Float?    // IEEPA reciprocal rate if applicable
+  adCvdRate           Float?    // Anti-dumping/countervailing duties
+  effectiveTariff     Float?    // Total tariff from this country
+  hasFTA              Boolean   @default(false)
+  ftaRate             Float?    // Preferential rate under FTA
+  ftaName             String?   // e.g., "USMCA", "KORUS"
+  
+  // Confidence scoring (0-100)
+  confidenceScore     Float     // Based on data volume + recency
+  
+  lastCalculated      DateTime  @default(now())
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([htsCode, countryCode])
+  @@index([htsCode])
+  @@index([countryCode])
+  @@index([confidenceScore(sort: Desc)])
+  @@map("hts_cost_by_country")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPPLIER VERIFICATION
+// Track verification status, sources, and confidence scores for suppliers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SupplierVerification {
+  id                      String    @id @default(cuid())
+  supplierId              String    @unique
+  
+  // Verification sources - where was this supplier found?
+  foundInBol              Boolean   @default(false)
+  bolShipmentCount        Int       @default(0)
+  bolFirstSeen            DateTime?
+  bolLastSeen             DateTime?
+  
+  foundInDirectory        Boolean   @default(false)
+  directorySource         String?   // "thomasnet", "kompass", etc.
+  directoryUrl            String?
+  
+  foundInTradeShow        Boolean   @default(false)
+  tradeShowName           String?
+  tradeShowYear           Int?
+  
+  foundInCertDb           Boolean   @default(false)
+  certificationSource     String?   // "iso", "bsci", etc.
+  
+  // Website verification
+  websiteVerified         Boolean   @default(false)
+  websiteDomainAge        Int?      // Years
+  hasValidSsl             Boolean?
+  hasContactInfo          Boolean?
+  
+  // Certification verification
+  certificationsVerified  String[]  // List of verified certifications
+  
+  // Overall verification score (0-100)
+  verificationScore       Float
+  verificationDate        DateTime?
+  verificationNotes       String?   @db.Text
+  
+  // Relation
+  supplier                Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("supplier_verification")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPPLIER HTS SPECIALIZATION
+// Links suppliers to specific HTS codes they ship with volume data
+// Derived from analyzing ShipmentRecords
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SupplierHtsSpecialization {
+  id                  String    @id @default(cuid())
+  supplierId          String
+  
+  // HTS code (can be 2-digit chapter, 4-digit heading, or full 10-digit)
+  htsCode             String
+  htsDescription      String?
+  
+  // Volume data from shipments
+  shipmentCount       Int       // How many times they shipped this HTS
+  totalQuantity       Float?    // Total units shipped
+  totalValue          Float?    // Total USD shipped
+  avgUnitValue        Float?    // Their average price for this HTS
+  
+  // Time data
+  firstShipment       DateTime?
+  lastShipment        DateTime?
+  
+  // Relation
+  supplier            Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([supplierId, htsCode])
+  @@index([htsCode])
+  @@index([supplierId])
+  @@map("supplier_hts_specialization")
 }
