@@ -140,9 +140,10 @@
 
 | Issue | Priority | Notes |
 |-------|----------|-------|
-| Classification engine not using registry | High | Still uses inline tariff logic |
+| ~~Classification engine not using registry~~ | ✅ Fixed | Now uses `tariffRegistry.ts` |
 | No automated daily sync | High | Must run sync manually |
 | Email notifications not set up | Medium | No Resend/SendGrid integration |
+| Pre-existing `classify-db.ts` error | Medium | Uses `prisma.product` which doesn't exist |
 
 ---
 
@@ -155,6 +156,7 @@
 - [x] **Dec 20, 2025** - Tariff Alerts service migrated to registry ✅
 - [x] **Dec 20, 2025** - Classification Path UI redesigned - clean lineage + expandable siblings 🎨
 - [x] **Dec 20, 2025** - Tariff Monitoring UI complete - entry points, drawer, bulk actions 🔔
+- [x] **Dec 20, 2025** - Classification API migrated to registry - consistent rates everywhere! 🔗
 - [ ] Automated daily sync configured
 - [ ] First paying customer
 

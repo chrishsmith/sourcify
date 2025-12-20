@@ -1,4 +1,25 @@
 /**
+ * @deprecated Use tariffRegistry.ts instead!
+ * 
+ * This file is DEPRECATED as of December 2025.
+ * All tariff calculations should now use the centralized Country Tariff Registry.
+ * 
+ * Migration:
+ *   // OLD (this file)
+ *   import { calculateEffectiveTariff } from '@/services/additionalDuties';
+ *   const result = await calculateEffectiveTariff(htsCode, description, baseMfn, country);
+ * 
+ *   // NEW (tariffRegistry.ts)
+ *   import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
+ *   const registryResult = await getEffectiveTariff(country, htsCode, { baseMfnRate });
+ *   const result = convertToLegacyFormat(registryResult, htsCode, description, country);
+ * 
+ * See: docs/ARCHITECTURE_TARIFF_REGISTRY.md
+ * 
+ * ────────────────────────────────────────────────────────────────────────────
+ * LEGACY CODE BELOW - DO NOT USE FOR NEW DEVELOPMENT
+ * ────────────────────────────────────────────────────────────────────────────
+ * 
  * Comprehensive Additional Duties Calculator v3
  * 
  * NOW WITH LIVE RATES from USITC API!

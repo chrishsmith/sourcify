@@ -20,6 +20,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import { checkADCVDWarning } from '@/data/adcvdOrders';
 import type { 
     CountryTariffProfile, 
     TariffProgram, 
@@ -501,6 +502,94 @@ export async function recalculateTotalRate(countryCode: string): Promise<number>
     });
     
     return total;
+}
+
+/**
+ * Convert EffectiveTariffResult to legacy EffectiveTariffRate format
+ * Used by /api/classify routes for backward compatibility with TariffBreakdown.tsx
+ * 
+ * @param result - The EffectiveTariffResult from getEffectiveTariff()
+ * @param htsCode - The HTS code being classified
+ * @param htsDescription - The HTS description
+ * @param countryOfOrigin - Country code
+ * @param shipmentValue - Optional shipment value for duty estimation
+ */
+export function convertToLegacyFormat(
+    result: EffectiveTariffResult,
+    htsCode: string,
+    htsDescription: string,
+    countryOfOrigin: string,
+    shipmentValue?: number
+): import('@/types/tariffLayers.types').EffectiveTariffRate {
+    // Check AD/CVD warnings
+    const adcvdCheck = checkADCVDWarning(htsCode, countryOfOrigin);
+    
+    // Convert breakdown to additionalDuties format
+    const additionalDuties: import('@/types/tariffLayers.types').AdditionalDuty[] = result.breakdown
+        .filter(b => b.rate > 0) // Only positive rates
+        .map(b => {
+            // Determine program type
+            let programType: import('@/types/tariffLayers.types').AdditionalDutyType = 'other';
+            if (b.program.toLowerCase().includes('301')) programType = 'section_301';
+            else if (b.program.toLowerCase().includes('fentanyl')) programType = 'ieepa_fentanyl';
+            else if (b.program.toLowerCase().includes('ieepa') || b.program.toLowerCase().includes('reciprocal') || b.program.toLowerCase().includes('baseline')) programType = 'ieepa_reciprocal';
+            else if (b.program.toLowerCase().includes('232')) programType = 'section_232';
+            
+            return {
+                htsCode: b.legalReference?.includes('9903') ? b.legalReference : `9903.xx.xx`,
+                programName: b.program,
+                programType,
+                rate: {
+                    rate: `${b.rate}%`,
+                    rateType: 'ad_valorem' as const,
+                    numericRate: b.rate,
+                },
+                authority: programType === 'section_301' ? 'USTR' : 
+                          programType.includes('ieepa') ? 'President / IEEPA' : 
+                          programType === 'section_232' ? 'Commerce / President' : 'CBP',
+                legalReference: b.legalReference || undefined,
+                effectiveDate: '2025-04-09', // April 2025 tariff landscape
+                applicable: true,
+                description: b.description,
+            };
+        });
+
+    // Calculate estimated duty
+    let estimatedDuty;
+    if (shipmentValue) {
+        estimatedDuty = {
+            value: shipmentValue,
+            currency: 'USD',
+            estimatedDuty: Math.round((shipmentValue * result.effectiveRate / 100) * 100) / 100,
+        };
+    }
+
+    return {
+        baseHtsCode: htsCode,
+        htsDescription,
+        countryOfOrigin,
+        destinationCountry: 'US',
+        baseMfnRate: {
+            rate: result.baseMfnRate > 0 ? `${result.baseMfnRate}%` : 'Free',
+            rateType: result.baseMfnRate > 0 ? 'ad_valorem' : 'free',
+            numericRate: result.baseMfnRate,
+        },
+        additionalDuties,
+        effectiveRate: {
+            rate: `${result.effectiveRate}%`,
+            rateType: 'ad_valorem',
+            numericRate: result.effectiveRate,
+        },
+        totalAdValorem: result.effectiveRate,
+        estimatedDutyForValue: estimatedDuty,
+        exclusions: [], // Not tracked in registry yet
+        adcvdWarning: adcvdCheck.hasWarning ? adcvdCheck.warning : undefined,
+        calculatedAt: new Date(),
+        dataFreshness: result.dataFreshness.includes('Live') 
+            ? result.dataFreshness 
+            : `Live from Tariff Registry - ${result.dataFreshness}`,
+        disclaimer: 'Tariff rates from centralized registry. Verify with CBP before import.',
+    };
 }
 
 /**

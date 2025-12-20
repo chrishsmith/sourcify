@@ -9,7 +9,7 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { classifyProduct } from '@/services/classificationEngine';
-import { calculateEffectiveTariff } from '@/services/additionalDuties';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
 import { saveSearchToHistory } from '@/services/searchHistory';
 import { prisma } from '@/lib/db';
 import type { ClassificationInput } from '@/types/classification.types';
@@ -71,6 +71,14 @@ function mapRowToInput(row: Record<string, string>): ClassificationInput | null 
         materialComposition: row.material || row.material_composition || row.materials || undefined,
         intendedUse: row.intended_use || row.use || row.intendeduse || undefined,
     };
+}
+
+// Parse base MFN rate string to numeric percentage
+function parseBaseMfnRate(rateStr: string): number {
+    if (!rateStr || rateStr.toLowerCase() === 'free') return 0;
+    const pctMatch = rateStr.match(/(\d+(?:\.\d+)?)\s*%?/);
+    if (pctMatch) return parseFloat(pctMatch[1]);
+    return 0;
 }
 
 // Country code mapping
@@ -165,17 +173,22 @@ export async function POST(request: NextRequest) {
                         // Classify the product
                         const result = await classifyProduct(input);
 
-                        // Calculate effective tariff if country provided
+                        // Calculate effective tariff from registry if country provided
                         const countryCode = getCountryCode(input.countryOfOrigin);
                         if (countryCode) {
                             try {
-                                const effectiveTariff = await calculateEffectiveTariff(
+                                const baseMfnRate = parseBaseMfnRate(result.dutyRate.generalRate);
+                                const registryResult = await getEffectiveTariff(
+                                    countryCode,
+                                    result.htsCode.code,
+                                    { baseMfnRate }
+                                );
+                                result.effectiveTariff = convertToLegacyFormat(
+                                    registryResult,
                                     result.htsCode.code,
                                     result.htsCode.description,
-                                    result.dutyRate.generalRate,
                                     countryCode
                                 );
-                                result.effectiveTariff = effectiveTariff;
                             } catch (e) {
                                 console.warn('[Bulk] Failed to calculate tariff for row', i + 2, e);
                             }
@@ -251,4 +264,5 @@ export async function POST(request: NextRequest) {
         });
     }
 }
+
 

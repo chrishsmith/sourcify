@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { classifyProduct } from '@/services/classificationEngine';
-import { calculateEffectiveTariff } from '@/services/additionalDuties';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
 import { getHTSHierarchy } from '@/services/htsHierarchy';
 import { detectValueDependentCodes } from '@/services/valueClassification';
 import { saveSearchToHistory } from '@/services/searchHistory';
@@ -83,16 +83,28 @@ export async function POST(request: NextRequest) {
             console.warn('[API] Failed to check value-dependent:', e);
         }
 
-        // Calculate EFFECTIVE tariff with all additional duties
-        // NOW FETCHES LIVE RATES FROM USITC API!
+        // Calculate EFFECTIVE tariff using CENTRALIZED TARIFF REGISTRY
+        // Single source of truth for all tariff data
         const countryCode = getCountryCode(input.countryOfOrigin);
         if (countryCode) {
             try {
-                console.log('[API] Calculating effective tariff for', countryCode);
-                const effectiveTariff = await calculateEffectiveTariff(
+                console.log('[API] Calculating effective tariff for', countryCode, 'from registry');
+                
+                // Parse base MFN rate
+                const baseMfnRate = parseBaseMfnRate(result.dutyRate.generalRate);
+                
+                // Get tariff from centralized registry
+                const registryResult = await getEffectiveTariff(
+                    countryCode,
+                    result.htsCode.code,
+                    { baseMfnRate }
+                );
+
+                // Convert to legacy format for UI compatibility
+                const effectiveTariff = convertToLegacyFormat(
+                    registryResult,
                     result.htsCode.code,
                     result.htsCode.description,
-                    result.dutyRate.generalRate,
                     countryCode
                 );
 
@@ -109,7 +121,7 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                console.log('[API] Effective rate:', effectiveTariff.totalAdValorem + '%');
+                console.log('[API] Effective rate from registry:', effectiveTariff.totalAdValorem + '%');
             } catch (e) {
                 console.warn('[API] Effective tariff calculation failed:', e);
             }
@@ -164,6 +176,21 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         );
     }
+}
+
+/**
+ * Parse base MFN rate string to numeric percentage
+ */
+function parseBaseMfnRate(rateStr: string): number {
+    if (!rateStr || rateStr.toLowerCase() === 'free') return 0;
+    
+    // Match percentage (e.g., "25%" or "7.5%")
+    const pctMatch = rateStr.match(/(\d+(?:\.\d+)?)\s*%?/);
+    if (pctMatch) {
+        return parseFloat(pctMatch[1]);
+    }
+    
+    return 0;
 }
 
 /**

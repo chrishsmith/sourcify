@@ -431,19 +431,23 @@ const tariff = await getEffectiveTariff('SG', '8518.30.20');
 
 ## Migration Guide
 
-### For Classification Engine
+### For Classification Engine ✅ MIGRATED
 
-**Before:**
+**Before (DEPRECATED - additionalDuties.ts):**
 ```typescript
 import { calculateEffectiveTariff } from '@/services/additionalDuties';
 const result = await calculateEffectiveTariff(htsCode, description, baseMfn, country);
 ```
 
-**After:**
+**After (Current - tariffRegistry.ts):**
 ```typescript
-import { getEffectiveTariff } from '@/services/tariffRegistry';
-const result = await getEffectiveTariff(country, htsCode, { baseMfnRate: parsedMfn });
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
+const registryResult = await getEffectiveTariff(country, htsCode, { baseMfnRate: parsedMfn });
+const result = convertToLegacyFormat(registryResult, htsCode, description, country);
 ```
+
+> **Note:** `convertToLegacyFormat()` converts the registry result to the `EffectiveTariffRate` type
+> that `TariffBreakdown.tsx` expects. This maintains backward compatibility with existing UI components.
 
 ### For Sourcing Intelligence
 
