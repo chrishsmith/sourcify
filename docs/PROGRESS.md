@@ -19,11 +19,17 @@
 | Task | Status | Notes |
 |------|--------|-------|
 | 3.1 Migrate tariffAlerts.ts to use registry | ✅ Complete | Now uses `tariffRegistry.ts` |
-| 3.2 Create Monitoring Tab in Sourcing | 🔲 Pending | `MonitoringTab.tsx`, `MonitoredProductsTable.tsx` |
-| 3.3 Create Product Detail Drawer | 🔲 Pending | Rate breakdown, history, alternatives |
-| 3.4 Add "Save & Monitor" to Classification | 🔲 Pending | Entry point from classification results |
-| 3.5 Dashboard Intelligence Summary Card | 🔲 Pending | Quick summary on main dashboard |
+| 3.2 Create Monitoring Tab in Sourcing | ✅ Complete | `TariffMonitoringTab.tsx` (780 lines) |
+| 3.3 Dashboard Intelligence Summary Card | ✅ Complete | `TariffIntelligenceCard.tsx` on main dashboard |
+| 3.4 Add Entry Points (Persona-driven) | ✅ Complete | See details below |
+| 3.5 Create Product Detail Drawer | ✅ Complete | `ProductDetailDrawer.tsx` (680 lines) |
 | 3.6 Automated daily sync (cron) | 🔲 Deferred | Until go-live |
+
+**3.4 Entry Points Detail:**
+- ✅ "Save & Monitor" button in classification results
+- ✅ "Add Product Manually" modal in monitoring tab (for Importers/Compliance who know HTS)
+- ✅ Multiple entry point empty state (Add by HTS / Classify / From Cost Analysis)
+- ✅ Bulk "Monitor Selected" action in search history panel
 
 ### UI/UX Improvements (Completed Dec 20)
 
@@ -31,12 +37,15 @@
 |------|--------|-------|
 | Classification Path - Hybrid Approach | ✅ Complete | Clean direct lineage with expandable siblings |
 | Remove Classification Rationale | ✅ Complete | Was undermining confidence; removed |
+| Smart Product Name Generator | ✅ Complete | Auto-generates "Rubber Ring" from "ring for finger made of rubber" |
 
 **Details:**
 - New `ClassificationPath.tsx` component shows only direct path to HTS code by default
 - Users can expand to see sibling codes (alternatives) at each level on demand
 - Removed verbose AI rationale section - the 95% confidence badge says enough
 - Updated `htsHierarchy.ts` to properly track direct ancestors vs siblings
+- New `useHTSHierarchy` hook for reusable hierarchy fetching
+- New `productNameGenerator.ts` utility for smart name extraction from descriptions
 
 ---
 
@@ -111,17 +120,19 @@
 
 **Phase 1.5 Overall: 100% ✅**
 
-### Phase 2: Trade Intelligence ~35%
+### Phase 2: Trade Intelligence ~95%
 
 | Task | Status | Completion |
 |------|--------|------------|
-| 2.1 Tariff Alert System | ⚠️ | 60% - Service done, needs UI |
-| 2.2 Saved Products Monitoring | 🔲 | 0% |
-| 2.3 Intelligence Dashboard | 🔲 | 0% |
-| 2.4 Weekly Digest Email | 🔲 | 0% |
-| 2.5 Data Sources Integration | ✅ | 100% |
+| 2.1 Tariff Alert System | ✅ | 100% - Backend + UI complete |
+| 2.2 Saved Products Monitoring | ✅ | 100% - Table + entry points + drawer complete |
+| 2.3 Intelligence Dashboard Card | ✅ | 100% - `TariffIntelligenceCard.tsx` live |
+| 2.4 Entry Points (Classification → Monitor) | ✅ | 100% - All paths done including bulk history |
+| 2.5 Product Detail Drawer | ✅ | 100% - `ProductDetailDrawer.tsx` with breakdown, history, alternatives |
+| 2.6 Weekly Digest Email | 🔲 | 0% |
+| 2.7 Data Sources Integration | ✅ | 100% |
 
-**Phase 2 Overall: 35%**
+**Phase 2 Overall: 95%**
 
 ---
 
@@ -143,7 +154,7 @@
 - [x] **Dec 20, 2025** - Country Tariff Registry LIVE - 199 countries, 7 data sources 🌍
 - [x] **Dec 20, 2025** - Tariff Alerts service migrated to registry ✅
 - [x] **Dec 20, 2025** - Classification Path UI redesigned - clean lineage + expandable siblings 🎨
-- [ ] Intelligence dashboard launched
+- [x] **Dec 20, 2025** - Tariff Monitoring UI complete - entry points, drawer, bulk actions 🔔
 - [ ] Automated daily sync configured
 - [ ] First paying customer
 

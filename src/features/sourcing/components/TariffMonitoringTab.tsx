@@ -45,6 +45,7 @@ import {
     Zap,
 } from 'lucide-react';
 import { getCountryName } from '@/components/shared';
+import { ProductDetailDrawer } from './ProductDetailDrawer';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -313,6 +314,15 @@ export const TariffMonitoringTab: React.FC<Props> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [showMonitoredOnly, setShowMonitoredOnly] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Add product modal state
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addForm, setAddForm] = useState({ name: '', htsCode: '', countryOfOrigin: '' });
+    const [addingProduct, setAddingProduct] = useState(false);
+    
+    // Product detail drawer state
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const [showDetailDrawer, setShowDetailDrawer] = useState(false);
 
     // Fetch products with enriched tariff data
     const fetchProducts = useCallback(async () => {
@@ -415,6 +425,63 @@ export const TariffMonitoringTab: React.FC<Props> = ({
             messageApi.error('Failed to refresh tariff data');
         } finally {
             setRefreshing(false);
+        }
+    };
+
+    // Open product detail drawer
+    const handleViewProductDetail = (productId: string) => {
+        setSelectedProductId(productId);
+        setShowDetailDrawer(true);
+        onViewProduct?.(productId);
+    };
+
+    // Handle analyze from drawer
+    const handleAnalyzeFromDrawer = (htsCode: string, countryCode: string) => {
+        setShowDetailDrawer(false);
+        onAnalyzeProduct?.(htsCode, countryCode);
+        // Dispatch event to switch to analyze tab
+        const event = new CustomEvent('switchToAnalyzeTab', { detail: { htsCode, countryCode } });
+        window.dispatchEvent(event);
+    };
+
+    // Handle find suppliers from drawer
+    const handleFindSuppliersFromDrawer = (htsCode: string, countryCode: string) => {
+        setShowDetailDrawer(false);
+        // Dispatch event to switch to suppliers tab
+        const event = new CustomEvent('switchToSuppliersTab', { detail: { htsCode, countryCode } });
+        window.dispatchEvent(event);
+    };
+
+    // Handle adding product manually (for Importers, Compliance Officers who know HTS)
+    const handleAddProduct = async () => {
+        if (!addForm.name.trim() || !addForm.htsCode.trim() || !addForm.countryOfOrigin) {
+            messageApi.error('Please fill in all required fields');
+            return;
+        }
+        
+        setAddingProduct(true);
+        try {
+            const response = await fetch('/api/saved-products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: addForm.name.trim(),
+                    htsCode: addForm.htsCode.trim().replace(/\./g, ''),
+                    countryOfOrigin: addForm.countryOfOrigin,
+                    isMonitored: true,
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to add product');
+
+            messageApi.success('Product added to monitoring');
+            setShowAddModal(false);
+            setAddForm({ name: '', htsCode: '', countryOfOrigin: '' });
+            fetchProducts();
+        } catch (error) {
+            messageApi.error('Failed to add product');
+        } finally {
+            setAddingProduct(false);
         }
     };
 
@@ -651,38 +718,155 @@ export const TariffMonitoringTab: React.FC<Props> = ({
         },
     ];
 
-    // Empty state
+    // Empty state with multiple entry points per persona
     if (!loading && products.length === 0 && !searchQuery) {
         return (
-            <div className="py-12">
+            <div className="py-8">
                 {contextHolder}
-                <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                        <div className="space-y-2">
-                            <Text className="text-slate-600 block">
-                                No products being monitored yet
-                            </Text>
-                            <Paragraph type="secondary" className="text-sm">
-                                Save products from your classifications or sourcing analysis
-                                <br />
-                                to start tracking tariff changes.
-                            </Paragraph>
-                        </div>
-                    }
+                <div className="max-w-2xl mx-auto text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-teal-50 mb-4">
+                        <Bell size={32} className="text-teal-600" />
+                    </div>
+                    <Title level={4} className="mb-2">Start Monitoring Tariffs</Title>
+                    <Paragraph type="secondary" className="mb-8">
+                        Track tariff rates for your products and get notified when rates change.
+                        Choose how you'd like to add products:
+                    </Paragraph>
+                    
+                    <Row gutter={[16, 16]} className="mb-6">
+                        {/* Option 1: Add by HTS Code - for Importers, Compliance */}
+                        <Col xs={24} md={8}>
+                            <Card 
+                                hoverable 
+                                className="h-full border-2 border-dashed hover:border-teal-400 transition-colors"
+                                onClick={() => setShowAddModal(true)}
+                            >
+                                <div className="text-center py-4">
+                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 mb-3">
+                                        <Plus size={24} className="text-blue-600" />
+                                    </div>
+                                    <Title level={5} className="mb-1">Add by HTS Code</Title>
+                                    <Text type="secondary" className="text-xs block">
+                                        I know my product's HTS code
+                                    </Text>
+                                    <Tag color="blue" className="mt-2 text-xs">
+                                        Importers • Compliance
+                                    </Tag>
+                                </div>
+                            </Card>
+                        </Col>
+                        
+                        {/* Option 2: Classify First - for Entrepreneurs */}
+                        <Col xs={24} md={8}>
+                            <Card 
+                                hoverable 
+                                className="h-full border-2 border-dashed hover:border-teal-400 transition-colors"
+                                onClick={() => window.location.href = '/dashboard/classifications'}
+                            >
+                                <div className="text-center py-4">
+                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 mb-3">
+                                        <Search size={24} className="text-emerald-600" />
+                                    </div>
+                                    <Title level={5} className="mb-1">Classify a Product</Title>
+                                    <Text type="secondary" className="text-xs block">
+                                        I need to find the HTS code first
+                                    </Text>
+                                    <Tag color="green" className="mt-2 text-xs">
+                                        Entrepreneurs • New Products
+                                    </Tag>
+                                </div>
+                            </Card>
+                        </Col>
+                        
+                        {/* Option 3: From Sourcing Analysis - for Procurement */}
+                        <Col xs={24} md={8}>
+                            <Card 
+                                hoverable 
+                                className="h-full border-2 border-dashed hover:border-teal-400 transition-colors"
+                                onClick={() => {
+                                    // Switch to Cost Analysis tab
+                                    const event = new CustomEvent('switchToAnalyzeTab');
+                                    window.dispatchEvent(event);
+                                }}
+                            >
+                                <div className="text-center py-4">
+                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-50 mb-3">
+                                        <TrendingDown size={24} className="text-purple-600" />
+                                    </div>
+                                    <Title level={5} className="mb-1">From Cost Analysis</Title>
+                                    <Text type="secondary" className="text-xs block">
+                                        Save from sourcing comparison
+                                    </Text>
+                                    <Tag color="purple" className="mt-2 text-xs">
+                                        Procurement • Sourcing
+                                    </Tag>
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
+                </div>
+
+                {/* Add Product Modal */}
+                <Modal
+                    title="Add Product to Monitor"
+                    open={showAddModal}
+                    onCancel={() => setShowAddModal(false)}
+                    onOk={handleAddProduct}
+                    okText="Add & Monitor"
+                    okButtonProps={{ loading: addingProduct, className: 'bg-teal-600' }}
                 >
-                    <Button
-                        type="primary"
-                        icon={<Plus size={16} />}
-                        className="bg-teal-600"
-                        onClick={() => {
-                            // Navigate to classification page
-                            window.location.href = '/dashboard/classifications';
-                        }}
-                    >
-                        Classify a Product
-                    </Button>
-                </Empty>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Product Name <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                placeholder="e.g., Bluetooth Earbuds"
+                                value={addForm.name}
+                                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                HTS Code <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                placeholder="e.g., 8518.30.20"
+                                value={addForm.htsCode}
+                                onChange={e => setAddForm(f => ({ ...f, htsCode: e.target.value }))}
+                            />
+                            <Text type="secondary" className="text-xs">
+                                Enter with or without dots (e.g., 8518.30.20 or 85183020)
+                            </Text>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Country of Origin <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                value={addForm.countryOfOrigin}
+                                onChange={e => setAddForm(f => ({ ...f, countryOfOrigin: e.target.value }))}
+                            >
+                                <option value="">Select country...</option>
+                                <option value="CN">China</option>
+                                <option value="VN">Vietnam</option>
+                                <option value="IN">India</option>
+                                <option value="MX">Mexico</option>
+                                <option value="BD">Bangladesh</option>
+                                <option value="ID">Indonesia</option>
+                                <option value="TH">Thailand</option>
+                                <option value="MY">Malaysia</option>
+                                <option value="KR">South Korea</option>
+                                <option value="TW">Taiwan</option>
+                                <option value="DE">Germany</option>
+                                <option value="JP">Japan</option>
+                                <option value="IT">Italy</option>
+                                <option value="CA">Canada</option>
+                            </select>
+                        </div>
+                    </div>
+                </Modal>
             </div>
         );
     }
@@ -705,6 +889,14 @@ export const TariffMonitoringTab: React.FC<Props> = ({
                     allowClear
                 />
                 <Space>
+                    <Button
+                        type="primary"
+                        icon={<Plus size={14} />}
+                        onClick={() => setShowAddModal(true)}
+                        className="bg-teal-600"
+                    >
+                        Add Product
+                    </Button>
                     <Button
                         type={showMonitoredOnly ? 'primary' : 'default'}
                         icon={<Bell size={14} />}
@@ -753,13 +945,16 @@ export const TariffMonitoringTab: React.FC<Props> = ({
                     size="middle"
                     rowClassName={(record) => {
                         if (record.tariffData?.tradeStatus === 'elevated') {
-                            return 'bg-orange-50/50';
+                            return 'bg-orange-50/50 cursor-pointer hover:bg-orange-100/50';
                         }
                         if (record.tariffData?.changePercent && record.tariffData.changePercent > 0) {
-                            return 'bg-red-50/30';
+                            return 'bg-red-50/30 cursor-pointer hover:bg-red-100/30';
                         }
-                        return '';
+                        return 'cursor-pointer hover:bg-slate-50';
                     }}
+                    onRow={(record) => ({
+                        onClick: () => handleViewProductDetail(record.id),
+                    })}
                 />
             </Card>
 
@@ -772,6 +967,81 @@ export const TariffMonitoringTab: React.FC<Props> = ({
                     </Button>
                 </Text>
             </div>
+
+            {/* Add Product Modal */}
+            <Modal
+                title="Add Product to Monitor"
+                open={showAddModal}
+                onCancel={() => setShowAddModal(false)}
+                onOk={handleAddProduct}
+                okText="Add & Monitor"
+                okButtonProps={{ loading: addingProduct, className: 'bg-teal-600' }}
+            >
+                <div className="space-y-4 py-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Product Name <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                            placeholder="e.g., Bluetooth Earbuds"
+                            value={addForm.name}
+                            onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            HTS Code <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                            placeholder="e.g., 8518.30.20"
+                            value={addForm.htsCode}
+                            onChange={e => setAddForm(f => ({ ...f, htsCode: e.target.value }))}
+                        />
+                        <Text type="secondary" className="text-xs">
+                            Enter with or without dots (e.g., 8518.30.20 or 85183020)
+                        </Text>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Country of Origin <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            value={addForm.countryOfOrigin}
+                            onChange={e => setAddForm(f => ({ ...f, countryOfOrigin: e.target.value }))}
+                        >
+                            <option value="">Select country...</option>
+                            <option value="CN">China</option>
+                            <option value="VN">Vietnam</option>
+                            <option value="IN">India</option>
+                            <option value="MX">Mexico</option>
+                            <option value="BD">Bangladesh</option>
+                            <option value="ID">Indonesia</option>
+                            <option value="TH">Thailand</option>
+                            <option value="MY">Malaysia</option>
+                            <option value="KR">South Korea</option>
+                            <option value="TW">Taiwan</option>
+                            <option value="DE">Germany</option>
+                            <option value="JP">Japan</option>
+                            <option value="IT">Italy</option>
+                            <option value="CA">Canada</option>
+                        </select>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Product Detail Drawer */}
+            <ProductDetailDrawer
+                open={showDetailDrawer}
+                productId={selectedProductId}
+                onClose={() => {
+                    setShowDetailDrawer(false);
+                    setSelectedProductId(null);
+                }}
+                onProductUpdate={fetchProducts}
+                onAnalyze={handleAnalyzeFromDrawer}
+                onFindSuppliers={handleFindSuppliersFromDrawer}
+            />
         </div>
     );
 };

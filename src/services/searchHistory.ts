@@ -58,8 +58,8 @@ export async function saveSearchToHistory(
             data: {
                 userId: userId || null,
                 
-                // Input
-                productName: input.productName || null,
+                // Input - use AI-generated name if user didn't provide one
+                productName: input.productName || result.suggestedProductName || null,
                 productSku: input.productSku || null,
                 productDescription: input.productDescription,
                 countryOfOrigin: input.countryOfOrigin || null,
@@ -279,4 +279,5 @@ export async function clearSearchHistory(userId: string): Promise<number> {
 
     return result.count;
 }
+
 

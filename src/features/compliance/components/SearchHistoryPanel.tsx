@@ -18,8 +18,11 @@ import {
     message,
     Dropdown,
     Tooltip,
+    Alert,
+    Space,
 } from 'antd';
 import type { MenuProps } from 'antd';
+import type { TableRowSelection } from 'antd/es/table/interface';
 import { 
     History, 
     Eye, 
@@ -30,9 +33,15 @@ import {
     RefreshCw,
     ChevronRight,
     MoreHorizontal,
+    Bell,
+    X,
+    CheckCircle,
+    Hash,
 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import { ClassificationResultDisplay } from './ClassificationResult';
+import type { ClassificationResult } from '@/types/classification.types';
+import { generateProductNameWithContext } from '@/utils/productNameGenerator';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -54,7 +63,7 @@ interface SearchHistoryItem {
 interface SearchHistoryDetail extends SearchHistoryItem {
     productSku: string | null;
     intendedUse: string | null;
-    fullResult: unknown;
+    fullResult: ClassificationResult | null;
 }
 
 interface SearchStats {
@@ -76,6 +85,10 @@ export const SearchHistoryPanel: React.FC = () => {
     const [selectedSearch, setSelectedSearch] = useState<SearchHistoryDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    
+    // Bulk selection state
+    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+    const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
     const fetchHistory = async (pageNum: number = 1) => {
         setLoading(true);
@@ -149,6 +162,117 @@ export const SearchHistoryPanel: React.FC = () => {
         }
     }, []);
 
+    // Bulk action: Monitor selected items
+    const handleMonitorSelected = useCallback(async () => {
+        if (selectedRowKeys.length === 0) return;
+        
+        setBulkActionLoading(true);
+        const selectedItems = items.filter(item => selectedRowKeys.includes(item.id));
+        
+        try {
+            // Create SavedProducts with monitoring enabled for each selected item
+            const results = await Promise.allSettled(
+                selectedItems.map(async (item) => {
+                    const response = await fetch('/api/saved-products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: item.productName || 
+                                  generateProductNameWithContext(item.productDescription, item.htsDescription),
+                            description: item.productDescription,
+                            htsCode: item.htsCode,
+                            countryOfOrigin: item.countryOfOrigin || 'CN',
+                            isMonitored: true,
+                            isFavorite: false,
+                        }),
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to save');
+                    }
+                    return response.json();
+                })
+            );
+            
+            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            
+            if (succeeded > 0) {
+                message.success({
+                    content: (
+                        <span>
+                            <CheckCircle size={14} className="inline mr-2 text-green-500" />
+                            {succeeded} product{succeeded !== 1 ? 's' : ''} added to tariff monitoring
+                            <Button 
+                                type="link" 
+                                size="small"
+                                onClick={() => window.location.href = '/dashboard/sourcing?tab=monitoring'}
+                                className="ml-2"
+                            >
+                                View →
+                            </Button>
+                        </span>
+                    ),
+                    duration: 5,
+                });
+            }
+            
+            if (failed > 0) {
+                message.warning(`${failed} product${failed !== 1 ? 's' : ''} could not be added (may already exist)`);
+            }
+            
+            // Clear selection after action
+            setSelectedRowKeys([]);
+        } catch (error) {
+            console.error('Bulk monitor failed:', error);
+            message.error('Failed to add products to monitoring');
+        } finally {
+            setBulkActionLoading(false);
+        }
+    }, [selectedRowKeys, items]);
+
+    // Bulk action: Delete selected items
+    const handleBulkDelete = useCallback(async () => {
+        if (selectedRowKeys.length === 0) return;
+        
+        Modal.confirm({
+            title: `Delete ${selectedRowKeys.length} search${selectedRowKeys.length !== 1 ? 'es' : ''}?`,
+            content: 'This action cannot be undone.',
+            okText: 'Delete',
+            okType: 'danger',
+            onOk: async () => {
+                setBulkActionLoading(true);
+                try {
+                    await Promise.all(
+                        selectedRowKeys.map(id => 
+                            fetch(`/api/search-history/${id}`, { method: 'DELETE' })
+                        )
+                    );
+                    
+                    setItems(prev => prev.filter(item => !selectedRowKeys.includes(item.id)));
+                    setTotal(prev => prev - selectedRowKeys.length);
+                    message.success(`${selectedRowKeys.length} search${selectedRowKeys.length !== 1 ? 'es' : ''} deleted`);
+                    setSelectedRowKeys([]);
+                } catch (error) {
+                    console.error('Bulk delete failed:', error);
+                    message.error('Failed to delete some items');
+                } finally {
+                    setBulkActionLoading(false);
+                }
+            },
+        });
+    }, [selectedRowKeys]);
+
+    // Row selection config
+    const rowSelection: TableRowSelection<SearchHistoryItem> = {
+        selectedRowKeys,
+        onChange: (newSelectedRowKeys) => setSelectedRowKeys(newSelectedRowKeys),
+        getCheckboxProps: (record) => ({
+            disabled: !record.htsCode, // Can't monitor without HTS code
+        }),
+    };
+
     const columns: ColumnsType<SearchHistoryItem> = [
         {
             title: 'Product',
@@ -157,7 +281,8 @@ export const SearchHistoryPanel: React.FC = () => {
             render: (_, record) => (
                 <div>
                     <Text strong className="block text-slate-800">
-                        {record.productName || 'Untitled Search'}
+                        {record.productName || 
+                         generateProductNameWithContext(record.productDescription, record.htsDescription)}
                     </Text>
                     <Paragraph 
                         ellipsis={{ rows: 2 }} 
@@ -319,7 +444,7 @@ export const SearchHistoryPanel: React.FC = () => {
                             <Statistic 
                                 title="Unique HTS Codes" 
                                 value={stats.uniqueHtsCodes}
-                                prefix={<Tag size={16} className="text-blue-600" />}
+                                prefix={<Hash size={16} className="text-blue-600" />}
                             />
                         </Card>
                     </Col>
@@ -379,25 +504,71 @@ export const SearchHistoryPanel: React.FC = () => {
                         }
                     />
                 ) : (
-                    <Table
-                        columns={columns}
-                        dataSource={items}
-                        rowKey="id"
-                        loading={loading}
-                        pagination={{
-                            current: page,
-                            pageSize,
-                            total,
-                            onChange: setPage,
-                            showSizeChanger: false,
-                            showTotal: (total) => `${total} searches`,
-                        }}
-                        size="middle"
-                        rowClassName="hover:bg-slate-50/50 cursor-pointer"
-                        onRow={(record) => ({
-                            onClick: () => handleViewDetail(record.id),
-                        })}
-                    />
+                    <>
+                        {/* Bulk Action Bar */}
+                        {selectedRowKeys.length > 0 && (
+                            <Alert
+                                type="info"
+                                className="mb-4"
+                                message={
+                                    <div className="flex items-center justify-between">
+                                        <Space>
+                                            <span className="font-medium">
+                                                {selectedRowKeys.length} selected
+                                            </span>
+                                        </Space>
+                                        <Space>
+                                            <Button
+                                                type="primary"
+                                                icon={<Bell size={14} />}
+                                                onClick={handleMonitorSelected}
+                                                loading={bulkActionLoading}
+                                                className="bg-teal-600 hover:bg-teal-700"
+                                            >
+                                                Monitor Selected
+                                            </Button>
+                                            <Button
+                                                danger
+                                                icon={<Trash2 size={14} />}
+                                                onClick={handleBulkDelete}
+                                                loading={bulkActionLoading}
+                                            >
+                                                Delete
+                                            </Button>
+                                            <Button
+                                                type="text"
+                                                icon={<X size={14} />}
+                                                onClick={() => setSelectedRowKeys([])}
+                                            >
+                                                Clear
+                                            </Button>
+                                        </Space>
+                                    </div>
+                                }
+                            />
+                        )}
+                        
+                        <Table
+                            columns={columns}
+                            dataSource={items}
+                            rowKey="id"
+                            loading={loading}
+                            rowSelection={rowSelection}
+                            pagination={{
+                                current: page,
+                                pageSize,
+                                total,
+                                onChange: setPage,
+                                showSizeChanger: false,
+                                showTotal: (total) => `${total} searches`,
+                            }}
+                            size="middle"
+                            rowClassName="hover:bg-slate-50/50 cursor-pointer"
+                            onRow={(record) => ({
+                                onClick: () => handleViewDetail(record.id),
+                            })}
+                        />
+                    </>
                 )}
             </Card>
 
@@ -449,7 +620,7 @@ export const SearchHistoryPanel: React.FC = () => {
                         {/* Full Result */}
                         {selectedSearch.fullResult && (
                             <ClassificationResultDisplay 
-                                result={selectedSearch.fullResult as never}
+                                result={selectedSearch.fullResult}
                                 onNewClassification={() => setShowDetailModal(false)}
                             />
                         )}

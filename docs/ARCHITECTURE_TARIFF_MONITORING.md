@@ -1,7 +1,8 @@
 # Tariff Monitoring System Architecture
 
 > **Created:** December 20, 2025  
-> **Status:** UI Design Complete | Backend ✅ | Frontend 🔲  
+> **Last Updated:** December 20, 2025  
+> **Status:** Backend ✅ | Core UI ✅ | Entry Points ✅ | Detail View ✅  
 > **Owner:** Core Platform
 
 ---
@@ -18,14 +19,29 @@ The Tariff Monitoring System allows users to track tariff rates for their produc
 
 ---
 
+## Implementation Status
+
+| Component | Status | File Location |
+|-----------|--------|---------------|
+| **Dashboard Intelligence Card** | ✅ COMPLETE | `src/features/dashboard/components/TariffIntelligenceCard.tsx` |
+| **Monitoring Tab (in Sourcing)** | ✅ COMPLETE | `src/features/sourcing/components/TariffMonitoringTab.tsx` |
+| **"Save & Monitor" Button** | ✅ COMPLETE | `src/features/compliance/components/ClassificationResult.tsx` |
+| **"Add Product Manually" Form** | ✅ COMPLETE | Built into `TariffMonitoringTab.tsx` (modal) |
+| **Product Detail Drawer** | ✅ COMPLETE | `src/features/sourcing/components/ProductDetailDrawer.tsx` |
+| **Bulk Actions in Search History** | ✅ COMPLETE | `src/features/compliance/components/SearchHistoryPanel.tsx` |
+
+---
+
 ## User Personas & Use Cases
 
-| Persona | What They Monitor | Key Needs |
-|---------|-------------------|-----------|
-| **Importer/Sourcer** | Active product catalog (5-50 SKUs) | $ impact, alternatives ready |
-| **Compliance Officer** | HTS chapters relevant to company | Historical data, exports |
-| **Procurement Manager** | Countries they're evaluating | Comparison data |
-| **Entrepreneur** | 1-3 products in validation | Simple "is this still viable?" |
+| Persona | What They Monitor | Key Needs | Current Entry Point |
+|---------|-------------------|-----------|---------------------|
+| **Importer/Sourcer** | Active product catalog (5-50 SKUs) | $ impact, alternatives ready | ✅ "Add by HTS Code" modal |
+| **Compliance Officer** | HTS chapters relevant to company | Historical data, exports | ✅ "Add by HTS Code" modal |
+| **Procurement Manager** | Countries they're evaluating | Comparison data | ✅ "Add by HTS Code" or "From Cost Analysis" |
+| **Entrepreneur** | 1-3 products in validation | Simple "is this still viable?" | ✅ "Classify a Product" |
+
+All personas now have appropriate entry points in the monitoring tab's empty state.
 
 ---
 
@@ -66,10 +82,17 @@ The Tariff Monitoring System allows users to track tariff rates for their produc
 
 ---
 
-## Component 1: Dashboard Intelligence Summary Card
+## Component 1: Dashboard Intelligence Summary Card ✅ COMPLETE
 
 ### Location
-`src/features/dashboard/components/IntelligenceSummaryCard.tsx`
+`src/features/dashboard/components/TariffIntelligenceCard.tsx`
+
+### Current Implementation
+- Shows monitored products count
+- Displays rate increases/decreases/elevated risk stats
+- Lists top 3 products with rate changes
+- Portfolio health score
+- Links to monitoring tab via "View All Monitored Products"
 
 ### Wireframe
 ```
@@ -111,10 +134,20 @@ interface AlertSummary {
 
 ---
 
-## Component 2: Sourcing Monitoring Tab
+## Component 2: Sourcing Monitoring Tab ✅ COMPLETE
 
 ### Location
-`src/features/sourcing/components/MonitoringTab.tsx`
+`src/features/sourcing/components/TariffMonitoringTab.tsx`
+
+### Current Implementation (780 lines)
+- Full table with real API integration (`/api/saved-products?monitoredOnly=true`)
+- Stats header showing monitored count, alerts, rate increases/decreases
+- Rate change indicators with previous/current comparison
+- Tariff program breakdown tags (Section 301, IEEPA, etc.)
+- Trade status badges (elevated, restricted, normal)
+- Toggle monitoring/favorites per product
+- Search and filter controls
+- Empty state with "Classify a Product" CTA
 
 ### Full Table Wireframe
 ```
@@ -170,10 +203,34 @@ Legend: ✅ Stable  ⚠️ Changed  🔴 Major change  📈 Uptrend  📉 Downtr
 
 ---
 
-## Component 3: Product Detail Drawer
+## Component 3: Product Detail Drawer ✅ COMPLETE
 
 ### Location
 `src/features/sourcing/components/ProductDetailDrawer.tsx`
+
+### Purpose
+When a user clicks a row in the Monitoring Tab table, a slide-out drawer shows comprehensive details about that monitored product including tariff breakdown, rate history, and sourcing alternatives.
+
+### Props Interface
+```typescript
+interface ProductDetailDrawerProps {
+  open: boolean;
+  productId: string | null;
+  onClose: () => void;
+  onProductUpdate?: () => void;  // Refresh parent table
+  onAnalyze?: (htsCode: string, country: string) => void;
+  onFindSuppliers?: (htsCode: string, country: string) => void;
+}
+```
+
+### Data Sources
+| Section | API/Service | Purpose |
+|---------|-------------|---------|
+| Header | `SavedProduct` | Product identity |
+| Tariff Breakdown | `getEffectiveTariff()` | Live rate from registry |
+| Rate History | `TariffAlertEvent` | Past rate changes |
+| Alternatives | `compareLandedCosts()` | Other country options |
+| Alert Settings | `TariffAlert` | Notification config |
 
 ### Wireframe
 ```
@@ -232,11 +289,19 @@ Legend: ✅ Stable  ⚠️ Changed  🔴 Major change  📈 Uptrend  📉 Downtr
 
 ---
 
-## Component 4: Entry Points
+## Component 4: Entry Points 🔲 PENDING
 
-### 4.1 Classification Results - "Save & Monitor" Button
+> **Critical Gap:** Users currently have limited ways to add products to monitoring. Only "Classify a Product" is available, which doesn't serve Importers, Compliance Officers, or Procurement Managers who already know their HTS codes.
 
-**Location:** `src/features/compliance/components/SaveAndMonitorButton.tsx`
+### 4.1 Classification Results - "Save & Monitor" Button ✅ COMPLETE
+
+**Location:** `src/features/compliance/components/ClassificationResult.tsx` (lines 754-801)
+
+**Current Implementation:**
+- Primary button: "Save & Monitor Tariffs" with bell icon
+- Dropdown option: "Save without monitoring"
+- Saves product with `isMonitored: true`
+- Shows success message with link to monitoring tab
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────┐
@@ -257,18 +322,50 @@ Legend: ✅ Stable  ⚠️ Changed  🔴 Major change  📈 Uptrend  📉 Downtr
 3. Creates `TariffAlert` linked to product
 4. Shows confirmation with link to monitoring tab
 
-### 4.2 Search History - "Monitor" Action
+### 4.2 Search History - Bulk Actions + Monitor 🔲 PENDING
 
 **Location:** `src/features/compliance/components/SearchHistoryPanel.tsx`
 
-Add to row actions:
+**Features:**
+- Row selection with checkboxes
+- Bulk action bar appears when items selected
+- "Monitor Selected" sends multiple products to tariff monitoring at once
+
+**Wireframe:**
 ```
-[View] [Classify Again] [Monitor 🔔] [Delete]
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│ Classification History                                                    [Refresh] │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ ┌──────────────────────────────────────────────────────────────────────────────────┐│
+││ ☑️ 3 selected                    [🔔 Monitor Selected]  [🗑️ Delete]  [✕ Clear]   ││
+│ └──────────────────────────────────────────────────────────────────────────────────┘│
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ ☑️ │ Product                 │ HTS Code    │ Origin │ Duty Rate │ Confidence │ Date │
+├────┼─────────────────────────┼─────────────┼────────┼───────────┼────────────┼──────┤
+│ ☑️ │ Bluetooth Earbuds       │ 8518.30.20  │ CN     │ 32.5%     │ 95%        │ ...  │
+│ ☑️ │ Cotton T-Shirts         │ 6109.10.00  │ VN     │ 46%       │ 92%        │ ...  │
+│ ☐  │ Silicone Phone Case     │ 3926.90.99  │ CN     │ 27.5%     │ 88%        │ ...  │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.3 Monitoring Tab - "+ Add Product" Form
+**Data Flow:**
+```
+User Action                    API Call                          Result
+───────────────────────────────────────────────────────────────────────────────
+[Select 3 rows]           →  (UI only)                      →  Bulk bar appears
+[Click "Monitor Selected"]→  POST /api/saved-products/bulk  →  3 SavedProducts created
+                                { items: [...], isMonitored }     with isMonitored: true
+                          →  Success message + link         →  "3 products added to monitoring"
+```
 
-**Location:** `src/features/sourcing/components/AddProductForm.tsx`
+### 4.3 Monitoring Tab - "+ Add Product" Form 🔲 PENDING (HIGH PRIORITY)
+
+> **Serves:** Importers, Compliance Officers, Procurement Managers who know their HTS codes
+
+**Location (Planned):** `src/features/sourcing/components/AddProductForm.tsx`
+
+**Current Empty State Issue:**
+The empty state only shows "Classify a Product" which requires going through classification flow. Users who already know their HTS codes should be able to add products directly.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────┐
@@ -365,54 +462,54 @@ Cron Job / Manual Trigger      Service Call                      Result
 
 ## Implementation Plan
 
-### Phase 1: Core Table (2-3 days)
-- [ ] 1.1 Create `MonitoringTab.tsx` component
-- [ ] 1.2 Create `MonitoredProductsTable.tsx` with Ant Design Table
-- [ ] 1.3 Add `/api/saved-products?monitored=true` with live rate enrichment
-- [ ] 1.4 Add `/api/tariff-alerts/summary` endpoint
-- [ ] 1.5 Integrate with Sourcing page as third tab
+### Phase 1: Core Table ✅ COMPLETE
+- [x] 1.1 Create `TariffMonitoringTab.tsx` component
+- [x] 1.2 Table with Ant Design, real API integration
+- [x] 1.3 `/api/saved-products?monitored=true` with live rate enrichment
+- [x] 1.4 Stats header, rate change indicators
+- [x] 1.5 Integrated with Sourcing page as third tab
 
-### Phase 2: Detail & Actions (1-2 days)
-- [ ] 2.1 Create `ProductDetailDrawer.tsx` with rate breakdown
-- [ ] 2.2 Add rate history chart (using TariffAlertEvent data)
-- [ ] 2.3 Add alternatives section (calls `compareLandedCosts`)
-- [ ] 2.4 Connect "Analyze" and "Find Suppliers" buttons
+### Phase 2: Dashboard Card ✅ COMPLETE
+- [x] 2.1 Create `TariffIntelligenceCard.tsx`
+- [x] 2.2 Added to main dashboard layout
+- [x] 2.3 Real data from saved products API
 
-### Phase 3: Entry Points (1 day)
-- [ ] 3.1 Create `SaveAndMonitorButton.tsx` for classification results
-- [ ] 3.2 Add "Monitor" action to `SearchHistoryPanel.tsx`
-- [ ] 3.3 Create `AddProductForm.tsx` for manual entry
+### Phase 3: Entry Points ✅ COMPLETE
+- [x] 3.1 "Save & Monitor" button on classification results (already in `ClassificationResult.tsx`)
+- [x] 3.2 "Add by HTS Code" modal in monitoring tab
+- [x] 3.3 Multiple entry point empty state (Classify / Add by HTS / From Cost Analysis)
+- [x] 3.4 Bulk "Monitor Selected" action in `SearchHistoryPanel.tsx`
 
-### Phase 4: Dashboard Card (0.5 day)
-- [ ] 4.1 Create `IntelligenceSummaryCard.tsx`
-- [ ] 4.2 Add to main dashboard layout
+### Phase 4: Detail View ✅ COMPLETE
+- [x] 4.1 Create `ProductDetailDrawer.tsx` with rate breakdown
+- [x] 4.2 Rate history timeline (using TariffAlertEvent data)
+- [x] 4.3 Sourcing alternatives section (fetches from `/api/sourcing/hts-costs`)
+- [x] 4.4 Connected "Analyze" and "Find Suppliers" buttons with tab switching
 
 ---
 
-## Files to Create
+## Files
 
+### All Complete
 ```
 src/features/sourcing/components/
-├── MonitoringTab.tsx              # Tab container
-├── MonitoredProductsTable.tsx     # Main table
-├── ProductDetailDrawer.tsx        # Slide-out detail view
-├── AddProductForm.tsx             # Manual add form
-└── index.ts                       # Exports
+├── TariffMonitoringTab.tsx        # ✅ Full monitoring tab with row click → drawer
+├── ProductDetailDrawer.tsx        # ✅ Product detail drawer with ClassificationPath
+└── index.ts                       # ✅ Exports
 
 src/features/dashboard/components/
-└── IntelligenceSummaryCard.tsx    # Dashboard card
+└── TariffIntelligenceCard.tsx     # ✅ Dashboard card (380 lines)
 
 src/features/compliance/components/
-└── SaveAndMonitorButton.tsx       # CTA on classification results
+├── ClassificationResult.tsx       # ✅ "Save & Monitor" button built-in
+├── ClassificationPath.tsx         # ✅ Direct lineage display (no siblings by default)
+└── SearchHistoryPanel.tsx         # ✅ Bulk "Monitor Selected" action + smart names
 
-src/app/api/
-├── tariff-alerts/
-│   └── summary/
-│       └── route.ts               # GET summary stats
-└── saved-products/
-    └── [id]/
-        └── monitor/
-            └── route.ts           # POST toggle monitoring
+src/hooks/
+└── useHTSHierarchy.ts             # ✅ Reusable hook for fetching HTS hierarchy
+
+src/utils/
+└── productNameGenerator.ts        # ✅ Smart name extraction from descriptions
 ```
 
 ---
