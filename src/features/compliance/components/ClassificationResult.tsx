@@ -5,6 +5,7 @@ import { Card, Typography, Progress, Tag, Button, Tooltip, Alert, Collapse, mess
 import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Download } from 'lucide-react';
 import type { ClassificationResult } from '@/types/classification.types';
 import { ConditionalClassificationCard } from './ConditionalClassificationCard';
+import { TariffBreakdown } from './TariffBreakdown';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -289,8 +290,46 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                             </Tooltip>
                         </div>
 
-                        {/* Human Readable Path */}
-                        {result.humanReadablePath && (
+                        {/* Full HTS Hierarchy - Shows complete path */}
+                        {result.hierarchy && result.hierarchy.levels.length > 0 ? (
+                            <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <Text className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2 block">
+                                    Classification Path
+                                </Text>
+                                <div className="flex flex-col gap-1">
+                                    {result.hierarchy.levels.map((level, i) => (
+                                        <div 
+                                            key={i} 
+                                            className="flex items-start gap-2"
+                                            style={{ paddingLeft: `${i * 16}px` }}
+                                        >
+                                            <span className="text-slate-400 text-sm">
+                                                {i === 0 ? '📂' : i === result.hierarchy!.levels.length - 1 ? '📄' : '└'}
+                                            </span>
+                                            <div className="flex-1">
+                                                <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${
+                                                    i === result.hierarchy!.levels.length - 1 
+                                                        ? 'bg-teal-100 text-teal-700 font-semibold' 
+                                                        : 'bg-slate-200 text-slate-600'
+                                                }`}>
+                                                    {level.code}
+                                                </span>
+                                                <span className={`ml-2 text-sm ${
+                                                    i === result.hierarchy!.levels.length - 1 
+                                                        ? 'text-slate-900 font-medium' 
+                                                        : 'text-slate-600'
+                                                }`}>
+                                                    {level.description}
+                                                </span>
+                                                {level.dutyRate && (
+                                                    <Tag color="green" className="ml-2 text-xs">{level.dutyRate}</Tag>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : result.humanReadablePath && (
                             <div className="mt-2 text-sm text-slate-500 font-medium flex items-center gap-1 flex-wrap">
                                 {result.humanReadablePath.split(' › ').map((part, i, arr) => (
                                     <React.Fragment key={i}>
@@ -339,85 +378,114 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 </div>
             </Card>
 
-            {/* HYPER-FOCUSED DUTY DISPLAY - Shows only applicable tariffs */}
-            {result.effectiveTariff ? (
-                // If we have effective tariff calculation, show the breakdown
-                <Card className="border-2 border-teal-200 shadow-sm bg-gradient-to-br from-teal-50/50 to-slate-50">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <Title level={5} className="m-0 text-slate-900">
-                                Your Effective Duty Rate
-                            </Title>
-                            <Tooltip title="This is the TOTAL duty you'll pay for this product from your origin country, including all applicable tariffs (base rate + Section 301 + IEEPA, etc.)">
-                                <HelpCircle size={14} className="text-slate-400 cursor-help" />
-                            </Tooltip>
-                        </div>
-                        <div className="text-right">
-                            <Tag color="blue" className="text-lg px-4 py-1 font-bold">
-                                {result.effectiveTariff.effectiveRate.rate}
-                            </Tag>
-                        </div>
-                    </div>
-
-                    {/* Origin Country Context */}
-                    <div className="mb-4 p-3 bg-white rounded-lg border border-slate-200">
-                        <Text className="text-slate-600 text-sm">
-                            From <span className="font-semibold">{getCountryFlag(result.input.countryOfOrigin)} {getCountryName(result.input.countryOfOrigin)}</span> → <span className="font-semibold">🇺🇸 United States</span>
-                        </Text>
-                    </div>
-
-                    {/* Rate Breakdown */}
-                    <div className="flex flex-col gap-2">
-                        {/* Base MFN Rate */}
-                        <div className={`flex items-center justify-between p-3 bg-white rounded-lg border ${selectedConditionalCode ? 'border-green-300' : 'border-slate-200'}`}>
-                            <div className="flex items-center gap-3">
-                                <Tag color={selectedConditionalCode ? 'green' : 'blue'} className="font-mono text-xs">{activeHtsCode}</Tag>
-                                <div>
-                                    <Text strong className="text-slate-800">Base Rate (MFN)</Text>
-                                    {selectedConditionalCode && (
-                                        <Text className="text-green-600 text-xs block">✓ Updated for your product</Text>
-                                    )}
-                                </div>
-                            </div>
-                            <Text strong className="text-teal-600">{result.effectiveTariff.baseMfnRate.rate}</Text>
-                        </div>
-
-                        {/* Additional Duties (only if applicable) */}
-                        {result.effectiveTariff.additionalDuties.map((duty, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
-                                <div className="flex items-center gap-3">
-                                    <Tag color="orange" className="font-mono text-xs">{duty.htsCode}</Tag>
-                                    <div>
-                                        <Tooltip title={duty.description}>
-                                            <Text strong className="text-slate-800 cursor-help">{duty.programName}</Text>
-                                        </Tooltip>
-                                        <Text className="text-slate-500 text-xs block">{duty.authority}</Text>
-                                    </div>
-                                </div>
-                                <Text strong className="text-amber-600">+{duty.rate.rate}</Text>
-                            </div>
-                        ))}
-
-                        {/* Total Row */}
-                        {result.effectiveTariff.additionalDuties.length > 0 && (
-                            <div className="flex items-center justify-between p-4 bg-teal-100 rounded-lg border-2 border-teal-300 mt-2">
-                                <div>
-                                    <Text strong className="text-slate-900 text-lg">TOTAL EFFECTIVE RATE</Text>
-                                </div>
-                                <Title level={3} className="m-0 text-teal-700">
-                                    {result.effectiveTariff.effectiveRate.rate}
+            {/* VALUE-DEPENDENT CLASSIFICATION - Multiple HTS codes based on value/weight */}
+            {result.valueDependentClassification && result.valueDependentClassification.thresholds.length > 1 && (
+                <Card className="border-2 border-amber-200 shadow-sm bg-gradient-to-br from-amber-50/50 to-orange-50/30">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xl">📊</span>
+                                <Title level={5} className="m-0 text-amber-900">
+                                    Multiple HTS Codes Available
                                 </Title>
                             </div>
-                        )}
+                            <Text className="text-amber-800 text-sm">
+                                {result.valueDependentClassification.productType} has different codes based on value. Select the one that matches your product.
+                            </Text>
+                        </div>
+                        <Tooltip title="Different value ranges have different duty rates. Choose the code that matches your product's value.">
+                            <HelpCircle size={16} className="text-amber-600 cursor-help" />
+                        </Tooltip>
                     </div>
 
-                    {/* Disclaimer */}
-                    <div className="mt-4 p-3 bg-white/50 rounded-lg">
-                        <Text className="text-xs text-slate-500 italic">
-                            {result.effectiveTariff.disclaimer}
+                    {/* Heading Context */}
+                    {result.valueDependentClassification.headingDescription && (
+                        <div className="mb-4 p-2 bg-white/50 rounded-lg">
+                            <Text className="text-slate-600 text-xs">
+                                <strong>Heading {result.valueDependentClassification.baseHeading}:</strong> {result.valueDependentClassification.headingDescription}
+                            </Text>
+                        </div>
+                    )}
+
+                    {/* Question */}
+                    {result.valueDependentClassification.question && (
+                        <div className="mb-4 p-3 bg-amber-100 rounded-lg border border-amber-300">
+                            <Text className="text-amber-900 font-medium">
+                                ❓ {result.valueDependentClassification.question}
+                            </Text>
+                        </div>
+                    )}
+
+                    {/* Threshold Options */}
+                    <div className="flex flex-col gap-3">
+                        {result.valueDependentClassification.thresholds.map((threshold, idx) => {
+                            const isSelected = activeHtsCode === threshold.htsCode;
+                            return (
+                                <div
+                                    key={idx}
+                                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                                        isSelected 
+                                            ? 'bg-green-50 border-green-400 ring-2 ring-green-200' 
+                                            : 'bg-white border-slate-200 hover:border-amber-400 hover:bg-amber-50/50'
+                                    }`}
+                                    onClick={() => {
+                                        setSelectedConditionalCode({
+                                            code: threshold.htsCode,
+                                            description: threshold.description,
+                                        });
+                                        message.success(`Selected HTS Code ${threshold.htsCode}`);
+                                    }}
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-3">
+                                            {isSelected && <Check size={18} className="text-green-600" />}
+                                            <Text strong className="font-mono text-lg text-slate-900">
+                                                {threshold.htsCode}
+                                            </Text>
+                                        </div>
+                                        <Tag 
+                                            color={isSelected ? 'green' : 'blue'} 
+                                            className="font-semibold px-3"
+                                        >
+                                            {threshold.dutyRate || 'See USITC'}
+                                        </Tag>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Tag color="orange" className="text-xs">
+                                            {threshold.condition}
+                                        </Tag>
+                                    </div>
+                                    <Text className="text-slate-600 text-sm block mt-2">
+                                        {threshold.description}
+                                    </Text>
+                                    {isSelected && (
+                                        <div className="mt-3 pt-3 border-t border-green-200">
+                                            <Text className="text-green-700 text-sm font-medium">
+                                                ✓ This code is now selected for your classification
+                                            </Text>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Guidance */}
+                    <div className="mt-4 p-3 bg-white/70 rounded-lg border border-amber-200">
+                        <Text className="text-amber-800 text-xs">
+                            💡 <strong>Tip:</strong> The value threshold is typically the FOB (Free on Board) value at the time of import. If unsure, consult with your customs broker.
                         </Text>
                     </div>
                 </Card>
+            )}
+
+            {/* COMPREHENSIVE TARIFF BREAKDOWN */}
+            {result.effectiveTariff ? (
+                <TariffBreakdown
+                    effectiveTariff={result.effectiveTariff}
+                    countryName={getCountryName(result.input.countryOfOrigin)}
+                    countryFlag={getCountryFlag(result.input.countryOfOrigin)}
+                />
             ) : (
                 // Fallback: Simple MFN rate display when no effective tariff calculated
                 <Card className="border border-slate-200 shadow-sm">

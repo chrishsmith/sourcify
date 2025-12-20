@@ -66,6 +66,10 @@ export interface ClassificationResult {
     conditionalClassifications?: ConditionalClassification[];
     // Hierarchical path (e.g., "Plastics > Articles of Plastic > Other")
     humanReadablePath?: string;
+    // Full HTS hierarchy with all levels
+    hierarchy?: HTSHierarchy;
+    // Value-dependent classification (when product has multiple codes based on value/weight)
+    valueDependentClassification?: ValueDependentClassification;
 }
 
 export interface ClassificationHistoryItem {
@@ -84,4 +88,47 @@ export interface USITCCandidate {
     general: string;
     special: string;
     other: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HTS HIERARCHY TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface HTSHierarchyLevel {
+    level: 'chapter' | 'heading' | 'subheading' | 'tariff_line' | 'statistical';
+    code: string;
+    description: string;
+    indent: number;
+    dutyRate?: string;
+}
+
+export interface HTSHierarchy {
+    fullCode: string;
+    levels: HTSHierarchyLevel[];
+    humanReadablePath: string;
+    shortPath: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VALUE-DEPENDENT CLASSIFICATION TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface ValueThreshold {
+    condition: string;          // e.g., "valued not over $100 each"
+    htsCode: string;
+    description: string;
+    dutyRate: string;
+    minValue?: number;
+    maxValue?: number;
+    unit?: string;              // e.g., "each", "per pair", "per kg"
+}
+
+export interface ValueDependentClassification {
+    productType: string;        // e.g., "Guitars"
+    baseHeading: string;        // e.g., "9202.90"
+    headingDescription: string; // e.g., "Other string musical instruments"
+    isValueDependent: boolean;
+    thresholds: ValueThreshold[];
+    guidance: string;           // User-friendly explanation
+    question?: string;          // Question to ask user
 }

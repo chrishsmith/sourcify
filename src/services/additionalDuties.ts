@@ -1,194 +1,282 @@
-// Additional Duties Service
-// Calculates all applicable additional tariffs beyond the base MFN rate
-// Including Section 301, IEEPA Fentanyl, IEEPA Reciprocal, Section 232
+/**
+ * Comprehensive Additional Duties Calculator v3
+ * 
+ * NOW WITH LIVE RATES from USITC API!
+ * 
+ * Calculates ALL applicable tariffs beyond the base MFN rate:
+ * 1. Section 301 (China trade - product specific)
+ * 2. IEEPA Emergency (Fentanyl + Reciprocal)
+ * 3. Section 232 (Steel/Aluminum/Auto)
+ * 4. AD/CVD warnings
+ * 
+ * IMPORTANT: Tariffs are CUMULATIVE - they stack on top of each other!
+ */
 
 import type {
     EffectiveTariffRate,
     AdditionalDuty,
     TariffRate,
-    CountryTariffProfile,
     TariffExclusion
 } from '@/types/tariffLayers.types';
 import { findSection301Lists, getSection301Rate } from '@/data/section301Lists';
 import { checkADCVDWarning } from '@/data/adcvdOrders';
+import { 
+    getCountryProfile, 
+    isSection232Product,
+    IEEPA_PROGRAMS,
+    SECTION_232_PROGRAMS,
+    type TariffProgram
+} from '@/data/tariffPrograms';
+import { 
+    getLiveAdditionalDuties,
+    type LiveTariffRate 
+} from './chapter99';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// COUNTRY-SPECIFIC TARIFF PROFILES
-// ═══════════════════════════════════════════════════════════════════════════
-
-const COUNTRY_PROFILES: Record<string, CountryTariffProfile> = {
-    'CN': {
-        countryCode: 'CN',
-        countryName: 'China',
-        blanketDuties: [
-            {
-                htsCode: '9903.01.24',
-                programName: 'IEEPA Fentanyl Tariff',
-                programType: 'ieepa_fentanyl',
-                rate: { rate: '10%', rateType: 'ad_valorem', numericRate: 10 },
-                authority: 'IEEPA / Executive Order',
-                legalReference: 'Executive Order 14195',
-                effectiveDate: '2025-02-04',
-                applicable: true,
-                description: 'Additional 10% tariff on goods from China related to fentanyl crisis response. Applies to most Chinese imports.',
-            },
-            {
-                htsCode: '9903.01.25',
-                programName: 'IEEPA Reciprocal Tariff',
-                programType: 'ieepa_reciprocal',
-                rate: { rate: '10%', rateType: 'ad_valorem', numericRate: 10 },
-                authority: 'IEEPA / Executive Order',
-                legalReference: 'Executive Order 14257',
-                effectiveDate: '2025-04-05',
-                applicable: true,
-                description: 'Additional 10% reciprocal tariff applied to imports from China and Hong Kong to address trade imbalances.',
-            },
-        ],
-        tradeAgreements: [],
-        specialStatus: 'normal',
-    },
-    'HK': {
-        countryCode: 'HK',
-        countryName: 'Hong Kong',
-        blanketDuties: [
-            {
-                htsCode: '9903.01.24',
-                programName: 'IEEPA Fentanyl Tariff',
-                programType: 'ieepa_fentanyl',
-                rate: { rate: '10%', rateType: 'ad_valorem', numericRate: 10 },
-                authority: 'IEEPA / Executive Order',
-                effectiveDate: '2025-02-04',
-                applicable: true,
-                description: 'Additional 10% tariff on goods from Hong Kong.',
-            },
-            {
-                htsCode: '9903.01.25',
-                programName: 'IEEPA Reciprocal Tariff',
-                programType: 'ieepa_reciprocal',
-                rate: { rate: '10%', rateType: 'ad_valorem', numericRate: 10 },
-                authority: 'IEEPA / Executive Order',
-                effectiveDate: '2025-04-05',
-                applicable: true,
-                description: 'Additional 10% reciprocal tariff on Hong Kong imports.',
-            },
-        ],
-        tradeAgreements: [],
-        specialStatus: 'normal',
-    },
-    'MX': {
-        countryCode: 'MX',
-        countryName: 'Mexico',
-        blanketDuties: [],
-        tradeAgreements: [
-            {
-                name: 'USMCA',
-                htsSpecialIndicator: 'S',
-                preferentialRate: { rate: 'Free', rateType: 'free' },
-                rulesOfOrigin: 'Must meet USMCA rules of origin requirements',
-            },
-        ],
-        specialStatus: 'fta',
-    },
-    'CA': {
-        countryCode: 'CA',
-        countryName: 'Canada',
-        blanketDuties: [],
-        tradeAgreements: [
-            {
-                name: 'USMCA',
-                htsSpecialIndicator: 'S',
-                preferentialRate: { rate: 'Free', rateType: 'free' },
-                rulesOfOrigin: 'Must meet USMCA rules of origin requirements',
-            },
-        ],
-        specialStatus: 'fta',
-    },
-    'VN': {
-        countryCode: 'VN',
-        countryName: 'Vietnam',
-        blanketDuties: [],
-        tradeAgreements: [],
-        specialStatus: 'gsp',
-    },
-    // Default for unlisted countries
-    'DEFAULT': {
-        countryCode: 'DEFAULT',
-        countryName: 'Other Countries',
-        blanketDuties: [],
-        tradeAgreements: [],
-        specialStatus: 'normal',
-    },
-};
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN CALCULATION FUNCTIONS
+// MAIN CALCULATION FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Calculate the effective tariff rate including all additional duties
+ * Calculate the TOTAL effective tariff rate including all additional duties
+ * This is the main function - it returns everything needed for the UI
+ * 
+ * NOW FETCHES LIVE RATES from USITC API when possible!
  */
-export function calculateEffectiveTariff(
+export async function calculateEffectiveTariff(
     htsCode: string,
     htsDescription: string,
     baseMfnRate: string,
     countryOfOrigin: string,
     shipmentValue?: number
-): EffectiveTariffRate {
+): Promise<EffectiveTariffRate> {
     const additionalDuties: AdditionalDuty[] = [];
     const exclusions: TariffExclusion[] = [];
-
-    // Get country profile
-    const profile = COUNTRY_PROFILES[countryOfOrigin] || COUNTRY_PROFILES['DEFAULT'];
+    const warnings: string[] = [];
 
     // Parse base MFN rate
     const baseMfn = parseRate(baseMfnRate);
     let totalAdValorem = baseMfn.numericRate || 0;
 
-    // 1. Add blanket country duties (IEEPA Fentanyl, Reciprocal, etc.)
-    for (const duty of profile.blanketDuties) {
-        additionalDuties.push(duty);
-        if (duty.applicable && duty.rate.numericRate) {
-            totalAdValorem += duty.rate.numericRate;
-        }
+    // Get country profile
+    const countryProfile = getCountryProfile(countryOfOrigin);
+
+    console.log(`[Duties] Calculating for ${htsCode} from ${countryOfOrigin}`);
+    console.log(`[Duties] Base MFN: ${baseMfnRate} (${baseMfn.numericRate}%)`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TRY LIVE RATES FIRST from USITC API
+    // ═══════════════════════════════════════════════════════════════════
+    let liveRates: Awaited<ReturnType<typeof getLiveAdditionalDuties>> | null = null;
+    let usedLiveRates = false;
+    
+    try {
+        console.log('[Duties] Fetching LIVE rates from USITC API...');
+        liveRates = await getLiveAdditionalDuties(htsCode, countryOfOrigin);
+        usedLiveRates = true;
+        console.log('[Duties] Live rates fetched:', liveRates.dataFreshness);
+    } catch (error) {
+        console.warn('[Duties] Failed to fetch live rates, using fallback:', error);
+        warnings.push('ℹ️ Using cached tariff rates. Live rates unavailable.');
     }
 
-    // 2. Check Section 301 (only applies to China)
+    // ═══════════════════════════════════════════════════════════════════
+    // 1. SECTION 301 TARIFFS (China only, product-specific)
+    // ═══════════════════════════════════════════════════════════════════
     if (countryOfOrigin === 'CN' || countryOfOrigin === 'HK') {
-        const section301 = getSection301Rate(htsCode);
-        if (section301) {
-            const listCode = getSection301HtsCode(section301.listNames[0]);
+        // Try live rate first
+        if (liveRates?.section301?.numericRate !== null && liveRates?.section301?.numericRate !== undefined) {
+            const liveRate = liveRates.section301;
             additionalDuties.push({
-                htsCode: listCode,
-                programName: section301.listNames.join(', '),
+                htsCode: liveRate.htsCode,
+                programName: 'Section 301',
                 programType: 'section_301',
-                rate: { rate: `${section301.rate}%`, rateType: 'ad_valorem', numericRate: section301.rate },
+                rate: { rate: liveRate.rate, rateType: 'ad_valorem', numericRate: liveRate.numericRate || 0 },
                 authority: 'USTR',
                 legalReference: 'Trade Act of 1974, Section 301',
                 effectiveDate: '2018-07-06',
                 applicable: true,
-                description: `Section 301 tariff on products from China. This product is on ${section301.listNames.join(' and ')}.`,
+                description: `${liveRate.description} (LIVE from USITC)`,
             });
-            totalAdValorem += section301.rate;
+            totalAdValorem += liveRate.numericRate || 0;
+            console.log(`[Duties] Section 301 (LIVE): +${liveRate.numericRate}%`);
+        } else {
+            // Fallback to hardcoded mapping
+            const section301 = getSection301Rate(htsCode);
+            if (section301) {
+                const duty = createSection301Duty(section301.rate, section301.listNames);
+                additionalDuties.push(duty);
+                totalAdValorem += section301.rate;
+                console.log(`[Duties] Section 301 (fallback): +${section301.rate}% (${section301.listNames.join(', ')})`);
+            } else {
+                warnings.push('ℹ️ Section 301: Product may be subject to 7.5-100% tariff depending on list. Verify at USTR.gov');
+            }
         }
     }
 
-    // 3. Check for trade agreement benefits (reduces rate)
-    if (profile.tradeAgreements.length > 0) {
-        // Note: FTA benefits would reduce rates, but require proof of origin
-        // For now, we show both scenarios
+    // ═══════════════════════════════════════════════════════════════════
+    // 2. IEEPA EMERGENCY TARIFFS (Country-wide) - USE LIVE RATES
+    // ═══════════════════════════════════════════════════════════════════
+    
+    // IEEPA Fentanyl
+    if (liveRates?.ieepaFentanyl?.numericRate !== null && liveRates?.ieepaFentanyl?.numericRate !== undefined) {
+        const liveRate = liveRates.ieepaFentanyl;
+        additionalDuties.push({
+            htsCode: liveRate.htsCode,
+            programName: 'IEEPA Fentanyl Emergency',
+            programType: 'ieepa_fentanyl',
+            rate: { rate: liveRate.rate, rateType: 'ad_valorem', numericRate: liveRate.numericRate || 0 },
+            authority: 'President / IEEPA',
+            legalReference: 'International Emergency Economic Powers Act',
+            effectiveDate: '2025-02-04',
+            applicable: true,
+            description: `${liveRate.description} (LIVE from USITC)`,
+        });
+        totalAdValorem += liveRate.numericRate || 0;
+        console.log(`[Duties] IEEPA Fentanyl (LIVE): +${liveRate.numericRate}%`);
+    } else {
+        // Fallback to hardcoded
+        const ieepaFentanylProgram = IEEPA_PROGRAMS.find(p => 
+            p.id.includes('fentanyl') && p.affectedCountries.includes(countryOfOrigin)
+        );
+        if (ieepaFentanylProgram) {
+            additionalDuties.push(createIEEPADuty(ieepaFentanylProgram));
+            totalAdValorem += ieepaFentanylProgram.rate;
+            console.log(`[Duties] IEEPA Fentanyl (fallback): +${ieepaFentanylProgram.rate}%`);
+        }
+    }
+    
+    // IEEPA Reciprocal
+    if (liveRates?.ieepaReciprocal?.numericRate !== null && liveRates?.ieepaReciprocal?.numericRate !== undefined) {
+        const liveRate = liveRates.ieepaReciprocal;
+        additionalDuties.push({
+            htsCode: liveRate.htsCode,
+            programName: 'IEEPA Reciprocal Tariff',
+            programType: 'ieepa_reciprocal',
+            rate: { rate: liveRate.rate, rateType: 'ad_valorem', numericRate: liveRate.numericRate || 0 },
+            authority: 'President / IEEPA',
+            legalReference: 'International Emergency Economic Powers Act',
+            effectiveDate: '2025-04-09',
+            applicable: true,
+            description: `${liveRate.description} (LIVE from USITC)`,
+        });
+        totalAdValorem += liveRate.numericRate || 0;
+        console.log(`[Duties] IEEPA Reciprocal (LIVE): +${liveRate.numericRate}%`);
+    } else {
+        // Fallback to hardcoded
+        const ieepaReciprocalProgram = IEEPA_PROGRAMS.find(p => 
+            p.id.includes('reciprocal') && p.affectedCountries.includes(countryOfOrigin)
+        );
+        if (ieepaReciprocalProgram) {
+            additionalDuties.push(createIEEPADuty(ieepaReciprocalProgram));
+            totalAdValorem += ieepaReciprocalProgram.rate;
+            console.log(`[Duties] IEEPA Reciprocal (fallback): +${ieepaReciprocalProgram.rate}%`);
+        }
     }
 
-    // 4. Check for AD/CVD warnings
+    // ═══════════════════════════════════════════════════════════════════
+    // 3. SECTION 232 TARIFFS (Product-specific) - USE LIVE RATES
+    // ═══════════════════════════════════════════════════════════════════
+    const section232 = isSection232Product(htsCode);
+
+    if (section232.steel) {
+        const isExempt = checkSection232Exemption(countryOfOrigin, 'steel');
+        
+        if (!isExempt) {
+            if (liveRates?.section232Steel?.numericRate !== null && liveRates?.section232Steel?.numericRate !== undefined) {
+                const liveRate = liveRates.section232Steel;
+                additionalDuties.push({
+                    htsCode: liveRate.htsCode,
+                    programName: 'Section 232 Steel',
+                    programType: 'section_232',
+                    rate: { rate: liveRate.rate, rateType: 'ad_valorem', numericRate: liveRate.numericRate || 0 },
+                    authority: 'Commerce / President',
+                    legalReference: 'Trade Expansion Act of 1962, Section 232',
+                    effectiveDate: '2018-03-23',
+                    applicable: true,
+                    description: `${liveRate.description} (LIVE from USITC)`,
+                });
+                totalAdValorem += liveRate.numericRate || 0;
+                console.log(`[Duties] Section 232 Steel (LIVE): +${liveRate.numericRate}%`);
+            } else {
+                const steelProgram = SECTION_232_PROGRAMS.find(p => p.id === 'section232_steel')!;
+                additionalDuties.push(createSection232Duty(steelProgram, 'steel'));
+                totalAdValorem += steelProgram.rate;
+                console.log(`[Duties] Section 232 Steel (fallback): +${steelProgram.rate}%`);
+            }
+        } else {
+            warnings.push('ℹ️ Section 232 Steel: May qualify for quota exemption from ' + countryOfOrigin);
+        }
+    }
+
+    if (section232.aluminum) {
+        const isExempt = checkSection232Exemption(countryOfOrigin, 'aluminum');
+        
+        if (!isExempt) {
+            if (liveRates?.section232Aluminum?.numericRate !== null && liveRates?.section232Aluminum?.numericRate !== undefined) {
+                const liveRate = liveRates.section232Aluminum;
+                additionalDuties.push({
+                    htsCode: liveRate.htsCode,
+                    programName: 'Section 232 Aluminum',
+                    programType: 'section_232',
+                    rate: { rate: liveRate.rate, rateType: 'ad_valorem', numericRate: liveRate.numericRate || 0 },
+                    authority: 'Commerce / President',
+                    legalReference: 'Trade Expansion Act of 1962, Section 232',
+                    effectiveDate: '2018-03-23',
+                    applicable: true,
+                    description: `${liveRate.description} (LIVE from USITC)`,
+                });
+                totalAdValorem += liveRate.numericRate || 0;
+                console.log(`[Duties] Section 232 Aluminum (LIVE): +${liveRate.numericRate}%`);
+            } else {
+                const aluminumProgram = SECTION_232_PROGRAMS.find(p => p.id === 'section232_aluminum')!;
+                additionalDuties.push(createSection232Duty(aluminumProgram, 'aluminum'));
+                totalAdValorem += aluminumProgram.rate;
+                console.log(`[Duties] Section 232 Aluminum (fallback): +${aluminumProgram.rate}%`);
+            }
+        } else {
+            warnings.push('ℹ️ Section 232 Aluminum: May qualify for quota exemption from ' + countryOfOrigin);
+        }
+    }
+
+    if (section232.auto) {
+        const autoProgram = SECTION_232_PROGRAMS.find(p => p.id === 'section232_autos');
+        if (autoProgram) {
+            const isExempt = checkSection232Exemption(countryOfOrigin, 'auto');
+            
+            if (!isExempt) {
+                additionalDuties.push(createSection232Duty(autoProgram, 'auto'));
+                totalAdValorem += autoProgram.rate;
+                console.log(`[Duties] Section 232 Auto: +${autoProgram.rate}%`);
+                warnings.push('⚠️ Auto tariff effective April 3, 2025. Parts tariff effective May 3, 2025.');
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 4. AD/CVD CHECK (Warning only - rates are manufacturer-specific)
+    // ═══════════════════════════════════════════════════════════════════
     const adcvdCheck = checkADCVDWarning(htsCode, countryOfOrigin);
 
-    // Calculate effective rate
+    // ═══════════════════════════════════════════════════════════════════
+    // 5. TRADE AGREEMENT BENEFITS (Can reduce rates)
+    // ═══════════════════════════════════════════════════════════════════
+    if (countryProfile?.tradeStatus === 'fta') {
+        warnings.push(`💡 ${countryProfile.countryName} is an FTA partner. May qualify for reduced rates with proper documentation.`);
+    }
+    
+    // Add data source indicator
+    if (usedLiveRates && liveRates) {
+        warnings.unshift(`✓ ${liveRates.dataFreshness}`);
+    }
+
+    // Build effective rate
     const effectiveRate: TariffRate = {
         rate: `${totalAdValorem}%`,
         rateType: 'ad_valorem',
         numericRate: totalAdValorem,
     };
 
-    // Calculate estimated duty for value
+    // Calculate estimated duty for shipment value
     let estimatedDuty;
     if (shipmentValue) {
         estimatedDuty = {
@@ -197,6 +285,8 @@ export function calculateEffectiveTariff(
             estimatedDuty: Math.round((shipmentValue * totalAdValorem / 100) * 100) / 100,
         };
     }
+
+    console.log(`[Duties] TOTAL: ${totalAdValorem}%`);
 
     return {
         baseHtsCode: htsCode,
@@ -211,10 +301,16 @@ export function calculateEffectiveTariff(
         exclusions,
         adcvdWarning: adcvdCheck.hasWarning ? adcvdCheck.warning : undefined,
         calculatedAt: new Date(),
-        dataFreshness: `As of ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
-        disclaimer: 'These tariff rates are provided for informational purposes only. Actual duties may vary based on product classification, country of origin determination, and current regulations. Always verify with a licensed customs broker or CBP.',
+        dataFreshness: usedLiveRates && liveRates 
+            ? `Live data from USITC API - ${liveRates.dataFreshness}` 
+            : `As of ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (cached rates)`,
+        disclaimer: 'Tariff rates provided for informational purposes only. Rates change frequently. Actual duties may vary based on classification, origin determination, and current regulations. Always verify with a licensed customs broker or CBP before import.',
     };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
 
 /**
  * Parse a rate string into a TariffRate object
@@ -222,6 +318,11 @@ export function calculateEffectiveTariff(
 function parseRate(rateStr: string): TariffRate {
     if (!rateStr || rateStr.toLowerCase() === 'free') {
         return { rate: 'Free', rateType: 'free', numericRate: 0 };
+    }
+
+    // Handle "See USITC" or similar
+    if (rateStr.toLowerCase().includes('see') || rateStr.toLowerCase().includes('n/a')) {
+        return { rate: rateStr, rateType: 'ad_valorem', numericRate: 0 };
     }
 
     // Match percentage (e.g., "25%" or "7.5%")
@@ -241,7 +342,25 @@ function parseRate(rateStr: string): TariffRate {
         };
     }
 
-    return { rate: rateStr, rateType: 'ad_valorem' };
+    return { rate: rateStr, rateType: 'ad_valorem', numericRate: 0 };
+}
+
+/**
+ * Create Section 301 duty entry
+ */
+function createSection301Duty(rate: number, listNames: string[]): AdditionalDuty {
+    const listCode = getSection301HtsCode(listNames[0]);
+    return {
+        htsCode: listCode,
+        programName: listNames.join(' + '),
+        programType: 'section_301',
+        rate: { rate: `${rate}%`, rateType: 'ad_valorem', numericRate: rate },
+        authority: 'USTR',
+        legalReference: 'Trade Act of 1974, Section 301',
+        effectiveDate: '2018-07-06',
+        applicable: true,
+        description: `Section 301 tariff on Chinese products. This product is on ${listNames.join(' and ')}. These tariffs were imposed in response to China's unfair trade practices regarding technology transfer and intellectual property.`,
+    };
 }
 
 /**
@@ -251,41 +370,123 @@ function getSection301HtsCode(listName: string): string {
     if (listName.includes('List 1')) return '9903.88.01';
     if (listName.includes('List 2')) return '9903.88.02';
     if (listName.includes('List 3')) return '9903.88.03';
-    if (listName.includes('List 4A')) return '9903.88.04';
-    if (listName.includes('List 4B')) return '9903.88.15';
-    if (listName.includes('2024')) return '9903.91.01';
+    if (listName.includes('List 4A')) return '9903.88.15';
+    if (listName.includes('List 4B')) return '9903.88.16';
+    if (listName.includes('2024')) return '9903.88.16';
     return '9903.88.00';
 }
 
 /**
- * Get country profile
+ * Create IEEPA duty entry
  */
-export function getCountryProfile(countryCode: string): CountryTariffProfile {
-    return COUNTRY_PROFILES[countryCode] || COUNTRY_PROFILES['DEFAULT'];
+function createIEEPADuty(program: TariffProgram): AdditionalDuty {
+    return {
+        htsCode: program.htsChapter99Code,
+        programName: program.name,
+        programType: program.id.includes('fentanyl') ? 'ieepa_fentanyl' : 'ieepa_reciprocal',
+        rate: { rate: `${program.rate}%`, rateType: 'ad_valorem', numericRate: program.rate },
+        authority: 'President / IEEPA',
+        legalReference: program.legalBasis,
+        effectiveDate: program.effectiveDate,
+        applicable: true,
+        description: program.description + ' ' + program.notes.join(' '),
+    };
 }
 
 /**
- * Check if a country has any additional blanket duties
+ * Create Section 232 duty entry
  */
-export function hasAdditionalDuties(countryCode: string): boolean {
-    const profile = getCountryProfile(countryCode);
-    return profile.blanketDuties.length > 0;
+function createSection232Duty(program: TariffProgram, productType: string): AdditionalDuty {
+    return {
+        htsCode: program.htsChapter99Code,
+        programName: program.name,
+        programType: 'section_232',
+        rate: { rate: `${program.rate}%`, rateType: 'ad_valorem', numericRate: program.rate },
+        authority: 'Commerce / President',
+        legalReference: program.legalBasis,
+        effectiveDate: program.effectiveDate,
+        applicable: true,
+        description: `Section 232 national security tariff on ${productType}. ${program.description}`,
+    };
 }
 
 /**
- * Get summary of all additional duties for a country
+ * Check if a country has Section 232 exemption
+ * Note: Exemptions are complex and change frequently
+ */
+function checkSection232Exemption(countryCode: string, productType: string): boolean {
+    // USMCA countries have quota arrangements, not full exemptions
+    // For now, return false (apply tariff) and add warning
+    // In production, would need to check quota status
+    
+    const quotaCountries: Record<string, string[]> = {
+        'steel': ['AR', 'AU', 'BR', 'KR'],  // Countries with quota arrangements
+        'aluminum': ['AR', 'AU'],
+        'auto': [], // No exemptions yet
+    };
+    
+    // Note: USMCA (MX, CA) has complex arrangements - not full exemptions
+    // We show the tariff but add warnings about potential exemptions
+    
+    return quotaCountries[productType]?.includes(countryCode) || false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILITY EXPORTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get quick summary of additional duties for a country
  */
 export function getCountryDutySummary(countryCode: string): string {
     const profile = getCountryProfile(countryCode);
-
-    if (profile.blanketDuties.length === 0 && profile.tradeAgreements.length > 0) {
-        return `Eligible for preferential rates under ${profile.tradeAgreements.map(t => t.name).join(', ')}`;
+    
+    if (!profile) {
+        return 'Standard MFN rates apply';
     }
-
-    if (profile.blanketDuties.length > 0) {
-        const total = profile.blanketDuties.reduce((sum, d) => sum + (d.rate.numericRate || 0), 0);
-        return `+${total}% additional duties (${profile.blanketDuties.map(d => d.programName).join(' + ')})`;
+    
+    if (profile.tradeStatus === 'elevated') {
+        return `⚠️ HIGH TARIFF COUNTRY: Up to ${profile.totalAdditionalRate}%+ additional duties`;
     }
-
+    
+    if (profile.tradeStatus === 'fta') {
+        return `✓ FTA Partner: May qualify for reduced/free rates`;
+    }
+    
     return 'Standard MFN rates apply';
+}
+
+/**
+ * Check if a country has any blanket additional duties
+ */
+export function hasAdditionalDuties(countryCode: string): boolean {
+    const profile = getCountryProfile(countryCode);
+    return profile?.tradeStatus === 'elevated' || false;
+}
+
+/**
+ * Get all warnings for a country/product combination
+ */
+export function getTariffWarnings(
+    htsCode: string,
+    countryOfOrigin: string
+): string[] {
+    const warnings: string[] = [];
+    const profile = getCountryProfile(countryOfOrigin);
+    
+    if (profile?.tradeStatus === 'elevated') {
+        warnings.push(`⚠️ ${profile.countryName} has elevated tariff status with significant additional duties.`);
+    }
+    
+    const section232 = isSection232Product(htsCode);
+    if (section232.steel) warnings.push('⚠️ Product is subject to Section 232 steel tariffs (25%)');
+    if (section232.aluminum) warnings.push('⚠️ Product is subject to Section 232 aluminum tariffs (25%)');
+    if (section232.auto) warnings.push('⚠️ Product may be subject to Section 232 auto tariffs (25%)');
+    
+    const adcvd = checkADCVDWarning(htsCode, countryOfOrigin);
+    if (adcvd.hasWarning) {
+        warnings.push(`⚠️ ${adcvd.warning?.message}`);
+    }
+    
+    return warnings;
 }

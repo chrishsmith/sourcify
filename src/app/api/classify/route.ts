@@ -1,11 +1,22 @@
-// API route for classification - uses proper server context
-// USITC-FIRST APPROACH: Search USITC for real codes, then AI selects the best match
+/**
+ * HTS Classification API Route
+ * 
+ * Uses the v2 Classification Engine with:
+ * 1. Product Analysis (understand what it IS)
+ * 2. Hierarchical Search (chapter → heading → subheading)
+ * 3. GRI-based AI Selection
+ * 4. Validation Layer
+ * 5. Full Hierarchy Path
+ * 6. Value-Dependent Classification Detection
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyWithUSITCCandidates, getMockClassificationResult, generateSearchTerms } from '@/services/ai';
-import { searchHTSCodes } from '@/services/usitc';
+import { classifyProduct } from '@/services/classificationEngine';
 import { calculateEffectiveTariff } from '@/services/additionalDuties';
-import { formatHumanReadablePath } from '@/utils/htsFormatting';
-import type { ClassificationInput, ClassificationResult, ConditionalClassification } from '@/types/classification.types';
+import { getHTSHierarchy } from '@/services/htsHierarchy';
+import { detectValueDependentCodes } from '@/services/valueClassification';
+import type { ClassificationInput, ClassificationResult } from '@/types/classification.types';
+import type { ConditionalClassification } from '@/types/classification.types';
 
 export async function POST(request: NextRequest) {
     try {
@@ -19,141 +30,68 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const apiKey = process.env.XAI_API_KEY;
-        console.log('[Classification API] API Key present:', !!apiKey);
+        console.log('\n════════════════════════════════════════════════════════════════');
+        console.log('[API] New Classification Request');
+        console.log('[API] Product:', input.productDescription);
+        console.log('[API] Material:', input.materialComposition || 'Not specified');
+        console.log('[API] Country:', input.countryOfOrigin || 'Not specified');
+        console.log('════════════════════════════════════════════════════════════════\n');
 
-        let result: ClassificationResult;
+        // Use the new classification engine
+        let result: ClassificationResult = await classifyProduct(input);
 
-        // ═══════════════════════════════════════════════════════════════════
-        // MULTI-PATH ELIMINATION FLOW
-        // 1. Broad Net: Search USITC for ~20-30 candidates across different headings
-        // 2. Elimination: AI rigorously tests each candidate to find the best fit
-        // ═══════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════
+        // FETCH FULL HTS HIERARCHY
+        // This gives us the complete path: Chapter → Heading → Subheading → Code
+        // ═══════════════════════════════════════════════════════════════
+        console.log('[API] Fetching HTS hierarchy...');
+        try {
+            const hierarchy = await getHTSHierarchy(result.htsCode.code);
+            result.hierarchy = hierarchy;
+            result.humanReadablePath = hierarchy.humanReadablePath;
+            console.log('[API] Hierarchy:', hierarchy.humanReadablePath);
+        } catch (e) {
+            console.warn('[API] Failed to fetch hierarchy:', e);
+            // Fallback to simple path
+            result.humanReadablePath = `Chapter ${result.htsCode.chapter} › Heading ${result.htsCode.heading} › ${result.htsCode.description}`;
+        }
 
-        console.log('[Classification API] Starting Multi-Path Elimination Protocol...');
-
-        // Step 1: Broad Net Collection (The "Gatherer")
-        // "Understand" the product first.
-        let specificKeywords = '';
-        let broadKeywords = '';
-
-        if (apiKey) {
-            // AI-Derived Search Terms (Intelligent)
-            console.log('[Classification API] Generating AI search terms (Deep Understanding)...');
-            try {
-                const searchTerms = await generateSearchTerms(
-                    input.productDescription,
-                    input.materialComposition,
-                    input.productName,
-                    input.intendedUse
+        // ═══════════════════════════════════════════════════════════════
+        // DETECT VALUE-DEPENDENT CLASSIFICATION
+        // If product has multiple codes based on value/weight, return all options
+        // ═══════════════════════════════════════════════════════════════
+        console.log('[API] Checking for value-dependent classification...');
+        try {
+            const valueDependent = await detectValueDependentCodes(
+                result.htsCode.code,
+                result.htsCode.description
+            );
+            
+            if (valueDependent && valueDependent.thresholds.length > 1) {
+                result.valueDependentClassification = valueDependent;
+                result.warnings = result.warnings || [];
+                result.warnings.push(
+                    `📊 This product has ${valueDependent.thresholds.length} possible HTS codes based on value. See options below.`
                 );
-                specificKeywords = searchTerms.specific;
-                broadKeywords = searchTerms.broad;
-            } catch (e) {
-                console.warn('[Classification API] AI Search Term generation failed, falling back to regex:', e);
-                specificKeywords = extractSearchKeywords(input.productDescription);
-                broadKeywords = extractBroaderKeywords(input.productDescription);
+                console.log('[API] Value-dependent codes found:', valueDependent.thresholds.length);
             }
-        } else {
-            // Regex Fallback (Basic)
-            specificKeywords = extractSearchKeywords(input.productDescription);
-            broadKeywords = extractBroaderKeywords(input.productDescription);
+        } catch (e) {
+            console.warn('[API] Failed to check value-dependent:', e);
         }
-
-        console.log('[Classification API] Searching with:', { specific: specificKeywords, broad: broadKeywords });
-
-        // Parallel search to cast a wide net
-        const [specificResults, broadResults] = await Promise.all([
-            searchHTSCodes(specificKeywords),
-            searchHTSCodes(broadKeywords)
-        ]);
-
-        // Merge and Deduplicate
-        let usitcCandidates = [...specificResults, ...broadResults];
-        usitcCandidates = usitcCandidates.filter((c, i, arr) =>
-            arr.findIndex(x => x.htsno === c.htsno) === i
-        );
-
-        console.log('[Classification API] Total candidates found:', usitcCandidates.length);
-        if (usitcCandidates.length > 0) {
-            console.log('[Classification API] Top 5 Candidates:', usitcCandidates.slice(0, 5).map(c => `${c.htsno}: ${c.description}`));
-        }
-
-        // Filter to only include strict 10-digit codes and sort by specificity
-        const fullCodes = usitcCandidates
-            .filter(c => {
-                const cleanCode = c.htsno.replace(/\./g, '');
-                return cleanCode.length === 10;
-            })
-            .filter(c => !c.description.toLowerCase().includes('heading') && !c.description.toLowerCase().includes('subheading'))
-            .sort((a, b) => b.description.length - a.description.length); // Prioritize longer (more specific) descriptions
-
-        // Step 2: AI Elimination (The "Fit Test")
-        if (!apiKey) {
-            result = getMockClassificationResult(input);
-        } else if (fullCodes.length === 0) {
-            result = getMockClassificationResult(input);
-            result.warnings = ['⚠️ No matching USITC codes found. Please refine description.'];
-            result.confidence = 30;
-        } else {
-            try {
-                // Pass top 25 candidates to give AI enough variety for elimination
-                // The AI will see "Other" codes alongside specific ones and can now reason between them
-                result = await classifyWithUSITCCandidates(input, fullCodes.slice(0, 25));
-
-                // Add Human Readable Path
-                result.humanReadablePath = formatHumanReadablePath(
-                    result.htsCode.code,
-                    result.htsCode.description
-                );
-
-            } catch (error) {
-                console.error('[Classification API] Selection error:', error);
-
-                // Detailed Fallback
-                const fallback = fullCodes[0];
-                result = {
-                    id: crypto.randomUUID(),
-                    input,
-                    htsCode: {
-                        code: fallback.htsno,
-                        description: fallback.description,
-                        chapter: fallback.htsno.substring(0, 2),
-                        heading: fallback.htsno.substring(0, 4),
-                        subheading: fallback.htsno.substring(0, 7),
-                    },
-                    confidence: 50,
-                    dutyRate: {
-                        generalRate: fallback.general || 'See USITC',
-                        specialPrograms: [],
-                        column2Rate: fallback.other,
-                    },
-                    rulings: [],
-                    alternativeCodes: [],
-                    rationale: 'Fallback selection - AI service unavailable',
-                    warnings: ['⚠️ AI selection failed. Using best keyword match.'],
-                    createdAt: new Date(),
-                    humanReadablePath: formatHumanReadablePath(fallback.htsno, fallback.description)
-                };
-            }
-        }
-
-        // Get base MFN rate for effective tariff calculation
-        let baseMfnRate = result.dutyRate.generalRate;
 
         // Calculate EFFECTIVE tariff with all additional duties
+        // NOW FETCHES LIVE RATES FROM USITC API!
         const countryCode = getCountryCode(input.countryOfOrigin);
         if (countryCode) {
             try {
-                console.log('[Classification API] Calculating effective tariff for', countryCode);
-                const effectiveTariff = calculateEffectiveTariff(
+                console.log('[API] Calculating effective tariff for', countryCode);
+                const effectiveTariff = await calculateEffectiveTariff(
                     result.htsCode.code,
                     result.htsCode.description,
-                    baseMfnRate,
+                    result.dutyRate.generalRate,
                     countryCode
                 );
 
-                // Add effective tariff to result
                 result.effectiveTariff = effectiveTariff;
 
                 // Add country duty summary to warnings
@@ -167,14 +105,13 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                console.log('[Classification API] Effective rate:', effectiveTariff.totalAdValorem + '%');
+                console.log('[API] Effective rate:', effectiveTariff.totalAdValorem + '%');
             } catch (e) {
-                console.warn('[Classification API] Effective tariff calculation failed:', e);
+                console.warn('[API] Effective tariff calculation failed:', e);
             }
         }
 
         // Detect conditional classifications (price/weight-dependent HTS codes)
-        // This only triggers when the official USITC description contains value/weight language
         const conditionalClassification = detectConditionalClassification(
             result.htsCode.code,
             result.htsCode.description,
@@ -188,64 +125,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        console.log('\n[API] Final Classification:', result.htsCode.code);
+        console.log('[API] Confidence:', result.confidence);
+        console.log('════════════════════════════════════════════════════════════════\n');
+
         return NextResponse.json(result);
     } catch (error) {
-        console.error('[Classification API] Error:', error);
+        console.error('[API] Classification Error:', error);
         return NextResponse.json(
             { error: 'Classification failed. Please try again.' },
             { status: 500 }
         );
     }
-}
-
-/**
- * Extract search keywords from product description
- * Prioritizes the "Object Identity" (What IS it?) over modifiers.
- */
-function extractSearchKeywords(description: string): string {
-    // Remove punctuation and cleanup
-    const clean = description.replace(/[^\w\s]/g, ' ').toLowerCase();
-    const words = clean.split(/\s+/).filter(w => w.length > 2);
-
-    // Stop words (expanded) - we want to remove noise
-    const stopWords = new Set([
-        'for', 'with', 'made', 'and', 'the', 'from', 'this', 'that', 'used', 'in', 'of',
-        'pro', 'max', 'mini', 'ultra', 'plus', 'new', 'old' // common "marketing" modifiers that distract
-    ]);
-
-    // Priority Nouns - If we see these, we WANT them in the search
-    // This helps catch "Case" in "Phone Case" or "Bag" in "Plastic Bag"
-    const priorityNouns = new Set([
-        'case', 'bag', 'cover', 'container', 'box', 'sleeve', 'backpack', // 4202 triggers
-        'part', 'accessory', 'waste', 'scrap', 'sheet', 'film', 'plate'  // other category triggers
-    ]);
-
-    // Filter words
-    const filtered = words.filter(w => !stopWords.has(w));
-
-    // Refined Selection Strategy:
-    // 1. Find any priority nouns
-    const foundPriority = filtered.filter(w => priorityNouns.has(w));
-
-    // 2. Take non-priority words (limiting to first few to keep context like "plastic" or "phone")
-    const otherWords = filtered.filter(w => !priorityNouns.has(w));
-
-    // Combine: Priority first, then context. Limit to 3 terms max to keep USITC search specific.
-    // Example: "Silicone Phone Case" -> "case phone silicone"
-    const finalSelection = [...foundPriority, ...otherWords].slice(0, 3);
-
-    return finalSelection.join(' ');
-}
-
-/**
- * Extract broader keywords for fallback search
- */
-function extractBroaderKeywords(description: string): string {
-    const clean = description.replace(/[^\w\s]/g, ' ');
-    const words = clean.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-
-    // Take first 1-2 words as the most fundamental category
-    return words.slice(0, 2).join(' ');
 }
 
 /**
@@ -362,4 +253,3 @@ function detectConditionalClassification(
 
     return null;
 }
-
