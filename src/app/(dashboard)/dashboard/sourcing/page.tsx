@@ -1,22 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Typography, Tabs, Input, Button, Card, Select } from 'antd';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Typography, Tabs, Input, Button, Card, Select, Skeleton } from 'antd';
 import { Search, Globe, TrendingDown, Users } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { SupplierExplorer } from '@/features/sourcing/components/SupplierExplorer';
 import { SourcingRecommendations } from '@/features/sourcing/components/SourcingRecommendations';
 
 const { Title, Text, Paragraph } = Typography;
 
-export default function SourcingPage() {
+// Inner component that uses useSearchParams
+function SourcingPageContent() {
+    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState('analyze');
     const [htsCode, setHtsCode] = useState('');
     const [currentCountry, setCurrentCountry] = useState<string | undefined>();
     const [showAnalysis, setShowAnalysis] = useState(false);
+    const [isFromNavigation, setIsFromNavigation] = useState(false);
+    
+    // Handle URL parameters on mount
+    useEffect(() => {
+        const htsParam = searchParams.get('hts');
+        const fromParam = searchParams.get('from');
+        
+        if (htsParam) {
+            setHtsCode(htsParam);
+            if (fromParam) {
+                setCurrentCountry(fromParam);
+            }
+            // Auto-trigger analysis when coming from classification result
+            setShowAnalysis(true);
+            setIsFromNavigation(true);
+        }
+    }, [searchParams]);
     
     const handleAnalyze = () => {
         if (htsCode.trim()) {
             setShowAnalysis(true);
+            setIsFromNavigation(false);
         }
     };
     
@@ -42,6 +63,36 @@ export default function SourcingPage() {
                 </Paragraph>
             </div>
             
+            {/* Navigation Context Banner */}
+            {isFromNavigation && htsCode && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl">🔍</span>
+                        <div>
+                            <Text strong className="text-indigo-900 block">
+                                Analyzing sourcing options for HTS {htsCode}
+                            </Text>
+                            {currentCountry && (
+                                <Text type="secondary" className="text-sm">
+                                    Currently sourcing from {countries.find(c => c.value === currentCountry)?.label || currentCountry}
+                                </Text>
+                            )}
+                        </div>
+                    </div>
+                    <Button 
+                        type="link" 
+                        onClick={() => {
+                            setIsFromNavigation(false);
+                            setShowAnalysis(false);
+                            setHtsCode('');
+                            setCurrentCountry(undefined);
+                        }}
+                    >
+                        Start New Search
+                    </Button>
+                </div>
+            )}
+            
             {/* Tabs */}
             <Tabs
                 activeKey={activeTab}
@@ -57,73 +108,75 @@ export default function SourcingPage() {
                         ),
                         children: (
                             <div className="space-y-6">
-                                {/* Analysis Input */}
-                                <Card className="bg-gradient-to-br from-teal-50 to-emerald-50 border-teal-100">
-                                    <div className="max-w-2xl mx-auto">
-                                        <Title level={4} className="text-center mb-4">
-                                            Analyze Sourcing Options
-                                        </Title>
-                                        <Text className="block text-center text-slate-600 mb-6">
-                                            Enter an HTS code to compare landed costs across countries and find the best suppliers.
-                                        </Text>
-                                        
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <Input
-                                                size="large"
-                                                placeholder="Enter HTS code (e.g., 3926.90.9910)"
-                                                value={htsCode}
-                                                onChange={e => setHtsCode(e.target.value)}
-                                                prefix={<Search className="text-slate-400" size={18} />}
-                                                className="flex-1"
-                                                onPressEnter={handleAnalyze}
-                                            />
-                                            <Select
-                                                size="large"
-                                                placeholder="Current source country"
-                                                allowClear
-                                                style={{ width: 180 }}
-                                                options={countries}
-                                                value={currentCountry}
-                                                onChange={setCurrentCountry}
-                                            />
-                                            <Button
-                                                type="primary"
-                                                size="large"
-                                                className="bg-teal-600"
-                                                onClick={handleAnalyze}
-                                            >
-                                                Analyze
-                                            </Button>
-                                        </div>
-                                        
-                                        <div className="mt-3 text-center">
-                                            <Text type="secondary" className="text-xs">
-                                                Examples: 
-                                                <Button 
-                                                    type="link" 
-                                                    size="small"
-                                                    onClick={() => { setHtsCode('3926.90'); setCurrentCountry('CN'); handleAnalyze(); }}
-                                                >
-                                                    Plastic articles
-                                                </Button>
-                                                <Button 
-                                                    type="link" 
-                                                    size="small"
-                                                    onClick={() => { setHtsCode('6109.10'); setCurrentCountry('BD'); handleAnalyze(); }}
-                                                >
-                                                    Cotton t-shirts
-                                                </Button>
-                                                <Button 
-                                                    type="link" 
-                                                    size="small"
-                                                    onClick={() => { setHtsCode('8518.30'); setCurrentCountry('CN'); handleAnalyze(); }}
-                                                >
-                                                    Headphones
-                                                </Button>
+                                {/* Analysis Input - Hide when navigated from classification */}
+                                {!isFromNavigation && (
+                                    <Card className="bg-gradient-to-br from-teal-50 to-emerald-50 border-teal-100">
+                                        <div className="max-w-2xl mx-auto">
+                                            <Title level={4} className="text-center mb-4">
+                                                Analyze Sourcing Options
+                                            </Title>
+                                            <Text className="block text-center text-slate-600 mb-6">
+                                                Enter an HTS code to compare landed costs across countries and find the best suppliers.
                                             </Text>
+                                            
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <Input
+                                                    size="large"
+                                                    placeholder="Enter HTS code (e.g., 3926.90.9910)"
+                                                    value={htsCode}
+                                                    onChange={e => setHtsCode(e.target.value)}
+                                                    prefix={<Search className="text-slate-400" size={18} />}
+                                                    className="flex-1"
+                                                    onPressEnter={handleAnalyze}
+                                                />
+                                                <Select
+                                                    size="large"
+                                                    placeholder="Current source country"
+                                                    allowClear
+                                                    style={{ width: 180 }}
+                                                    options={countries}
+                                                    value={currentCountry}
+                                                    onChange={setCurrentCountry}
+                                                />
+                                                <Button
+                                                    type="primary"
+                                                    size="large"
+                                                    className="bg-teal-600"
+                                                    onClick={handleAnalyze}
+                                                >
+                                                    Analyze
+                                                </Button>
+                                            </div>
+                                            
+                                            <div className="mt-3 text-center">
+                                                <Text type="secondary" className="text-xs">
+                                                    Examples: 
+                                                    <Button 
+                                                        type="link" 
+                                                        size="small"
+                                                        onClick={() => { setHtsCode('3926.90'); setCurrentCountry('CN'); }}
+                                                    >
+                                                        Plastic articles
+                                                    </Button>
+                                                    <Button 
+                                                        type="link" 
+                                                        size="small"
+                                                        onClick={() => { setHtsCode('6109.10'); setCurrentCountry('BD'); }}
+                                                    >
+                                                        Cotton t-shirts
+                                                    </Button>
+                                                    <Button 
+                                                        type="link" 
+                                                        size="small"
+                                                        onClick={() => { setHtsCode('8518.30'); setCurrentCountry('CN'); }}
+                                                    >
+                                                        Headphones
+                                                    </Button>
+                                                </Text>
+                                            </div>
                                         </div>
-                                    </div>
-                                </Card>
+                                    </Card>
+                                )}
                                 
                                 {/* Analysis Results */}
                                 {showAnalysis && htsCode && (
@@ -133,8 +186,8 @@ export default function SourcingPage() {
                                     />
                                 )}
                                 
-                                {/* Quick Stats */}
-                                {!showAnalysis && (
+                                {/* Quick Stats - Only show when no analysis */}
+                                {!showAnalysis && !isFromNavigation && (
                                     <div style={{ display: 'flex', gap: '24px', marginTop: '24px' }}>
                                         <Card className="text-center" style={{ flex: 1 }}>
                                             <Globe className="mx-auto text-teal-500 mb-3" size={40} />
@@ -175,5 +228,29 @@ export default function SourcingPage() {
                 ]}
             />
         </div>
+    );
+}
+
+// Loading fallback
+function SourcingPageSkeleton() {
+    return (
+        <div className="space-y-6">
+            <div className="border-b border-slate-200 pb-4">
+                <Skeleton.Input active style={{ width: 300, height: 32 }} />
+                <Skeleton.Input active style={{ width: 500, height: 20, marginTop: 8 }} />
+            </div>
+            <Card>
+                <Skeleton active paragraph={{ rows: 4 }} />
+            </Card>
+        </div>
+    );
+}
+
+// Main export with Suspense boundary
+export default function SourcingPage() {
+    return (
+        <Suspense fallback={<SourcingPageSkeleton />}>
+            <SourcingPageContent />
+        </Suspense>
     );
 }

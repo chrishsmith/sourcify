@@ -6,6 +6,7 @@ import { Copy, FileText, AlertTriangle, ExternalLink, HelpCircle, Check, Downloa
 import type { ClassificationResult } from '@/types/classification.types';
 import { ConditionalClassificationCard } from './ConditionalClassificationCard';
 import { TariffBreakdown } from './TariffBreakdown';
+import { SourcingPreview } from '@/features/sourcing/components/SourcingPreview';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -304,9 +305,9 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
     };
 
     return (
-        <div className="flex flex-col gap-5">
+        <div>
             {/* Product Input Summary Card */}
-            <Card className="border border-slate-200 shadow-sm bg-gradient-to-br from-slate-50 to-white">
+            <Card className="border border-slate-200 shadow-sm bg-gradient-to-br from-slate-50 to-white" style={{ marginBottom: 24 }}>
                 <div className="flex items-start justify-between mb-4">
                     <div>
                         <Text className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
@@ -365,7 +366,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
             </Card>
 
             {/* Main Result Card */}
-            <Card className={`border shadow-sm ${selectedConditionalCode ? 'border-green-300 ring-2 ring-green-100' : 'border-slate-200'}`}>
+            <Card className={`border shadow-sm ${selectedConditionalCode ? 'border-green-300 ring-2 ring-green-100' : 'border-slate-200'}`} style={{ marginBottom: 24 }}>
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 p-2">
                     {/* HTS Code Display */}
                     <div className="flex-1">
@@ -482,7 +483,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
 
             {/* VALUE-DEPENDENT CLASSIFICATION - Multiple HTS codes based on value/weight */}
             {result.valueDependentClassification && result.valueDependentClassification.thresholds.length > 1 && (
-                <Card className="border-2 border-amber-200 shadow-sm bg-gradient-to-br from-amber-50/50 to-orange-50/30">
+                <Card className="border-2 border-amber-200 shadow-sm bg-gradient-to-br from-amber-50/50 to-orange-50/30" style={{ marginBottom: 24 }}>
                     <div className="flex items-start justify-between mb-4">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
@@ -642,34 +643,13 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 />
             )}
 
-            {/* ALTERNATIVE SOURCING TEASER */}
-            {result.effectiveTariff && result.effectiveTariff.additionalDuties.length > 0 && (
-                <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="text-lg">💡</span>
-                        <Text strong className="text-indigo-900">Explore Sourcing Alternatives</Text>
-                    </div>
-                    <div className="flex flex-wrap gap-3 mb-3">
-                        {result.input.countryOfOrigin !== 'VN' && (
-                            <Tag color="purple" className="px-3 py-1">
-                                🇻🇳 Vietnam: ~{result.dutyRate.generalRate}
-                            </Tag>
-                        )}
-                        {result.input.countryOfOrigin !== 'MX' && (
-                            <Tag color="green" className="px-3 py-1">
-                                🇲🇽 Mexico (USMCA): Free*
-                            </Tag>
-                        )}
-                        {result.input.countryOfOrigin !== 'IN' && (
-                            <Tag color="blue" className="px-3 py-1">
-                                🇮🇳 India: ~{result.dutyRate.generalRate}
-                            </Tag>
-                        )}
-                    </div>
-                    <Text className="text-indigo-700 text-xs">
-                        *Subject to USMCA rules of origin requirements. Full sourcing analysis coming soon.
-                    </Text>
-                </div>
+            {/* DYNAMIC SOURCING PREVIEW */}
+            {result.htsCode.code && (
+                <SourcingPreview
+                    htsCode={result.htsCode.code}
+                    countryOfOrigin={result.input.countryOfOrigin}
+                    productDescription={result.input.productDescription}
+                />
             )}
 
             {/* CONDITIONAL CLASSIFICATION - When HTS varies by price/weight/etc */}
@@ -706,7 +686,7 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
             )}
 
             {/* AI Rationale */}
-            <Card className="border border-slate-200 shadow-sm">
+            <Card className="border border-slate-200 shadow-sm" style={{ marginBottom: 24 }}>
                 <Title level={5} className="m-0 mb-4 text-slate-900">Classification Rationale</Title>
                 <Paragraph className="text-slate-600 mb-0 leading-relaxed">
                     {result.rationale}

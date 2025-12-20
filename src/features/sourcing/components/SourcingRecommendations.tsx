@@ -169,9 +169,9 @@ export const SourcingRecommendations: React.FC<Props> = ({
     const bestOption = alternatives[0];
     
     return (
-        <div className="space-y-6">
+        <div>
             {/* Header */}
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start" style={{ marginBottom: 24 }}>
                 <div>
                     <Title level={4} className="mb-1">
                         Sourcing Analysis
@@ -189,7 +189,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
             </div>
             
             {/* AI Summary */}
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100" style={{ marginBottom: 24 }}>
                 <div className="flex gap-3">
                     <Lightbulb className="text-blue-500 shrink-0" size={24} />
                     <div>
@@ -202,7 +202,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
             </Card>
             
             {/* Quick Stats */}
-            <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={12} md={6}>
                     <Card size="small">
                         <Statistic
@@ -251,7 +251,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
             </Row>
             
             {/* Country Comparison Table */}
-            <Card title="Cost by Country" size="small">
+            <Card title="Cost by Country" size="small" style={{ marginBottom: 24 }}>
                 <Table
                     dataSource={alternatives}
                     rowKey="countryCode"
@@ -329,7 +329,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
             </Card>
             
             {/* AI Insights Panels */}
-            <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 {/* Recommendations */}
                 <Col xs={24} md={12}>
                     <Card 
@@ -379,6 +379,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
                         </span>
                     }
                     size="small"
+                    style={{ marginBottom: 24 }}
                 >
                     <ul className="list-disc list-inside space-y-2 text-sm">
                         {aiInsights.opportunities.map((opp, i) => (
