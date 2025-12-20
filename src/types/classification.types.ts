@@ -99,12 +99,22 @@ export interface USITCCandidate {
 // HTS HIERARCHY TYPES
 // ═══════════════════════════════════════════════════════════════════════════
 
+export interface HTSSibling {
+    code: string;
+    description: string;
+    dutyRate?: string;
+}
+
 export interface HTSHierarchyLevel {
     level: 'chapter' | 'heading' | 'subheading' | 'tariff_line' | 'statistical';
     code: string;
     description: string;
     indent: number;
     dutyRate?: string;
+    /** Sibling codes at this level (alternative classifications) */
+    siblings?: HTSSibling[];
+    /** Quick count for UI indicator */
+    siblingCount?: number;
 }
 
 export interface HTSHierarchy {

@@ -7,6 +7,7 @@ import type { ClassificationResult } from '@/types/classification.types';
 import { ConditionalClassificationCard } from './ConditionalClassificationCard';
 import { TariffBreakdown } from './TariffBreakdown';
 import { SourcingPreview } from '@/features/sourcing/components/SourcingPreview';
+import { ClassificationPath } from './ClassificationPath';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -408,44 +409,13 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                             </Tooltip>
                         </div>
 
-                        {/* Full HTS Hierarchy - Shows complete path */}
+                        {/* Full HTS Hierarchy - Shows direct lineage with expandable siblings */}
                         {result.hierarchy && result.hierarchy.levels.length > 0 ? (
-                            <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                <Text className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2 block">
-                                    Classification Path
-                                </Text>
-                                <div className="flex flex-col gap-1">
-                                    {result.hierarchy.levels.map((level, i) => (
-                                        <div 
-                                            key={i} 
-                                            className="flex items-start gap-2"
-                                            style={{ paddingLeft: `${i * 16}px` }}
-                                        >
-                                            <span className="text-slate-400 text-sm">
-                                                {i === 0 ? '📂' : i === result.hierarchy!.levels.length - 1 ? '📄' : '└'}
-                                            </span>
-                                            <div className="flex-1">
-                                                <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${
-                                                    i === result.hierarchy!.levels.length - 1 
-                                                        ? 'bg-teal-100 text-teal-700 font-semibold' 
-                                                        : 'bg-slate-200 text-slate-600'
-                                                }`}>
-                                                    {level.code}
-                                                </span>
-                                                <span className={`ml-2 text-sm ${
-                                                    i === result.hierarchy!.levels.length - 1 
-                                                        ? 'text-slate-900 font-medium' 
-                                                        : 'text-slate-600'
-                                                }`}>
-                                                    {level.description}
-                                                </span>
-                                                {level.dutyRate && (
-                                                    <Tag color="green" className="ml-2 text-xs">{level.dutyRate}</Tag>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="mt-3">
+                                <ClassificationPath 
+                                    hierarchy={result.hierarchy} 
+                                    allowExpansion={true}
+                                />
                             </div>
                         ) : result.humanReadablePath && (
                             <div className="mt-2 text-sm text-slate-500 font-medium flex items-center gap-1 flex-wrap">
@@ -700,13 +670,6 @@ export const ClassificationResultDisplay: React.FC<ClassificationResultDisplayPr
                 />
             )}
 
-            {/* AI Rationale */}
-            <Card className="border border-slate-200 shadow-sm" style={{ marginBottom: 24 }}>
-                <Title level={5} className="m-0 mb-4 text-slate-900">Classification Rationale</Title>
-                <Paragraph className="text-slate-600 mb-0 leading-relaxed">
-                    {result.rationale}
-                </Paragraph>
-            </Card>
 
             {/* Supporting Rulings */}
             {result.rulings && result.rulings.length > 0 && (

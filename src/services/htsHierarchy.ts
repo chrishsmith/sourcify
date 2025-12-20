@@ -3,9 +3,16 @@
  * 
  * Fetches the FULL hierarchical path for an HTS code from USITC
  * Returns all parent descriptions from Chapter → Heading → Subheading → Code
+ * Now includes sibling codes at each level for optional exploration
  */
 
 import { searchHTSCodes, type HTSSearchResult } from './usitc';
+
+export interface HTSSibling {
+    code: string;
+    description: string;
+    dutyRate?: string;
+}
 
 export interface HTSHierarchyLevel {
     level: 'chapter' | 'heading' | 'subheading' | 'tariff_line' | 'statistical';
@@ -13,6 +20,10 @@ export interface HTSHierarchyLevel {
     description: string;
     indent: number;
     dutyRate?: string;
+    /** Sibling codes at this level (alternative classifications) */
+    siblings?: HTSSibling[];
+    /** Quick count for UI indicator */
+    siblingCount?: number;
 }
 
 export interface HTSHierarchy {
@@ -127,14 +138,41 @@ export const CHAPTER_DESCRIPTIONS: Record<string, string> = {
 };
 
 /**
+ * Check if a code is a direct ancestor of the target code
+ * e.g., "7323" is an ancestor of "73239300", but "7324" is not
+ */
+function isDirectAncestor(ancestorCode: string, targetCode: string): boolean {
+    const cleanAncestor = ancestorCode.replace(/\./g, '');
+    const cleanTarget = targetCode.replace(/\./g, '');
+    return cleanTarget.startsWith(cleanAncestor) && cleanAncestor.length < cleanTarget.length;
+}
+
+/**
+ * Group codes by their parent prefix to find siblings
+ */
+function groupCodesByParent(codes: HTSSearchResult[], parentLength: number): Map<string, HTSSearchResult[]> {
+    const groups = new Map<string, HTSSearchResult[]>();
+    for (const code of codes) {
+        const cleanCode = code.htsno.replace(/\./g, '');
+        if (cleanCode.length <= parentLength) continue;
+        const parent = cleanCode.substring(0, parentLength);
+        if (!groups.has(parent)) {
+            groups.set(parent, []);
+        }
+        groups.get(parent)!.push(code);
+    }
+    return groups;
+}
+
+/**
  * Fetch the full HTS hierarchy for a given code
+ * Returns direct lineage path with optional siblings at each level
  */
 export async function getHTSHierarchy(htsCode: string): Promise<HTSHierarchy> {
     const cleanCode = htsCode.replace(/\./g, '');
     const chapter = cleanCode.substring(0, 2);
     const heading = cleanCode.substring(0, 4);
     const subheading6 = cleanCode.substring(0, 6);
-    const tariffLine = cleanCode.substring(0, 8);
     
     const levels: HTSHierarchyLevel[] = [];
     
@@ -147,80 +185,143 @@ export async function getHTSHierarchy(htsCode: string): Promise<HTSHierarchy> {
     });
     
     // Fetch hierarchy from USITC
-    // Search for the heading to get parent descriptions
     try {
         const headingResults = await searchHTSCodes(heading);
         const subheadingResults = await searchHTSCodes(subheading6);
         const fullResults = await searchHTSCodes(htsCode);
         
-        // Find heading description (4-digit)
-        const headingMatch = headingResults.find(r => {
+        // Combine all results and dedupe
+        const allCodes = [...headingResults, ...subheadingResults, ...fullResults];
+        const uniqueCodes = allCodes.filter((c, i, arr) => 
+            arr.findIndex(x => x.htsno === c.htsno) === i
+        );
+        
+        // Find the heading (4-digit) - this is the direct ancestor
+        const headingMatch = uniqueCodes.find(r => {
             const code = r.htsno.replace(/\./g, '');
-            return code === heading || code.startsWith(heading) && code.length === 4;
+            return code === heading;
         });
+        
+        // Find heading-level siblings (other 4-digit codes in same chapter)
+        const headingSiblings = uniqueCodes
+            .filter(r => {
+                const code = r.htsno.replace(/\./g, '');
+                return code.length === 4 && 
+                       code.startsWith(chapter) && 
+                       code !== heading;
+            })
+            .map(r => ({
+                code: r.htsno,
+                description: cleanDescription(r.description),
+                dutyRate: r.general,
+            }));
         
         if (headingMatch) {
             levels.push({
                 level: 'heading',
                 code: formatHTSCode(heading),
                 description: cleanDescription(headingMatch.description),
-                indent: headingMatch.indent || 1,
+                indent: 1,
+                siblings: headingSiblings.length > 0 ? headingSiblings : undefined,
+                siblingCount: headingSiblings.length || undefined,
             });
-        } else {
-            // Fallback: use first result that matches the heading
-            const fallbackHeading = headingResults.find(r => r.htsno.startsWith(heading.substring(0, 2)));
-            if (fallbackHeading && fallbackHeading.indent === 0) {
-                levels.push({
-                    level: 'heading',
-                    code: formatHTSCode(heading),
-                    description: cleanDescription(fallbackHeading.description),
-                    indent: 1,
-                });
-            }
         }
         
-        // Find intermediate subheadings (indented items between heading and our code)
-        const allCodes = [...headingResults, ...subheadingResults, ...fullResults];
-        const uniqueCodes = allCodes.filter((c, i, arr) => 
-            arr.findIndex(x => x.htsno === c.htsno) === i
-        );
+        // Find subheading (6-digit) that's a direct ancestor
+        const subheadingMatch = uniqueCodes.find(r => {
+            const code = r.htsno.replace(/\./g, '');
+            return code === subheading6 || 
+                   (code.length === 6 && isDirectAncestor(code, cleanCode));
+        });
         
-        // Sort by code length (shorter = more general)
-        const sortedCodes = uniqueCodes
-            .filter(c => {
-                const code = c.htsno.replace(/\./g, '');
-                return code.startsWith(heading) && code.length < cleanCode.length;
+        // Find 6-digit siblings (same heading parent)
+        const subheadingSiblings = uniqueCodes
+            .filter(r => {
+                const code = r.htsno.replace(/\./g, '');
+                return code.length === 6 && 
+                       code.startsWith(heading) && 
+                       code !== subheading6 &&
+                       !isDirectAncestor(code, cleanCode);
             })
-            .sort((a, b) => a.htsno.length - b.htsno.length);
+            .map(r => ({
+                code: r.htsno,
+                description: cleanDescription(r.description),
+                dutyRate: r.general,
+            }));
         
-        // Add intermediate levels (subheadings)
-        for (const code of sortedCodes) {
-            const codeClean = code.htsno.replace(/\./g, '');
-            // Skip if we already have this level
-            if (levels.find(l => l.code.replace(/\./g, '') === codeClean)) continue;
-            // Skip if too short (heading level)
-            if (codeClean.length <= 4) continue;
-            
+        if (subheadingMatch) {
             levels.push({
-                level: codeClean.length <= 6 ? 'subheading' : 'tariff_line',
-                code: code.htsno,
-                description: cleanDescription(code.description),
-                indent: code.indent || (codeClean.length - 4) / 2 + 1,
+                level: 'subheading',
+                code: subheadingMatch.htsno,
+                description: cleanDescription(subheadingMatch.description),
+                indent: 2,
+                siblings: subheadingSiblings.length > 0 ? subheadingSiblings : undefined,
+                siblingCount: subheadingSiblings.length || undefined,
             });
         }
         
-        // Add the final code if not already present
-        const finalMatch = fullResults.find(r => 
+        // Find 8-digit tariff line that's a direct ancestor
+        const tariffLine8 = cleanCode.substring(0, 8);
+        const tariffLineMatch = uniqueCodes.find(r => {
+            const code = r.htsno.replace(/\./g, '');
+            return code.length === 8 && isDirectAncestor(code, cleanCode);
+        });
+        
+        // Find 8-digit siblings (same 6-digit parent)
+        const tariffLineSiblings = uniqueCodes
+            .filter(r => {
+                const code = r.htsno.replace(/\./g, '');
+                return code.length === 8 && 
+                       code.startsWith(subheading6) && 
+                       code !== tariffLine8 &&
+                       !isDirectAncestor(code, cleanCode);
+            })
+            .map(r => ({
+                code: r.htsno,
+                description: cleanDescription(r.description),
+                dutyRate: r.general,
+            }));
+        
+        if (tariffLineMatch && tariffLineMatch.htsno.replace(/\./g, '') !== cleanCode) {
+            levels.push({
+                level: 'tariff_line',
+                code: tariffLineMatch.htsno,
+                description: cleanDescription(tariffLineMatch.description),
+                indent: 3,
+                dutyRate: tariffLineMatch.general,
+                siblings: tariffLineSiblings.length > 0 ? tariffLineSiblings : undefined,
+                siblingCount: tariffLineSiblings.length || undefined,
+            });
+        }
+        
+        // Add the final code (10-digit statistical suffix)
+        const finalMatch = uniqueCodes.find(r => 
             r.htsno.replace(/\./g, '') === cleanCode
         );
         
-        if (finalMatch && !levels.find(l => l.code.replace(/\./g, '') === cleanCode)) {
+        // Find 10-digit siblings (same 8-digit parent)
+        const statisticalSiblings = uniqueCodes
+            .filter(r => {
+                const code = r.htsno.replace(/\./g, '');
+                return code.length === 10 && 
+                       code.startsWith(tariffLine8) && 
+                       code !== cleanCode;
+            })
+            .map(r => ({
+                code: r.htsno,
+                description: cleanDescription(r.description),
+                dutyRate: r.general,
+            }));
+        
+        if (finalMatch) {
             levels.push({
                 level: 'statistical',
                 code: finalMatch.htsno,
                 description: cleanDescription(finalMatch.description),
-                indent: finalMatch.indent || 4,
+                indent: 4,
                 dutyRate: finalMatch.general,
+                siblings: statisticalSiblings.length > 0 ? statisticalSiblings : undefined,
+                siblingCount: statisticalSiblings.length || undefined,
             });
         }
         
