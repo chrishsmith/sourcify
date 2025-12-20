@@ -23,7 +23,13 @@ export interface Chapter99Program {
     notes: string[];
 }
 
-// Known Chapter 99 program prefixes
+/**
+ * Known Chapter 99 program prefixes
+ * 
+ * IMPORTANT: As of April 2025, the IEEPA universal baseline (9903.01.20)
+ * applies to NEARLY ALL countries, not just the specific ones listed.
+ * This includes FTA partners like Singapore!
+ */
 export const CHAPTER_99_PROGRAMS: Chapter99Program[] = [
     // Section 301 - China tariffs
     { prefix: '9903.88.01', name: 'Section 301 List 1', type: 'section_301', affectedCountries: ['CN'], notes: ['25% on $34B of Chinese goods'] },
@@ -32,15 +38,18 @@ export const CHAPTER_99_PROGRAMS: Chapter99Program[] = [
     { prefix: '9903.88.15', name: 'Section 301 List 4A', type: 'section_301', affectedCountries: ['CN'], notes: ['7.5% on consumer goods'] },
     { prefix: '9903.88.16', name: 'Section 301 List 4B/2024', type: 'section_301', affectedCountries: ['CN'], notes: ['Strategic products (EVs, Solar, etc.)'] },
     
-    // IEEPA - Emergency tariffs
-    { prefix: '9903.01.24', name: 'IEEPA Fentanyl (China)', type: 'ieepa', affectedCountries: ['CN', 'HK'], notes: ['Emergency tariff on China'] },
-    { prefix: '9903.01.25', name: 'IEEPA Reciprocal (China)', type: 'ieepa', affectedCountries: ['CN', 'HK'], notes: ['Reciprocal tariff on China'] },
-    { prefix: '9903.01.26', name: 'IEEPA Fentanyl (Mexico)', type: 'ieepa', affectedCountries: ['MX'], notes: ['Emergency tariff on Mexico'] },
-    { prefix: '9903.01.27', name: 'IEEPA Fentanyl (Canada)', type: 'ieepa', affectedCountries: ['CA'], notes: ['Emergency tariff on Canada'] },
+    // IEEPA - Universal baseline (applies to nearly ALL countries!)
+    { prefix: '9903.01.20', name: 'IEEPA Universal Baseline', type: 'ieepa', affectedCountries: ['ALL'], notes: ['10% on nearly all imports including FTA partners!'] },
+    
+    // IEEPA - Fentanyl emergency tariffs (specific countries)
+    { prefix: '9903.01.24', name: 'IEEPA Fentanyl (China)', type: 'ieepa', affectedCountries: ['CN', 'HK'], notes: ['20% emergency tariff on China'] },
+    { prefix: '9903.01.25', name: 'IEEPA Reciprocal (China)', type: 'ieepa', affectedCountries: ['CN', 'HK'], notes: ['125%+ reciprocal tariff on China'] },
+    { prefix: '9903.01.26', name: 'IEEPA Fentanyl (Mexico)', type: 'ieepa', affectedCountries: ['MX'], notes: ['25% emergency tariff (may be paused for USMCA)'] },
+    { prefix: '9903.01.27', name: 'IEEPA Fentanyl (Canada)', type: 'ieepa', affectedCountries: ['CA'], notes: ['25% emergency tariff (may be paused for USMCA)'] },
     
     // Section 232 - National security
-    { prefix: '9903.80', name: 'Section 232 Steel', type: 'section_232', affectedCountries: ['ALL'], notes: ['Steel products'] },
-    { prefix: '9903.85', name: 'Section 232 Aluminum', type: 'section_232', affectedCountries: ['ALL'], notes: ['Aluminum products'] },
+    { prefix: '9903.80', name: 'Section 232 Steel', type: 'section_232', affectedCountries: ['ALL'], notes: ['25% steel tariff'] },
+    { prefix: '9903.85', name: 'Section 232 Aluminum', type: 'section_232', affectedCountries: ['ALL'], notes: ['25% aluminum tariff'] },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -174,6 +183,9 @@ export async function fetchIEEPARatesForCountry(countryCode: string): Promise<{
 /**
  * Get all applicable Chapter 99 additional duties for an HTS code and country
  * Returns LIVE rates from USITC API
+ * 
+ * IMPORTANT: As of April 2025, nearly ALL countries face at least 10% IEEPA
+ * baseline tariff, including FTA partners like Singapore!
  */
 export async function getLiveAdditionalDuties(
     htsCode: string,
@@ -182,6 +194,7 @@ export async function getLiveAdditionalDuties(
     section301: LiveTariffRate | null;
     ieepaFentanyl: LiveTariffRate | null;
     ieepaReciprocal: LiveTariffRate | null;
+    ieepaBaseline: LiveTariffRate | null;
     section232Steel: LiveTariffRate | null;
     section232Aluminum: LiveTariffRate | null;
     totalAdditional: number;
@@ -192,10 +205,14 @@ export async function getLiveAdditionalDuties(
     let section301: LiveTariffRate | null = null;
     let ieepaFentanyl: LiveTariffRate | null = null;
     let ieepaReciprocal: LiveTariffRate | null = null;
+    let ieepaBaseline: LiveTariffRate | null = null;
     let section232Steel: LiveTariffRate | null = null;
     let section232Aluminum: LiveTariffRate | null = null;
     
-    // China/HK - Check all programs
+    // USMCA countries may have IEEPA paused - treat separately
+    const isUSMCA = countryOfOrigin === 'MX' || countryOfOrigin === 'CA';
+    
+    // China/HK - Check all programs (Section 301 + Fentanyl + Reciprocal)
     if (countryOfOrigin === 'CN' || countryOfOrigin === 'HK') {
         // Check Section 301 (need to determine which list applies)
         // For now, we'll check List 3 as it covers most products
@@ -208,11 +225,24 @@ export async function getLiveAdditionalDuties(
         ieepaFentanyl = ieepa.fentanyl;
         ieepaReciprocal = ieepa.reciprocal;
     }
-    
-    // Mexico/Canada - IEEPA only (if active)
-    if (countryOfOrigin === 'MX' || countryOfOrigin === 'CA') {
+    // Mexico/Canada - IEEPA Fentanyl (may be paused for USMCA goods)
+    else if (isUSMCA) {
         const ieepa = await fetchIEEPARatesForCountry(countryOfOrigin);
         ieepaFentanyl = ieepa.fentanyl;
+        // Note: For USMCA goods, this may be paused - add warning
+    }
+    // ALL OTHER COUNTRIES - Apply 10% baseline (including FTA partners!)
+    else {
+        // Even Singapore FTA, KORUS FTA, etc. face this 10% now
+        ieepaBaseline = {
+            htsCode: '9903.01.20',
+            description: 'IEEPA Universal Baseline Tariff (applies to nearly all imports including FTA partners)',
+            rate: '10%',
+            numericRate: 10,
+            source: 'cached', // We know this applies, no need to fetch
+            fetchedAt: new Date(),
+        };
+        console.log(`[Chapter99] Applied 10% IEEPA baseline to ${countryOfOrigin}`);
     }
     
     // Check Section 232 for steel/aluminum products
@@ -234,19 +264,23 @@ export async function getLiveAdditionalDuties(
         section301?.numericRate,
         ieepaFentanyl?.numericRate,
         ieepaReciprocal?.numericRate,
+        ieepaBaseline?.numericRate,
         section232Steel?.numericRate,
         section232Aluminum?.numericRate,
     ].reduce((sum, rate) => sum + (rate || 0), 0);
     
-    const newestFetch = [section301, ieepaFentanyl, ieepaReciprocal, section232Steel, section232Aluminum]
-        .filter(Boolean)
-        .map(r => r!.fetchedAt)
-        .sort((a, b) => b.getTime() - a.getTime())[0];
+    const allRates = [section301, ieepaFentanyl, ieepaReciprocal, ieepaBaseline, section232Steel, section232Aluminum]
+        .filter(Boolean);
+    
+    const newestFetch = allRates.length > 0 
+        ? allRates.map(r => r!.fetchedAt).sort((a, b) => b.getTime() - a.getTime())[0]
+        : null;
     
     return {
         section301,
         ieepaFentanyl,
         ieepaReciprocal,
+        ieepaBaseline,
         section232Steel,
         section232Aluminum,
         totalAdditional,

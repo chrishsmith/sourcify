@@ -9,6 +9,7 @@
 import { getXAIClient } from '@/lib/xai';
 import { compareLandedCosts, LandedCostBreakdown } from './landedCost';
 import { findMatchingSuppliers, SupplierMatch } from './supplierMatching';
+import { syncImportStatsToDatabase } from './usitcDataWeb';
 import { prisma } from '@/lib/db';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -91,10 +92,15 @@ ALTERNATIVE OPTIONS (ranked by landed cost):
 SUPPLIER AVAILABILITY:
 {supplierInfo}
 
-MARKET CONTEXT:
-- Section 301 tariffs apply to China (10-25% depending on product)
-- IEEPA "reciprocal tariffs" affect most countries (varies 10-20%)
-- USMCA provides duty-free access for qualifying goods from Mexico/Canada
+MARKET CONTEXT (December 2025):
+- Section 301 tariffs apply to China (7.5-100% depending on product)
+- IEEPA Fentanyl: China faces 20%, Mexico/Canada may face 25% (status varies)
+- IEEPA Reciprocal: China faces 125%+ additional
+- ⚠️ CRITICAL: 10% IEEPA baseline applies to NEARLY ALL countries INCLUDING FTA partners!
+  - Singapore FTA: Still faces 10% IEEPA despite FTA
+  - KORUS FTA (Korea): Still faces 10%+ IEEPA
+  - Only USMCA (Mexico/Canada) may be exempt for compliant goods
+- Some countries have higher reciprocal rates: Vietnam 46%, Cambodia 49%, Thailand 36%, India 26%
 - Lead times from Asia: 3-5 weeks; from Mexico: 1 week
 
 TASK:
@@ -135,6 +141,23 @@ export async function generateSourcingRecommendations(
     input: SourcingAnalysisInput
 ): Promise<SourcingRecommendation> {
     console.log('[Sourcing Advisor] Analyzing:', input.htsCode);
+    
+    const hts6 = input.htsCode.replace(/\./g, '').substring(0, 6);
+    
+    // Check if we have data, if not, sync from USITC DataWeb
+    const existingData = await prisma.htsCostByCountry.count({
+        where: { htsCode: hts6 },
+    });
+    
+    if (existingData === 0) {
+        console.log('[Sourcing Advisor] No data found, syncing from USITC DataWeb...');
+        try {
+            const syncResult = await syncImportStatsToDatabase(hts6, prisma);
+            console.log(`[Sourcing Advisor] Synced ${syncResult.synced} countries`);
+        } catch (error) {
+            console.error('[Sourcing Advisor] Data sync failed:', error);
+        }
+    }
     
     // Get landed cost comparison
     const costComparison = await compareLandedCosts(input.htsCode, {
@@ -476,3 +499,4 @@ export async function getQuickSourcingSuggestion(
         reason,
     };
 }
+

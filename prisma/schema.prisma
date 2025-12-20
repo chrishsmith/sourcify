@@ -773,3 +773,175 @@ model SupplierHtsSpecialization {
   @@index([supplierId])
   @@map("supplier_hts_specialization")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COUNTRY TARIFF REGISTRY
+// Single source of truth for all tariff data by country
+// All services (classification, sourcing, alerts) consume this data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model CountryTariffProfile {
+  id                  String    @id @default(cuid())
+  
+  // Country identification
+  countryCode         String    @unique  // ISO 3166-1 alpha-2 (e.g., 'SG', 'CN')
+  countryName         String
+  region              String?             // 'Asia', 'Europe', 'Americas', etc.
+  flag                String?             // Emoji flag
+  
+  // Trade status
+  tradeStatus         TradeStatus @default(normal)
+  
+  // FTA information
+  hasFta              Boolean   @default(false)
+  ftaName             String?             // 'USMCA', 'Singapore FTA', etc.
+  ftaWaivesBaseDuty   Boolean   @default(false)
+  ftaWaivesIeepa      Boolean   @default(false)  // Only USMCA currently
+  ftaNotes            String?   @db.Text
+  
+  // IEEPA baseline (April 2025+)
+  // Universal 10% applies to nearly ALL countries including FTA partners!
+  ieepaBaselineRate   Float     @default(10)     // 10% minimum for most countries
+  ieepaExempt         Boolean   @default(false)  // True only for USMCA compliant goods
+  
+  // Fentanyl tariffs (CN, MX, CA)
+  fentanylRate        Float?              // 20% for CN, 25% for MX/CA
+  fentanylActive      Boolean   @default(false)
+  
+  // Country-specific reciprocal rate (if higher than baseline)
+  // Vietnam: 46%, Cambodia: 49%, Thailand: 36%, etc.
+  reciprocalRate      Float?
+  
+  // Section 301 (China only)
+  section301Active    Boolean   @default(false)
+  section301DefaultRate Float?            // Default rate for Chapter 99
+  
+  // Pre-computed totals (for quick queries)
+  // This is the SUM of all additional duties (not including base MFN)
+  totalAdditionalRate Float     @default(0)
+  
+  // Metadata
+  lastVerified        DateTime  @default(now())
+  lastUpdated         DateTime  @updatedAt
+  sources             String[]  @default([])  // Legal references
+  notes               String?   @db.Text
+  
+  // Relations
+  programs            TariffProgram[]
+  htsOverrides        HtsTariffOverride[]
+  
+  createdAt           DateTime  @default(now())
+
+  @@index([tradeStatus])
+  @@index([hasFta])
+  @@map("country_tariff_profile")
+}
+
+enum TradeStatus {
+  normal      // Standard MFN treatment
+  fta         // Free Trade Agreement partner
+  elevated    // Higher than normal tariffs (China, Vietnam, etc.)
+  sanctioned  // Trade restrictions apply
+}
+
+model TariffProgram {
+  id                  String    @id @default(cuid())
+  
+  // Program identification
+  programId           String              // 'section301_list3', 'ieepa_fentanyl_cn'
+  programName         String              // 'Section 301 List 3'
+  programType         ProgramType
+  
+  // Rate information
+  rate                Float               // Percentage (e.g., 25.0)
+  rateType            RateType  @default(ad_valorem)
+  specificAmount      Float?              // For specific duties ($/unit)
+  specificUnit        String?             // 'kg', 'unit', etc.
+  
+  // Status
+  active              Boolean   @default(true)
+  effectiveDate       DateTime
+  expirationDate      DateTime?
+  
+  // Legal basis
+  htsChapter99Code    String?             // '9903.88.03'
+  authority           String              // 'USTR', 'President', 'Commerce'
+  legalReference      String              // 'Trade Act of 1974, Section 301'
+  executiveOrder      String?             // 'EO 14257'
+  federalRegister     String?             // '90 FR 12345'
+  
+  // Scope
+  appliesToAllHts     Boolean   @default(true)
+  description         String?   @db.Text
+  
+  // Relation
+  countryProfileId    String
+  countryProfile      CountryTariffProfile @relation(fields: [countryProfileId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([countryProfileId, programId])
+  @@index([programType])
+  @@index([active])
+  @@map("tariff_program")
+}
+
+enum ProgramType {
+  section_301       // China trade tariffs
+  ieepa_fentanyl    // Fentanyl emergency (CN, MX, CA)
+  ieepa_reciprocal  // Reciprocal/baseline tariffs
+  ieepa_baseline    // Universal 10% baseline (April 2025+)
+  section_232       // Steel/Aluminum/Auto
+  adcvd             // Antidumping/Countervailing duties
+  gsp               // Generalized System of Preferences
+  other
+}
+
+enum RateType {
+  ad_valorem        // Percentage of value
+  specific          // Fixed amount per unit
+  compound          // Both ad valorem and specific
+}
+
+model HtsTariffOverride {
+  id                  String    @id @default(cuid())
+  
+  // HTS targeting
+  htsCode             String              // Full or partial (e.g., '8518.30', '85')
+  htsDescription      String?   @db.Text
+  matchType           HtsMatchType @default(prefix)  // 'exact', 'prefix', 'chapter'
+  
+  // Override details
+  overrideType        ProgramType
+  rate                Float
+  rateType            RateType  @default(ad_valorem)
+  
+  // Status
+  active              Boolean   @default(true)
+  effectiveDate       DateTime
+  expirationDate      DateTime?
+  
+  // Legal reference
+  listName            String?             // 'List 3', 'List 4A'
+  legalReference      String?
+  federalRegister     String?
+  
+  // Relation
+  countryProfileId    String
+  countryProfile      CountryTariffProfile @relation(fields: [countryProfileId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([htsCode])
+  @@index([countryProfileId, htsCode])
+  @@index([active])
+  @@map("hts_tariff_override")
+}
+
+enum HtsMatchType {
+  exact             // Must match exactly
+  prefix            // Matches HTS codes starting with this
+  chapter           // Matches entire chapter
+}

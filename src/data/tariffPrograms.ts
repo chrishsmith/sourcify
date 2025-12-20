@@ -169,6 +169,37 @@ export const SECTION_301_PROGRAMS: TariffProgram[] = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const IEEPA_PROGRAMS: TariffProgram[] = [
+    // ═══════════════════════════════════════════════════════════════════
+    // UNIVERSAL BASELINE TARIFF (April 2025)
+    // This 10% applies to NEARLY ALL imports regardless of FTAs
+    // ═══════════════════════════════════════════════════════════════════
+    {
+        id: 'ieepa_reciprocal_baseline',
+        name: 'IEEPA Universal Baseline Tariff',
+        shortName: 'Universal 10%',
+        htsChapter99Code: '9903.01.20',
+        authority: 'President / IEEPA',
+        legalBasis: 'International Emergency Economic Powers Act',
+        effectiveDate: '2025-04-09',
+        description: 'Universal 10% baseline tariff on nearly all imports to address trade deficits.',
+        affectedCountries: ['ALL'],  // Applies to most countries
+        rate: 10,
+        rateType: 'ad_valorem',
+        productScope: 'all',
+        exclusions: ['USMCA-compliant goods from CA/MX (paused)', 'Some energy products'],
+        notes: [
+            '⚠️ APPLIES ON TOP OF FTA PREFERENCES',
+            'Even Singapore FTA goods face this 10%',
+            'Even KORUS FTA (Korea) goods face this 10%',
+            'Overrides traditional FTA duty-free treatment',
+            'Executive Order 14257 - Reciprocal Trade',
+            'Some country-specific higher rates exist (see below)',
+        ],
+        officialSource: 'https://www.whitehouse.gov/presidential-actions/',
+    },
+    // ═══════════════════════════════════════════════════════════════════
+    // FENTANYL EMERGENCY TARIFFS
+    // ═══════════════════════════════════════════════════════════════════
     {
         id: 'ieepa_fentanyl_cn',
         name: 'IEEPA Fentanyl Emergency (China)',
@@ -184,7 +215,7 @@ export const IEEPA_PROGRAMS: TariffProgram[] = [
         productScope: 'all',
         notes: [
             'Applies to virtually ALL Chinese imports',
-            'Cumulative with Section 301',
+            'Cumulative with Section 301 AND Universal Baseline',
             'First 10% effective Feb 4, 2025',
             'Additional 10% effective Mar 4, 2025 (total 20%)',
             'Executive Order 14195',
@@ -204,11 +235,11 @@ export const IEEPA_PROGRAMS: TariffProgram[] = [
         rate: 25,
         rateType: 'ad_valorem',
         productScope: 'all',
-        exclusions: ['USMCA-compliant goods (paused)'],
+        exclusions: ['USMCA-compliant goods (status varies)'],
         notes: [
             'Subject to USMCA compliance review',
-            'May be paused for USMCA-qualifying goods',
-            'Verify current status before import',
+            'Status changes frequently - verify before import',
+            'May be paused/active depending on negotiations',
         ],
         officialSource: 'https://www.whitehouse.gov/presidential-actions/',
     },
@@ -225,14 +256,18 @@ export const IEEPA_PROGRAMS: TariffProgram[] = [
         rate: 25,
         rateType: 'ad_valorem',
         productScope: 'all',
-        exclusions: ['USMCA-compliant goods (paused)', 'Energy products (paused)'],
+        exclusions: ['USMCA-compliant goods (status varies)', 'Energy products (status varies)'],
         notes: [
             'Subject to USMCA compliance review',
             'Energy products may be exempt',
-            'Verify current status before import',
+            'Status changes frequently - verify before import',
         ],
         officialSource: 'https://www.whitehouse.gov/presidential-actions/',
     },
+    // ═══════════════════════════════════════════════════════════════════
+    // RECIPROCAL TARIFFS (Country-Specific Higher Rates)
+    // These are IN ADDITION TO the 10% baseline for specific countries
+    // ═══════════════════════════════════════════════════════════════════
     {
         id: 'ieepa_reciprocal_cn',
         name: 'IEEPA Reciprocal Tariff (China)',
@@ -241,15 +276,15 @@ export const IEEPA_PROGRAMS: TariffProgram[] = [
         authority: 'President / IEEPA',
         legalBasis: 'International Emergency Economic Powers Act',
         effectiveDate: '2025-04-09',
-        description: 'Reciprocal tariffs to match trade barriers imposed by China.',
+        description: 'Additional reciprocal tariffs on China beyond the baseline.',
         affectedCountries: ['CN', 'HK'],
-        rate: 125,  // Increased significantly in 2025
+        rate: 125,  // This is ON TOP of fentanyl 20% + Section 301
         rateType: 'ad_valorem',
         productScope: 'all',
         notes: [
-            'Originally 10%, increased substantially',
+            'ADDS to Fentanyl 20% + Section 301 rates',
             'China total can exceed 145%+ when combined',
-            'Check current rates - subject to frequent changes',
+            'Subject to frequent changes - verify current rate',
             'Executive Order 14257',
         ],
         officialSource: 'https://www.whitehouse.gov/presidential-actions/',
@@ -333,7 +368,18 @@ export const SECTION_232_PROGRAMS: TariffProgram[] = [
 // COUNTRY PROFILES - Pre-calculated summaries
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * COUNTRY TARIFF PROFILES - Updated December 2025
+ * 
+ * IMPORTANT: As of April 2025, a universal 10% IEEPA reciprocal baseline
+ * applies to NEARLY ALL countries, including FTA partners!
+ * 
+ * FTAs may waive the BASE MFN duty, but the 10% IEEPA still applies.
+ */
 export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
+    // ═══════════════════════════════════════════════════════════════════
+    // ELEVATED TARIFF COUNTRIES (China + fentanyl targets)
+    // ═══════════════════════════════════════════════════════════════════
     {
         countryCode: 'CN',
         countryName: 'China',
@@ -367,18 +413,22 @@ export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
             'All China tariffs apply',
         ],
     },
+    // ═══════════════════════════════════════════════════════════════════
+    // USMCA COUNTRIES (Special handling - tariffs may be paused)
+    // ═══════════════════════════════════════════════════════════════════
     {
         countryCode: 'MX',
         countryName: 'Mexico',
         flag: '🇲🇽',
         tradeStatus: 'fta',
         applicablePrograms: ['ieepa_fentanyl_mx'],
-        totalAdditionalRate: 25,
+        totalAdditionalRate: 25,  // When active; may be paused for USMCA goods
         notes: [
-            'USMCA member - may qualify for duty-free',
-            'Fentanyl tariff: 25% (may be paused for USMCA goods)',
-            'Must meet USMCA rules of origin',
+            '⚠️ USMCA goods may have tariffs paused - status varies',
+            'Fentanyl tariff: 25% (check current status)',
+            'Must meet USMCA rules of origin for any exemption',
             'Steel/Aluminum: Subject to quotas',
+            'Verify current status before import',
         ],
     },
     {
@@ -387,24 +437,123 @@ export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
         flag: '🇨🇦',
         tradeStatus: 'fta',
         applicablePrograms: ['ieepa_fentanyl_ca'],
-        totalAdditionalRate: 25,
+        totalAdditionalRate: 25,  // When active; may be paused for USMCA goods
         notes: [
-            'USMCA member - may qualify for duty-free',
-            'Fentanyl tariff: 25% (may be paused for USMCA goods)',
+            '⚠️ USMCA goods may have tariffs paused - status varies',
+            'Fentanyl tariff: 25% (check current status)',
             'Energy products may be exempt',
             'Steel/Aluminum: Subject to quotas',
+            'Verify current status before import',
         ],
     },
+    // ═══════════════════════════════════════════════════════════════════
+    // FTA COUNTRIES (Subject to universal 10% despite FTA)
+    // ═══════════════════════════════════════════════════════════════════
+    {
+        countryCode: 'SG',
+        countryName: 'Singapore',
+        flag: '🇸🇬',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,  // Universal baseline applies!
+        notes: [
+            '⚠️ US-Singapore FTA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+            'FTA may waive base MFN duty only',
+            'No fentanyl-specific tariffs on Singapore',
+            'Per Enterprise Singapore FAQs - USSFTA does not exempt from April 2025 tariffs',
+        ],
+    },
+    {
+        countryCode: 'KR',
+        countryName: 'South Korea',
+        flag: '🇰🇷',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,  // Universal baseline applies!
+        notes: [
+            '⚠️ KORUS FTA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+            'FTA may waive base MFN duty only',
+            'Steel subject to quota arrangements',
+            'Check for AD/CVD on specific products (steel, appliances)',
+        ],
+    },
+    {
+        countryCode: 'AU',
+        countryName: 'Australia',
+        flag: '🇦🇺',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,  // Universal baseline applies!
+        notes: [
+            '⚠️ Australia FTA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+            'FTA may waive base MFN duty only',
+        ],
+    },
+    {
+        countryCode: 'IL',
+        countryName: 'Israel',
+        flag: '🇮🇱',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
+        notes: [
+            '⚠️ US-Israel FTA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+        ],
+    },
+    {
+        countryCode: 'CL',
+        countryName: 'Chile',
+        flag: '🇨🇱',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
+        notes: [
+            '⚠️ Chile FTA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+        ],
+    },
+    {
+        countryCode: 'CO',
+        countryName: 'Colombia',
+        flag: '🇨🇴',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
+        notes: [
+            '⚠️ Colombia TPA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+        ],
+    },
+    {
+        countryCode: 'PE',
+        countryName: 'Peru',
+        flag: '🇵🇪',
+        tradeStatus: 'fta',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
+        notes: [
+            '⚠️ Peru TPA still in force BUT...',
+            '10% IEEPA reciprocal baseline STILL APPLIES',
+        ],
+    },
+    // ═══════════════════════════════════════════════════════════════════
+    // STANDARD MFN COUNTRIES (Subject to universal 10%)
+    // ═══════════════════════════════════════════════════════════════════
     {
         countryCode: 'VN',
         countryName: 'Vietnam',
         flag: '🇻🇳',
-        tradeStatus: 'normal',
-        applicablePrograms: [],
-        totalAdditionalRate: 0,
+        tradeStatus: 'elevated',  // Changed from 'normal' - has higher reciprocal rate
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 46,  // Higher reciprocal rate for Vietnam
         notes: [
-            'Standard MFN rates apply',
-            'Popular alternative sourcing country',
+            '⚠️ 46% reciprocal tariff rate (not just 10%)',
+            'One of the higher reciprocal rates',
+            'Popular China alternative but significant tariff cost',
             'Check for AD/CVD on specific products (solar, tires)',
         ],
     },
@@ -413,25 +562,12 @@ export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
         countryName: 'Taiwan',
         flag: '🇹🇼',
         tradeStatus: 'normal',
-        applicablePrograms: [],
-        totalAdditionalRate: 0,
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,  // Baseline 10%
         notes: [
-            'Standard MFN rates apply',
+            '10% IEEPA reciprocal baseline applies',
             'NOT treated as China for tariff purposes',
             'Check for AD/CVD on specific products',
-        ],
-    },
-    {
-        countryCode: 'KR',
-        countryName: 'South Korea',
-        flag: '🇰🇷',
-        tradeStatus: 'fta',
-        applicablePrograms: [],
-        totalAdditionalRate: 0,
-        notes: [
-            'US-Korea FTA (KORUS) - many products duty-free',
-            'Steel subject to quota arrangements',
-            'Check for AD/CVD on specific products (steel, appliances)',
         ],
     },
     {
@@ -439,10 +575,10 @@ export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
         countryName: 'Japan',
         flag: '🇯🇵',
         tradeStatus: 'normal',
-        applicablePrograms: [],
-        totalAdditionalRate: 0,
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
         notes: [
-            'Standard MFN rates apply',
+            '10% IEEPA reciprocal baseline applies',
             'US-Japan Trade Agreement covers some agriculture',
             'Check for AD/CVD on specific products (steel)',
         ],
@@ -452,25 +588,122 @@ export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
         countryName: 'Germany',
         flag: '🇩🇪',
         tradeStatus: 'normal',
-        applicablePrograms: [],
-        totalAdditionalRate: 0,
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,  // EU rate
         notes: [
-            'EU member - standard MFN rates apply',
+            '10% IEEPA reciprocal baseline applies',
+            'EU member - no FTA with US',
             'Steel/Aluminum: Subject to Section 232 (25%)',
-            'Auto tariffs may apply (25% as of April 2025)',
+            'Auto tariffs: 25% as of April 2025',
         ],
     },
     {
         countryCode: 'IN',
         countryName: 'India',
         flag: '🇮🇳',
-        tradeStatus: 'normal',
-        applicablePrograms: [],
-        totalAdditionalRate: 0,
+        tradeStatus: 'elevated',  // Changed - has higher reciprocal rate
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 26,  // Higher reciprocal rate for India
         notes: [
-            'Standard MFN rates apply',
+            '⚠️ 26% reciprocal tariff rate (not just 10%)',
             'GSP eligibility suspended',
             'Check for AD/CVD on specific products',
+        ],
+    },
+    {
+        countryCode: 'TH',
+        countryName: 'Thailand',
+        flag: '🇹🇭',
+        tradeStatus: 'elevated',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 36,  // Higher reciprocal rate
+        notes: [
+            '⚠️ 36% reciprocal tariff rate',
+            'Popular manufacturing hub',
+        ],
+    },
+    {
+        countryCode: 'ID',
+        countryName: 'Indonesia',
+        flag: '🇮🇩',
+        tradeStatus: 'elevated',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 32,  // Higher reciprocal rate
+        notes: [
+            '⚠️ 32% reciprocal tariff rate',
+            'Growing manufacturing base',
+        ],
+    },
+    {
+        countryCode: 'MY',
+        countryName: 'Malaysia',
+        flag: '🇲🇾',
+        tradeStatus: 'elevated',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 24,
+        notes: [
+            '⚠️ 24% reciprocal tariff rate',
+            'Electronics manufacturing hub',
+        ],
+    },
+    {
+        countryCode: 'BD',
+        countryName: 'Bangladesh',
+        flag: '🇧🇩',
+        tradeStatus: 'elevated',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 37,
+        notes: [
+            '⚠️ 37% reciprocal tariff rate',
+            'Major apparel/textile source',
+        ],
+    },
+    {
+        countryCode: 'KH',
+        countryName: 'Cambodia',
+        flag: '🇰🇭',
+        tradeStatus: 'elevated',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 49,
+        notes: [
+            '⚠️ 49% reciprocal tariff rate',
+            'One of the higher reciprocal rates',
+        ],
+    },
+    {
+        countryCode: 'PH',
+        countryName: 'Philippines',
+        flag: '🇵🇭',
+        tradeStatus: 'normal',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 17,
+        notes: [
+            '17% reciprocal tariff rate',
+            'Lower than many Asian alternatives',
+        ],
+    },
+    {
+        countryCode: 'GB',
+        countryName: 'United Kingdom',
+        flag: '🇬🇧',
+        tradeStatus: 'normal',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
+        notes: [
+            '10% IEEPA reciprocal baseline applies',
+            'No FTA with US',
+        ],
+    },
+    {
+        countryCode: 'TR',
+        countryName: 'Turkey',
+        flag: '🇹🇷',
+        tradeStatus: 'normal',
+        applicablePrograms: ['ieepa_reciprocal_baseline'],
+        totalAdditionalRate: 10,
+        notes: [
+            '10% IEEPA reciprocal baseline applies',
+            'Steel/Aluminum: Subject to Section 232',
         ],
     },
 ];
@@ -484,10 +717,64 @@ export const COUNTRY_TARIFF_PROFILES: CountryTariffSummary[] = [
  */
 export function getCountryPrograms(countryCode: string): TariffProgram[] {
     const allPrograms = [...SECTION_301_PROGRAMS, ...IEEPA_PROGRAMS, ...SECTION_232_PROGRAMS];
-    return allPrograms.filter(p => 
-        p.affectedCountries.includes(countryCode) || 
-        p.affectedCountries.includes('ALL')
-    );
+    return allPrograms.filter(p => {
+        // Check direct country match
+        if (p.affectedCountries.includes(countryCode)) return true;
+        
+        // Check 'ALL' (universal programs)
+        if (p.affectedCountries.includes('ALL')) {
+            // USMCA countries may be exempt from universal baseline when goods are compliant
+            // For now, include them but add warnings
+            return true;
+        }
+        
+        return false;
+    });
+}
+
+/**
+ * Get country-specific reciprocal tariff rate
+ * These are the "reciprocal tariff" rates announced in April 2025
+ * Some countries face higher rates than the 10% baseline
+ */
+export function getCountryReciprocalRate(countryCode: string): number {
+    const reciprocalRates: Record<string, number> = {
+        // Fentanyl-targeted + Reciprocal
+        'CN': 145,  // Fentanyl 20% + Reciprocal 125% (on top of Section 301)
+        'HK': 145,  // Same as China
+        
+        // USMCA - rates may be paused/active, show worst case
+        'MX': 25,   // Fentanyl tariff (may be paused)
+        'CA': 25,   // Fentanyl tariff (may be paused)
+        
+        // Higher reciprocal rates (country-specific)
+        'VN': 46,
+        'KH': 49,
+        'BD': 37,
+        'TH': 36,
+        'ID': 32,
+        'IN': 26,
+        'MY': 24,
+        'KR': 25,  // KORUS FTA but baseline applies
+        'JP': 24,
+        'TW': 32,
+        'PH': 17,
+        
+        // EU countries
+        'DE': 20, 'IT': 20, 'FR': 20, 'ES': 20, 'NL': 20, 'BE': 20, 'PL': 20,
+        
+        // Standard baseline
+        'GB': 10,
+        'SG': 10,  // Singapore FTA doesn't exempt from this
+        'AU': 10,
+        'IL': 10,
+        'CL': 10,
+        'CO': 10,
+        'PE': 10,
+    };
+    
+    // Default to 10% baseline for unlisted countries
+    return reciprocalRates[countryCode] ?? 10;
 }
 
 /**

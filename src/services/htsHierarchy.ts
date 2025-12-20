@@ -25,7 +25,7 @@ export interface HTSHierarchy {
 /**
  * Chapter descriptions (hardcoded for speed - these rarely change)
  */
-const CHAPTER_DESCRIPTIONS: Record<string, string> = {
+export const CHAPTER_DESCRIPTIONS: Record<string, string> = {
     '01': 'Live Animals',
     '02': 'Meat and Edible Meat Offal',
     '03': 'Fish and Crustaceans',

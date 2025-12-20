@@ -1,8 +1,8 @@
 # Sourcify Product Roadmap
 
-> **Version:** 1.0.0  
+> **Version:** 1.1.0  
 > **Created:** December 19, 2024  
-> **Last Updated:** December 19, 2024  
+> **Last Updated:** December 20, 2025  
 > **Status:** Active Development
 
 ---
@@ -11,6 +11,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.1.0 | Dec 20, 2025 | Team | Added Country Tariff Registry (centralized data service) |
 | 1.0.0 | Dec 19, 2024 | Team | Initial roadmap - Sourcing Intelligence + Monitoring |
 
 ---
@@ -434,26 +435,39 @@ Potential savings: $8,400/year
 
 ---
 
-#### 2.5 Tariff Data Sources Integration
-**Priority:** P0 | **Effort:** 2-3 days | **Status:** 🔲 Not Started
+#### 2.5 Tariff Data Sources Integration ✅ COMPLETE
+**Priority:** P0 | **Effort:** 2-3 days | **Status:** ✅ Complete (Dec 20, 2025)
 
-Establish reliable data feeds for tariff monitoring.
+> **See:** [`ARCHITECTURE_TARIFF_REGISTRY.md`](./ARCHITECTURE_TARIFF_REGISTRY.md) for full technical details.
 
-**Data Sources:**
+We built the **Country Tariff Registry** - a centralized service that is the single source of truth for all tariff data. All other services (classification, sourcing, alerts) pull from this registry.
 
-| Source | Data | Update Frequency | Cost |
-|--------|------|------------------|------|
-| USITC HTS Database | Base rates, special programs | Quarterly | Free |
-| Federal Register | New tariff announcements | Daily | Free |
-| CBP CROSS | Rulings, guidance | Daily | Free |
-| ITA AD/CVD | Anti-dumping orders | Weekly | Free |
+**Active Data Sources (7):**
+| Source | Data | Status |
+|--------|------|--------|
+| ISO 3166-1 | 199 countries | ✅ Active |
+| USITC HTS API | Chapter 99 rates (301, IEEPA, 232) | ✅ Active |
+| USITC DataWeb | Import volume & value | ✅ Active |
+| Federal Register API | Executive orders, tariff rules | ✅ Active |
+| USTR FTA List | 20 FTA partners | ✅ Active |
+| OFAC Sanctions | Sanctioned countries | ✅ Active |
+| AD/CVD Orders | Risk warnings | ✅ Active |
 
-**Tasks:**
-- [ ] Build USITC scraper/API client
-- [ ] Build Federal Register monitor
-- [ ] Build AD/CVD database sync
-- [ ] Create unified tariff change detection service
-- [ ] Store historical rates for comparison
+**Key Files:**
+- `src/services/tariffRegistry.ts` - Core service (what other services import)
+- `src/services/tariffRegistrySync.ts` - Data sync engine
+- `/api/tariff-registry/sync` - Sync endpoint
+
+**Usage:**
+```typescript
+import { getEffectiveTariff } from '@/services/tariffRegistry';
+const tariff = await getEffectiveTariff('CN', '8518.30.20');
+```
+
+**⚠️ Requires daily sync** (not yet automated):
+```bash
+curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
+```
 
 ---
 
@@ -542,6 +556,40 @@ Establish reliable data feeds for tariff monitoring.
 - **Database:** PostgreSQL (Prisma ORM)
 - **AI:** Grok (xAI) for classification and insights
 - **Auth:** Better Auth
+
+### Core Data Services
+
+| Service | Purpose | Doc |
+|---------|---------|-----|
+| **Country Tariff Registry** | Single source of truth for all tariff data | [Architecture Doc](./ARCHITECTURE_TARIFF_REGISTRY.md) |
+| Classification Engine | AI-powered HTS classification | - |
+| Sourcing Intelligence | Country comparison & landed cost | - |
+
+**Data Flow:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         USER REQUEST                                 │
+│                    (classify or source)                              │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    COUNTRY TARIFF REGISTRY                           │
+│                    (tariffRegistry.ts)                               │
+│                                                                      │
+│  • getTariffProfile(countryCode)                                    │
+│  • getEffectiveTariff(countryCode, htsCode)                         │
+│                                                                      │
+│  Data from: USITC HTS API, Federal Register, OFAC, FTA List, etc.  │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     RESPONSE TO USER                                 │
+│  • Effective tariff rate with breakdown                             │
+│  • FTA status, IEEPA baseline, Section 301, AD/CVD warnings         │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### Infrastructure Needs for Intelligence
 
@@ -683,3 +731,4 @@ Ideas to consider for future phases:
 ---
 
 *This document is a living roadmap. Update version and revision history with each significant change.*
+

@@ -2,40 +2,86 @@
  * Landed Cost Calculator
  * 
  * Calculates total cost to import products from different countries.
- * Uses REAL cost data from HtsCostByCountry combined with tariff data.
+ * Uses REAL cost data from HtsCostByCountry combined with ACCURATE tariff data.
+ * 
+ * UPDATED: Now integrates with the centralized Country Tariff Registry
+ * when available, falling back to local data when not.
+ * 
+ * IMPORTANT: As of December 2025, tariff calculations include:
+ * - Base MFN rate (from HTS code)
+ * - Section 301 (China products)
+ * - IEEPA Universal Baseline (10%+ for nearly ALL countries including FTA partners!)
+ * - IEEPA Fentanyl (CN, MX, CA)
+ * - IEEPA Reciprocal (country-specific higher rates)
+ * - Section 232 (steel/aluminum)
+ * 
+ * NOTE: USITC DataWeb provides import VOLUME statistics, not tariff rates.
+ * Tariff rates come from Chapter 99 codes which we calculate separately.
+ * 
+ * @see docs/ARCHITECTURE_TARIFF_REGISTRY.md
+ * @see src/services/tariffRegistry.ts
  */
 
 import { prisma } from '@/lib/db';
+import { 
+    getSection301Rate as getSection301RateFromData 
+} from '@/data/section301Lists';
+import { 
+    getCountryReciprocalRate,
+    isSection232Product,
+    IEEPA_PROGRAMS,
+    getCountryProfile,
+} from '@/data/tariffPrograms';
+import { 
+    getEffectiveTariff as getEffectiveTariffFromRegistry,
+    getTariffProfile,
+} from './tariffRegistry';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TARIFF HELPERS (inline to avoid module resolution issues)
+// TARIFF HELPERS - Using centralized data sources for accuracy
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Section 301 rates by HTS chapter for China
+/**
+ * Get Section 301 rate for China products
+ * Uses the centralized section301Lists data
+ */
 function getSection301Rate(htsCode: string, countryCode: string): number {
-    if (countryCode !== 'CN') return 0;
+    if (countryCode !== 'CN' && countryCode !== 'HK') return 0;
     
+    const section301 = getSection301RateFromData(htsCode);
+    if (section301) {
+        return section301.rate;
+    }
+    
+    // Fallback to chapter-based estimate
     const chapter = htsCode.substring(0, 2);
-    // Most products are on List 4A at 7.5% or List 3 at 25%
-    const list3Chapters = ['84', '85', '90', '94', '95']; // Electronics, machinery, furniture, toys
-    const list4AChapters = ['39', '61', '62', '63', '64', '42']; // Plastics, apparel, footwear
+    const list3Chapters = ['84', '85', '90', '94', '95']; // Electronics, machinery
+    const list4AChapters = ['39', '61', '62', '63', '64', '42']; // Consumer goods
     
     if (list3Chapters.includes(chapter)) return 25;
     if (list4AChapters.includes(chapter)) return 7.5;
-    return 7.5; // Default assumption
+    return 7.5; // Default assumption for China
 }
 
-// IEEPA rates by country (Fentanyl + Reciprocal)
+/**
+ * Get IEEPA rate for a country
+ * 
+ * As of April 2025:
+ * - Universal 10% baseline applies to NEARLY ALL countries (including FTA partners!)
+ * - Some countries have HIGHER reciprocal rates (e.g., Vietnam 46%)
+ * - China/Mexico/Canada have additional Fentanyl tariffs
+ */
 function getIEEPARate(countryCode: string): number {
-    const ieepaRates: Record<string, number> = {
-        'CN': 20, // Fentanyl 20% (reciprocal paused)
-        'MX': 0,  // USMCA exempt
-        'CA': 0,  // USMCA exempt
-        'VN': 10, 'IN': 10, 'BD': 5, 'TH': 10, 'ID': 10,
-        'TW': 10, 'KR': 0, 'JP': 0, 'DE': 10, 'IT': 10,
-        'PL': 10, 'TR': 10, 'MY': 10, 'PH': 10, 'PK': 10, 'KH': 5,
-    };
-    return ieepaRates[countryCode] || 10; // Default 10% for unlisted
+    // Get the country-specific reciprocal rate
+    // This includes the 10% baseline + any country-specific additions
+    return getCountryReciprocalRate(countryCode);
+}
+
+/**
+ * Check if IEEPA rates may be paused for USMCA-compliant goods
+ */
+function isUSMCACountry(countryCode: string): boolean {
+    return countryCode === 'MX' || countryCode === 'CA';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -148,22 +194,107 @@ const TRANSIT_DAYS: Record<string, number> = {
     'default': 30,
 };
 
-// FTA countries and their typical rate
-const FTA_COUNTRIES: Record<string, { name: string; rate: number }> = {
-    'CA': { name: 'USMCA', rate: 0 },
-    'MX': { name: 'USMCA', rate: 0 },
-    'KR': { name: 'KORUS FTA', rate: 0 },
-    'AU': { name: 'Australia FTA', rate: 0 },
-    'SG': { name: 'Singapore FTA', rate: 0 },
-    'CL': { name: 'Chile FTA', rate: 0 },
-    'CO': { name: 'Colombia TPA', rate: 0 },
-    'PE': { name: 'Peru TPA', rate: 0 },
-    'PA': { name: 'Panama TPA', rate: 0 },
-    'IL': { name: 'Israel FTA', rate: 0 },
-    'JO': { name: 'Jordan FTA', rate: 0 },
-    'MA': { name: 'Morocco FTA', rate: 0 },
-    'BH': { name: 'Bahrain FTA', rate: 0 },
-    'OM': { name: 'Oman FTA', rate: 0 },
+/**
+ * FTA countries - IMPORTANT NOTE:
+ * 
+ * As of April 2025, FTAs can waive the BASE MFN duty but:
+ * - The 10% IEEPA universal baseline STILL APPLIES to most FTA countries!
+ * - Only USMCA (MX/CA) may have exemptions when goods are fully compliant
+ * - Singapore FTA, KORUS, etc. do NOT exempt from the 10% IEEPA tariff
+ * 
+ * The 'rate' here is what the FTA waives (the base duty), but we must
+ * still add the IEEPA rate on top.
+ */
+const FTA_COUNTRIES: Record<string, { 
+    name: string; 
+    rate: number;  // Base duty waiver (NOT the effective rate!)
+    ieepaExempt: boolean;  // Whether IEEPA may be waived
+    notes: string;
+}> = {
+    'CA': { 
+        name: 'USMCA', 
+        rate: 0, 
+        ieepaExempt: true,  // May be exempt when USMCA-compliant
+        notes: 'USMCA goods may have tariffs paused - verify current status'
+    },
+    'MX': { 
+        name: 'USMCA', 
+        rate: 0, 
+        ieepaExempt: true,  // May be exempt when USMCA-compliant
+        notes: 'USMCA goods may have tariffs paused - verify current status'
+    },
+    'KR': { 
+        name: 'KORUS FTA', 
+        rate: 0, 
+        ieepaExempt: false,  // 10% IEEPA STILL APPLIES!
+        notes: 'FTA waives base duty but 10%+ IEEPA still applies'
+    },
+    'AU': { 
+        name: 'Australia FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'SG': { 
+        name: 'Singapore FTA', 
+        rate: 0, 
+        ieepaExempt: false,  // Per Enterprise Singapore FAQs
+        notes: '⚠️ USSFTA does NOT exempt from 10% IEEPA as of April 2025'
+    },
+    'CL': { 
+        name: 'Chile FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'CO': { 
+        name: 'Colombia TPA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'PE': { 
+        name: 'Peru TPA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'PA': { 
+        name: 'Panama TPA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'IL': { 
+        name: 'Israel FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'JO': { 
+        name: 'Jordan FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'MA': { 
+        name: 'Morocco FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'BH': { 
+        name: 'Bahrain FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
+    'OM': { 
+        name: 'Oman FTA', 
+        rate: 0, 
+        ieepaExempt: false,
+        notes: 'FTA waives base duty but 10% IEEPA still applies'
+    },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -171,7 +302,74 @@ const FTA_COUNTRIES: Record<string, { name: string; rate: number }> = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Calculate effective tariff rate for HTS code from specific country
+ * Calculate effective tariff rate using the centralized Tariff Registry
+ * 
+ * This is the preferred method as it uses real-time data from official sources.
+ * Falls back to local calculation if registry is unavailable.
+ * 
+ * @see docs/ARCHITECTURE_TARIFF_REGISTRY.md
+ */
+export async function calculateEffectiveTariffFromRegistryAsync(
+    baseTariffRate: number,
+    countryCode: string,
+    htsCode: string
+): Promise<{
+    baseTariff: number;
+    section301: number;
+    ieepaRate: number;
+    adCvdRate: number;
+    ftaDiscount: number;
+    ftaName: string | null;
+    ftaNotes: string | null;
+    effectiveRate: number;
+    dataSource: 'registry' | 'fallback';
+}> {
+    try {
+        // Try to get data from the centralized registry first
+        const registryResult = await getEffectiveTariffFromRegistry(
+            countryCode, 
+            htsCode,
+            { baseMfnRate: baseTariffRate }
+        );
+        
+        // Map registry result to our expected format
+        return {
+            baseTariff: registryResult.baseMfnRate,
+            section301: registryResult.section301Rate,
+            ieepaRate: registryResult.ieepaRate,
+            adCvdRate: registryResult.adcvdRate,
+            ftaDiscount: registryResult.ftaDiscount,
+            ftaName: registryResult.ftaName,
+            ftaNotes: registryResult.ftaWaivesIeepa 
+                ? 'USMCA goods may be exempt from IEEPA when compliant' 
+                : registryResult.hasFta 
+                    ? `⚠️ ${registryResult.ftaName} waives base duty but ${registryResult.ieepaRate}% IEEPA still applies!`
+                    : null,
+            effectiveRate: registryResult.effectiveRate,
+            dataSource: 'registry',
+        };
+    } catch (error) {
+        console.warn('[LandedCost] Registry unavailable, using fallback:', error);
+        
+        // Fall back to local calculation
+        const localResult = calculateEffectiveTariff(baseTariffRate, countryCode, htsCode);
+        return {
+            ...localResult,
+            dataSource: 'fallback',
+        };
+    }
+}
+
+/**
+ * Calculate effective tariff rate for HTS code from specific country (sync version)
+ * 
+ * IMPORTANT: This now properly accounts for the April 2025 tariff landscape:
+ * - FTAs can waive BASE duty but NOT the IEEPA tariffs
+ * - Only USMCA may fully exempt compliant goods
+ * - All other FTA countries still face at least 10% IEEPA
+ * 
+ * NOTE: For the most accurate data, use calculateEffectiveTariffFromRegistryAsync
+ * which pulls from the centralized tariff registry.
  */
 export function calculateEffectiveTariff(
     baseTariffRate: number,
@@ -183,20 +381,42 @@ export function calculateEffectiveTariff(
     ieepaRate: number;
     adCvdRate: number;
     ftaDiscount: number;
+    ftaName: string | null;
+    ftaNotes: string | null;
     effectiveRate: number;
 } {
     // Get additional duties
     const section301 = getSection301Rate(htsCode, countryCode);
-    const ieepaRate = getIEEPARate(countryCode);
     const adCvdRate = 0; // Would need AD/CVD lookup
     
-    // Check FTA
+    // Check FTA status
+    const ftaInfo = FTA_COUNTRIES[countryCode];
     let ftaDiscount = 0;
-    if (FTA_COUNTRIES[countryCode]) {
+    let ftaName: string | null = null;
+    let ftaNotes: string | null = null;
+    
+    if (ftaInfo) {
+        ftaName = ftaInfo.name;
+        ftaNotes = ftaInfo.notes;
         ftaDiscount = baseTariffRate; // FTA eliminates base tariff
     }
     
+    // Get IEEPA rate - this is where the critical fix is!
+    // FTAs do NOT exempt from IEEPA unless specifically noted
+    let ieepaRate = 0;
+    
+    if (ftaInfo && ftaInfo.ieepaExempt) {
+        // USMCA may exempt - but we should still show a warning
+        // For now, we'll assume compliant goods get exemption
+        // but add a note that this should be verified
+        ieepaRate = 0;
+    } else {
+        // All other countries face IEEPA rates
+        ieepaRate = getIEEPARate(countryCode);
+    }
+    
     // Calculate effective rate
+    // Formula: (Base - FTA discount) + Section 301 + IEEPA + AD/CVD
     const effectiveRate = Math.max(0,
         baseTariffRate - ftaDiscount + section301 + ieepaRate + adCvdRate
     );
@@ -207,6 +427,8 @@ export function calculateEffectiveTariff(
         ieepaRate,
         adCvdRate,
         ftaDiscount,
+        ftaName,
+        ftaNotes,
         effectiveRate,
     };
 }
@@ -239,14 +461,18 @@ function calculateFees(productValue: number): {
 
 /**
  * Calculate landed cost for a specific HTS code from a specific country
+ * 
+ * Uses the centralized Tariff Registry when available for accurate rates.
  */
 export async function calculateLandedCost(
     htsCode: string,
     countryCode: string,
     quantity: number = 1000,
-    weightPerUnitKg: number = 0.5
+    weightPerUnitKg: number = 0.5,
+    options: { useRegistry?: boolean } = {}
 ): Promise<LandedCostBreakdown | null> {
     const hts6 = htsCode.replace(/\./g, '').substring(0, 6);
+    const useRegistry = options.useRegistry ?? true; // Default to using registry
     
     // Get cost data from our aggregated table
     const costData = await prisma.htsCostByCountry.findUnique({
@@ -262,11 +488,16 @@ export async function calculateLandedCost(
         return null;
     }
     
-    // Get base tariff rate (from costData or lookup)
-    const baseTariffRate = costData.baseTariffRate || 5.0; // Default 5%
+    // Get base tariff rate from database (NO hardcoded fallback)
+    const baseTariffRate = costData.baseTariffRate ?? 0;
+    if (!costData.baseTariffRate) {
+        console.warn(`[LandedCost] No baseTariffRate for ${countryCode}/${hts6} - using 0`);
+    }
     
-    // Calculate tariffs
-    const tariffs = calculateEffectiveTariff(baseTariffRate, countryCode, hts6);
+    // Calculate tariffs - use registry if enabled for most accurate data
+    const tariffs = useRegistry
+        ? await calculateEffectiveTariffFromRegistryAsync(baseTariffRate, countryCode, hts6)
+        : { ...calculateEffectiveTariff(baseTariffRate, countryCode, hts6), dataSource: 'fallback' as const };
     
     // Calculate shipping
     const shippingRate = SHIPPING_COSTS[countryCode] || SHIPPING_COSTS['default'];
@@ -384,8 +615,8 @@ export async function compareLandedCosts(
         }
     }
     
-    // Get base tariff rate
-    const baseTariffRate = costRecords[0]?.baseTariffRate || 5.0;
+    // Get base tariff rate from database (NO hardcoded fallback)
+    const baseTariffRate = costRecords[0]?.baseTariffRate ?? 0;
     
     return {
         htsCode: hts6,
@@ -408,13 +639,14 @@ export async function getQuickCostComparison(
 ): Promise<{
     current: { country: string; cost: number } | null;
     cheapest: { country: string; cost: number; savingsPercent: number } | null;
-    ftaBest: { country: string; cost: number; ftaName: string } | null;
+    ftaBest: { country: string; cost: number; ftaName: string; notes: string } | null;
     countries: Array<{
         code: string;
         name: string;
         cost: number;
         tariffRate: number;
         hasFTA: boolean;
+        ftaNotes: string | null;
     }>;
 }> {
     const comparison = await compareLandedCosts(htsCode, {
@@ -429,7 +661,7 @@ export async function getQuickCostComparison(
     // Cheapest overall
     const cheapest = comparison.countries[0];
     
-    // Best FTA country
+    // Best FTA country (but note: FTAs may not save as much as expected now!)
     const ftaCountries = comparison.countries.filter(c => 
         FTA_COUNTRIES[c.countryCode]
     );
@@ -453,24 +685,33 @@ export async function getQuickCostComparison(
                 country: ftaBest.countryCode,
                 cost: ftaBest.totalLandedCost,
                 ftaName: FTA_COUNTRIES[ftaBest.countryCode].name,
+                notes: FTA_COUNTRIES[ftaBest.countryCode].notes,
             }
             : null,
-        countries: comparison.countries.slice(0, 10).map(c => ({
-            code: c.countryCode,
-            name: c.country,
-            cost: Math.round(c.totalLandedCost * 100) / 100,
-            tariffRate: c.tariffs.effectiveRate,
-            hasFTA: !!FTA_COUNTRIES[c.countryCode],
-        })),
+        countries: comparison.countries.slice(0, 10).map(c => {
+            const ftaInfo = FTA_COUNTRIES[c.countryCode];
+            return {
+                code: c.countryCode,
+                name: c.country,
+                cost: Math.round(c.totalLandedCost * 100) / 100,
+                tariffRate: c.tariffs.effectiveRate,
+                hasFTA: !!ftaInfo,
+                ftaNotes: ftaInfo?.notes || null,
+            };
+        }),
     };
 }
 
 /**
- * Enrich HtsCostByCountry records with tariff data
+ * Enrich HtsCostByCountry records with ACCURATE tariff data
+ * 
+ * This updates stored records with the latest tariff calculations,
+ * properly accounting for the April 2025 IEEPA baseline that affects
+ * even FTA countries.
  */
 export async function enrichWithTariffData(
     htsCode?: string
-): Promise<{ updated: number }> {
+): Promise<{ updated: number; summary: string }> {
     const whereClause = htsCode
         ? { htsCode: htsCode.replace(/\./g, '').substring(0, 6) }
         : {};
@@ -480,13 +721,16 @@ export async function enrichWithTariffData(
     });
     
     let updated = 0;
+    let ftaCountriesUpdated = 0;
     
     for (const record of records) {
         const tariffs = calculateEffectiveTariff(
-            record.baseTariffRate || 5.0,
+            record.baseTariffRate ?? 0, // NO hardcoded fallback
             record.countryCode,
             record.htsCode
         );
+        
+        const ftaInfo = FTA_COUNTRIES[record.countryCode];
         
         await prisma.htsCostByCountry.update({
             where: { id: record.id },
@@ -494,14 +738,18 @@ export async function enrichWithTariffData(
                 section301Rate: tariffs.section301,
                 ieepaRate: tariffs.ieepaRate,
                 effectiveTariff: tariffs.effectiveRate,
-                hasFTA: !!FTA_COUNTRIES[record.countryCode],
-                ftaName: FTA_COUNTRIES[record.countryCode]?.name,
-                ftaRate: FTA_COUNTRIES[record.countryCode]?.rate,
+                hasFTA: !!ftaInfo,
+                ftaName: ftaInfo?.name,
+                ftaRate: ftaInfo?.rate ?? null,
             },
         });
         
         updated++;
+        if (ftaInfo) ftaCountriesUpdated++;
     }
     
-    return { updated };
+    const summary = `Updated ${updated} records. ${ftaCountriesUpdated} FTA countries now show IEEPA rates where applicable (FTAs only waive base duty, not IEEPA).`;
+    
+    return { updated, summary };
 }
+

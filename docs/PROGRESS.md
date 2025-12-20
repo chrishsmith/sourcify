@@ -1,12 +1,43 @@
 # Sourcify Development Progress
 
-> **Last Updated:** December 19, 2024  
-> **Current Phase:** Phase 1 - Sourcing Intelligence  
-> **Current Sprint:** Sprint 1
+> **Last Updated:** December 20, 2025  
+> **Current Phase:** Phase 1.5 - Tariff Data Infrastructure  
+> **Current Sprint:** Sprint 2
 
 ---
 
-## 🎯 Current Sprint: Sprint 1
+## 🎯 Current Sprint: Sprint 2
+
+**Theme:** Country Tariff Registry (Single Source of Truth)  
+**Dates:** Dec 20 - Dec 23, 2025  
+**Goal:** Centralized, accurate tariff data consumed by all services
+
+### Why This Sprint?
+
+We identified that tariff data was scattered across multiple files with inconsistent rates:
+- Classification and sourcing were showing different tariffs for the same country
+- FTA countries like Singapore were incorrectly shown as "duty-free" when they actually face 10% IEEPA
+- The April 2025 tariff landscape changes weren't properly reflected
+
+### Tasks
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 2.1 Architecture Documentation | ✅ Complete | See `docs/ARCHITECTURE_TARIFF_REGISTRY.md` |
+| 2.2 Prisma Schema | ✅ Complete | CountryTariffProfile, TariffProgram, HtsTariffOverride |
+| 2.3 TariffRegistry Service | ✅ Complete | `getTariffProfile()`, `getEffectiveTariff()` in `services/tariffRegistry.ts` |
+| 2.4 Data Sync Service | ✅ Complete | `services/tariffRegistrySync.ts` - syncs 196 countries from real sources |
+| 2.5 Migrate Classification | 🔲 Pending | Use registry instead of scattered logic |
+| 2.6 Migrate Sourcing | 🔲 Pending | Use registry for landed cost |
+
+### Key Decisions
+- **Single Source of Truth:** All tariff data lives in the registry
+- **FTA Clarification:** FTAs waive BASE duty but NOT IEEPA (except USMCA)
+- **Universal Baseline:** 10% IEEPA applies to nearly all countries as of April 2025
+
+---
+
+## 📋 Previous Sprint: Sprint 1 (Complete ✅)
 
 **Theme:** Classification → Sourcing Flow  
 **Dates:** Dec 19 - Dec 22, 2024  
@@ -24,6 +55,16 @@
 | UI/UX Polish | ✅ Complete | Concise tariff breakdown, teal badges, spacing |
 
 ### Daily Log
+
+#### Dec 19, 2024 (cont.) - MAJOR: Real Data Integration! 🎉
+- [x] **USITC DataWeb API Integration** - REAL import statistics!
+  - Created `/services/usitcDataWeb.ts` with full API integration
+  - Queries actual US import data by HTS code and country
+  - Returns customs value, quantity, avg unit value for 40+ countries
+  - Tested with HTS 851830 (earphones): China $3.57B, Vietnam $3.18B imports
+  - API docs: https://www.usitc.gov/applications/dataweb/api/dataweb_query_api.html
+- [x] `/api/sourcing/sync-data` endpoint for syncing USITC data to DB
+- [x] Verified end-to-end flow with real data
 
 #### Dec 19, 2024
 - [x] Created product roadmap document
@@ -79,9 +120,16 @@
 | 2.2 Saved Products Monitoring | 🔲 | 0% |
 | 2.3 Intelligence Dashboard | 🔲 | 0% |
 | 2.4 Weekly Digest Email | 🔲 | 0% |
-| 2.5 Data Sources Integration | 🔲 | 0% |
+| 2.5 Data Sources Integration | ✅ | 100% |
 
-**Phase 2 Overall: 0%**
+**Phase 2 Overall: 20%** (Real data sources integrated!)
+
+### Data Sources Integrated
+| Source | Type | Status |
+|--------|------|--------|
+| USITC DataWeb API | Import Statistics | ✅ Live |
+| USITC HTS API | Tariff Rates | ✅ Live |
+| Grok AI | Analysis & Insights | ✅ Live |
 
 ---
 
@@ -89,9 +137,41 @@
 
 - [x] **Dec 19, 2024** - Product roadmap created
 - [x] **Dec 19, 2024** - Phase 1: Sourcing Intelligence complete! 🎉
+- [x] **Dec 19, 2024** - USITC DataWeb API integrated - REAL import data! 📊
 - [ ] Tariff alerts launched
 - [ ] Intelligence dashboard launched
 - [ ] First paying customer
+
+---
+
+## ⚠️ Critical Updates (December 2025)
+
+### Tariff Accuracy Enhancement
+**Date:** December 20, 2025
+
+We identified and fixed a significant gap in tariff calculation accuracy:
+
+1. **Problem Identified:**
+   - USITC DataWeb provides import VOLUME/VALUE statistics, NOT tariff rates
+   - Sourcing intelligence was using simplified/hardcoded tariff rates
+   - FTA countries were incorrectly shown as "duty-free" when they now face 10% IEEPA
+
+2. **April 2025 Tariff Changes:**
+   - Universal 10% IEEPA reciprocal baseline now applies to NEARLY ALL countries
+   - FTAs (Singapore, Korea, Australia, etc.) do NOT exempt from this 10%
+   - Only USMCA (MX/CA) may have exemptions for compliant goods
+   - Some countries have even HIGHER reciprocal rates (Vietnam 46%, Cambodia 49%)
+
+3. **Changes Made:**
+   - Updated `tariffPrograms.ts` with universal baseline + country-specific rates
+   - Updated `landedCost.ts` to use centralized tariff calculation
+   - Updated `usitcDataWeb.ts` with proper tariff data and documentation
+   - FTA treatment now correctly shows: "Base duty waived but IEEPA still applies"
+
+4. **Sources:**
+   - Enterprise Singapore FAQs (USSFTA impact)
+   - Reuters, PwC trade analyses from 2025
+   - U.S. trade policy announcements (Executive Orders 14195, 14257)
 
 ---
 

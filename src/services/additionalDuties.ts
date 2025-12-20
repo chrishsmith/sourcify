@@ -117,7 +117,7 @@ export async function calculateEffectiveTariff(
     // 2. IEEPA EMERGENCY TARIFFS (Country-wide) - USE LIVE RATES
     // ═══════════════════════════════════════════════════════════════════
     
-    // IEEPA Fentanyl
+    // IEEPA Fentanyl (China, Mexico, Canada)
     if (liveRates?.ieepaFentanyl?.numericRate !== null && liveRates?.ieepaFentanyl?.numericRate !== undefined) {
         const liveRate = liveRates.ieepaFentanyl;
         additionalDuties.push({
@@ -145,7 +145,7 @@ export async function calculateEffectiveTariff(
         }
     }
     
-    // IEEPA Reciprocal
+    // IEEPA Reciprocal (China-specific high rate)
     if (liveRates?.ieepaReciprocal?.numericRate !== null && liveRates?.ieepaReciprocal?.numericRate !== undefined) {
         const liveRate = liveRates.ieepaReciprocal;
         additionalDuties.push({
@@ -170,6 +170,51 @@ export async function calculateEffectiveTariff(
             additionalDuties.push(createIEEPADuty(ieepaReciprocalProgram));
             totalAdValorem += ieepaReciprocalProgram.rate;
             console.log(`[Duties] IEEPA Reciprocal (fallback): +${ieepaReciprocalProgram.rate}%`);
+        }
+    }
+    
+    // IEEPA Universal Baseline (10% for nearly ALL countries including FTA partners!)
+    // This is the critical addition for April 2025 - affects Singapore, Korea, Australia, etc.
+    if (liveRates?.ieepaBaseline?.numericRate !== null && liveRates?.ieepaBaseline?.numericRate !== undefined) {
+        const liveRate = liveRates.ieepaBaseline;
+        additionalDuties.push({
+            htsCode: liveRate.htsCode,
+            programName: 'IEEPA Universal Baseline',
+            programType: 'ieepa_reciprocal', // Group with reciprocal for UI
+            rate: { rate: liveRate.rate, rateType: 'ad_valorem', numericRate: liveRate.numericRate || 0 },
+            authority: 'President / IEEPA',
+            legalReference: 'International Emergency Economic Powers Act (Executive Order 14257)',
+            effectiveDate: '2025-04-09',
+            applicable: true,
+            description: `${liveRate.description} - ⚠️ This applies even to FTA partners!`,
+        });
+        totalAdValorem += liveRate.numericRate || 0;
+        console.log(`[Duties] IEEPA Baseline: +${liveRate.numericRate}% (applies to ${countryOfOrigin} even with FTA)`);
+        warnings.push(`⚠️ 10% IEEPA baseline applies despite any FTA status`);
+    } else {
+        // Fallback: Check if this country should get the universal baseline
+        // Countries NOT subject to baseline: USMCA (MX, CA) when compliant
+        const isUSMCA = countryOfOrigin === 'MX' || countryOfOrigin === 'CA';
+        const isChina = countryOfOrigin === 'CN' || countryOfOrigin === 'HK';
+        
+        if (!isUSMCA && !isChina) {
+            // Apply 10% baseline to everyone else (including FTA partners!)
+            const baselineProgram = IEEPA_PROGRAMS.find(p => p.id === 'ieepa_reciprocal_baseline');
+            if (baselineProgram) {
+                additionalDuties.push({
+                    htsCode: baselineProgram.htsChapter99Code,
+                    programName: 'IEEPA Universal Baseline',
+                    programType: 'ieepa_reciprocal',
+                    rate: { rate: '10%', rateType: 'ad_valorem', numericRate: 10 },
+                    authority: 'President / IEEPA',
+                    legalReference: baselineProgram.legalBasis,
+                    effectiveDate: baselineProgram.effectiveDate,
+                    applicable: true,
+                    description: `Universal 10% tariff on nearly all imports (April 2025) - ⚠️ Applies even to FTA partners!`,
+                });
+                totalAdValorem += 10;
+                console.log(`[Duties] IEEPA Baseline (fallback): +10% for ${countryOfOrigin}`);
+            }
         }
     }
 
@@ -258,10 +303,16 @@ export async function calculateEffectiveTariff(
     const adcvdCheck = checkADCVDWarning(htsCode, countryOfOrigin);
 
     // ═══════════════════════════════════════════════════════════════════
-    // 5. TRADE AGREEMENT BENEFITS (Can reduce rates)
+    // 5. TRADE AGREEMENT BENEFITS (Limited as of April 2025!)
     // ═══════════════════════════════════════════════════════════════════
     if (countryProfile?.tradeStatus === 'fta') {
-        warnings.push(`💡 ${countryProfile.countryName} is an FTA partner. May qualify for reduced rates with proper documentation.`);
+        // IMPORTANT: FTAs now only waive BASE duty, not IEEPA!
+        if (countryOfOrigin === 'MX' || countryOfOrigin === 'CA') {
+            warnings.push(`💡 USMCA may provide tariff exemptions for compliant goods - verify current status.`);
+        } else {
+            warnings.push(`⚠️ ${countryProfile.countryName} is an FTA partner BUT the 10% IEEPA baseline still applies!`);
+            warnings.push(`💡 FTA may waive the base MFN duty only - not the IEEPA tariff.`);
+        }
     }
     
     // Add data source indicator
