@@ -6,7 +6,6 @@ import {
     Typography, 
     Tag, 
     Button, 
-    Spin, 
     Alert, 
     Statistic, 
     Row, 
@@ -17,6 +16,7 @@ import {
     Collapse,
     Badge,
     Empty,
+    Skeleton,
 } from 'antd';
 import { 
     TrendingDown, 
@@ -24,10 +24,11 @@ import {
     Shield, 
     AlertTriangle, 
     Lightbulb,
-    Ship,
     DollarSign,
     CheckCircle,
     Info,
+    Users,
+    ArrowRight,
 } from 'lucide-react';
 
 const { Text, Title, Paragraph } = Typography;
@@ -78,7 +79,52 @@ interface Props {
     currentCountry?: string;
     materials?: string[];
     onSupplierSelect?: (supplierId: string) => void;
+    onExploreSuppliers?: (countryCode: string, htsCode: string) => void;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON LOADING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SourcingLoadingSkeleton: React.FC = () => (
+    <div>
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-start" style={{ marginBottom: 24 }}>
+            <div>
+                <Skeleton.Input active style={{ width: 200, height: 28 }} />
+                <Skeleton.Input active style={{ width: 300, height: 20, marginTop: 8 }} />
+            </div>
+            <Skeleton.Button active style={{ width: 100 }} />
+        </div>
+        
+        {/* AI Summary Skeleton */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100" style={{ marginBottom: 24 }}>
+            <div className="flex gap-3">
+                <Skeleton.Avatar active size={24} />
+                <div className="flex-1">
+                    <Skeleton.Input active style={{ width: 150, height: 20 }} />
+                    <Skeleton active paragraph={{ rows: 2 }} title={false} className="mt-2" />
+                </div>
+            </div>
+        </Card>
+        
+        {/* Quick Stats Skeleton */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            {[1, 2, 3, 4].map(i => (
+                <Col xs={12} md={6} key={i}>
+                    <Card size="small">
+                        <Skeleton active paragraph={{ rows: 1 }} />
+                    </Card>
+                </Col>
+            ))}
+        </Row>
+        
+        {/* Table Skeleton */}
+        <Card size="small" style={{ marginBottom: 24 }}>
+            <Skeleton active paragraph={{ rows: 6 }} />
+        </Card>
+    </div>
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -90,6 +136,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
     currentCountry,
     materials,
     onSupplierSelect,
+    onExploreSuppliers,
 }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -131,14 +178,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
     }, [htsCode, currentCountry]);
     
     if (loading) {
-        return (
-            <Card className="text-center py-12">
-                <Spin size="large" />
-                <Text className="block mt-4 text-slate-500">
-                    Analyzing sourcing options...
-                </Text>
-            </Card>
-        );
+        return <SourcingLoadingSkeleton />;
     }
     
     if (error) {
@@ -168,6 +208,9 @@ export const SourcingRecommendations: React.FC<Props> = ({
     const { alternatives, aiInsights, currentSourcing, dataConfidence } = recommendations;
     const bestOption = alternatives[0];
     
+    // Find current country in alternatives for comparison highlighting
+    const currentCountryData = alternatives.find(a => a.countryCode === currentCountry);
+    
     return (
         <div>
             {/* Header */}
@@ -187,6 +230,37 @@ export const SourcingRecommendations: React.FC<Props> = ({
                     {dataConfidence.toUpperCase()} CONFIDENCE
                 </Tag>
             </div>
+            
+            {/* Current Source Highlight (if provided) */}
+            {currentCountry && currentCountryData && (
+                <Card 
+                    className="border-2 border-orange-200 bg-orange-50/50" 
+                    size="small"
+                    style={{ marginBottom: 24 }}
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                <Globe size={20} className="text-orange-600" />
+                            </div>
+                            <div>
+                                <Text type="secondary" className="text-xs uppercase tracking-wide">Current Source</Text>
+                                <Text strong className="block">{currentCountryData.country}</Text>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <Text type="secondary" className="text-xs block">Landed Cost</Text>
+                            <Text strong className="text-lg">${currentCountryData.landedCost.toFixed(2)}</Text>
+                        </div>
+                        <div className="text-right">
+                            <Text type="secondary" className="text-xs block">Tariff Rate</Text>
+                            <Text strong className={currentCountryData.tariffRate > 25 ? 'text-red-500 text-lg' : 'text-lg'}>
+                                {currentCountryData.tariffRate.toFixed(1)}%
+                            </Text>
+                        </div>
+                    </div>
+                </Card>
+            )}
             
             {/* AI Summary */}
             <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100" style={{ marginBottom: 24 }}>
@@ -227,7 +301,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
                 <Col xs={12} md={6}>
                     <Card size="small">
                         <Statistic
-                            title="Potential Savings"
+                            title={currentCountry ? `vs ${currentCountryData?.country || 'Current'}` : 'Potential Savings'}
                             value={bestOption?.savingsPercent || 0}
                             suffix="%"
                             prefix={<TrendingDown size={16} />}
@@ -257,6 +331,15 @@ export const SourcingRecommendations: React.FC<Props> = ({
                     rowKey="countryCode"
                     pagination={false}
                     size="small"
+                    rowClassName={(record) => {
+                        if (record.countryCode === currentCountry) {
+                            return 'bg-orange-50';
+                        }
+                        if (record === bestOption) {
+                            return 'bg-green-50';
+                        }
+                        return '';
+                    }}
                     columns={[
                         {
                             title: 'Country',
@@ -264,9 +347,15 @@ export const SourcingRecommendations: React.FC<Props> = ({
                             render: (country: string, record: SourcingAlternative) => (
                                 <div className="flex items-center gap-2">
                                     <span className="font-medium">{country}</span>
+                                    {record.countryCode === currentCountry && (
+                                        <Tag color="orange" className="text-xs m-0">CURRENT</Tag>
+                                    )}
+                                    {record === bestOption && record.countryCode !== currentCountry && (
+                                        <Tag color="green" className="text-xs m-0">BEST</Tag>
+                                    )}
                                     {record.hasFTA && (
                                         <Tooltip title={record.ftaName}>
-                                            <Tag color="green" className="text-xs m-0">FTA</Tag>
+                                            <Tag color="blue" className="text-xs m-0">FTA</Tag>
                                         </Tooltip>
                                     )}
                                 </div>
@@ -275,8 +364,10 @@ export const SourcingRecommendations: React.FC<Props> = ({
                         {
                             title: 'Landed Cost',
                             dataIndex: 'landedCost',
-                            render: (cost: number) => (
-                                <span className="font-mono">${cost.toFixed(2)}</span>
+                            render: (cost: number, record: SourcingAlternative) => (
+                                <span className={`font-mono ${record === bestOption ? 'text-green-600 font-bold' : ''}`}>
+                                    ${cost.toFixed(2)}
+                                </span>
                             ),
                             sorter: (a, b) => a.landedCost - b.landedCost,
                             defaultSortOrder: 'ascend',
@@ -285,20 +376,24 @@ export const SourcingRecommendations: React.FC<Props> = ({
                             title: 'Tariff',
                             dataIndex: 'tariffRate',
                             render: (rate: number) => (
-                                <span className={rate > 25 ? 'text-red-500' : ''}>
+                                <span className={rate > 25 ? 'text-red-500 font-medium' : ''}>
                                     {rate.toFixed(1)}%
                                 </span>
                             ),
+                            responsive: ['md'],
                         },
                         {
-                            title: 'vs China',
+                            title: currentCountry ? `vs ${currentCountryData?.country || 'Current'}` : 'Savings',
                             dataIndex: 'savingsPercent',
-                            render: (savings: number | null) => {
+                            render: (savings: number | null, record: SourcingAlternative) => {
+                                if (record.countryCode === currentCountry) {
+                                    return <Text type="secondary">—</Text>;
+                                }
                                 if (savings === null) return '-';
                                 const color = savings > 0 ? 'green' : savings < 0 ? 'red' : 'default';
                                 return (
-                                    <Tag color={color}>
-                                        {savings > 0 ? '+' : ''}{savings}%
+                                    <Tag color={color} className="font-medium">
+                                        {savings > 0 ? '↓' : savings < 0 ? '↑' : ''} {Math.abs(savings)}%
                                     </Tag>
                                 );
                             },
@@ -314,15 +409,28 @@ export const SourcingRecommendations: React.FC<Props> = ({
                                     strokeColor={conf >= 60 ? '#10b981' : conf >= 40 ? '#f59e0b' : '#ef4444'}
                                 />
                             ),
-                            width: 100,
+                            width: 80,
+                            responsive: ['lg'],
                         },
                         {
                             title: 'Suppliers',
-                            dataIndex: 'topSuppliers',
-                            render: (suppliers: SourcingAlternative['topSuppliers']) => (
-                                <Badge count={suppliers.length} size="small" />
+                            key: 'suppliers',
+                            render: (_: unknown, record: SourcingAlternative) => (
+                                <Button 
+                                    type="link" 
+                                    size="small"
+                                    className="p-0 h-auto flex items-center gap-1"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onExploreSuppliers?.(record.countryCode, htsCode);
+                                    }}
+                                >
+                                    <Users size={14} />
+                                    <span>{record.topSuppliers.length}</span>
+                                    <ArrowRight size={12} />
+                                </Button>
                             ),
-                            width: 80,
+                            width: 90,
                         },
                     ]}
                 />
@@ -340,6 +448,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
                             </span>
                         }
                         size="small"
+                        className="h-full"
                     >
                         <ul className="list-disc list-inside space-y-2 text-sm">
                             {aiInsights.recommendations.map((rec, i) => (
@@ -359,6 +468,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
                             </span>
                         }
                         size="small"
+                        className="h-full"
                     >
                         <ul className="list-disc list-inside space-y-2 text-sm">
                             {aiInsights.risks.map((risk, i) => (
@@ -395,7 +505,12 @@ export const SourcingRecommendations: React.FC<Props> = ({
                     key: alt.countryCode,
                     label: (
                         <div className="flex justify-between items-center w-full pr-4">
-                            <span className="font-medium">{alt.country}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium">{alt.country}</span>
+                                {alt.countryCode === currentCountry && (
+                                    <Tag color="orange" className="text-xs m-0">CURRENT</Tag>
+                                )}
+                            </div>
                             <span className="text-slate-500">${alt.landedCost.toFixed(2)}/unit</span>
                         </div>
                     ),
@@ -430,15 +545,26 @@ export const SourcingRecommendations: React.FC<Props> = ({
                                 </div>
                             )}
                             
-                            {/* Top Suppliers */}
+                            {/* Top Suppliers with CTA */}
                             {alt.topSuppliers.length > 0 && (
                                 <div>
-                                    <Text strong className="block mb-2">Top Suppliers</Text>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <Text strong>Top Suppliers</Text>
+                                        <Button 
+                                            type="link" 
+                                            size="small"
+                                            onClick={() => onExploreSuppliers?.(alt.countryCode, htsCode)}
+                                            className="p-0 h-auto"
+                                        >
+                                            View All <ArrowRight size={14} className="ml-1" />
+                                        </Button>
+                                    </div>
                                     <div className="space-y-2">
-                                        {alt.topSuppliers.map((s, i) => (
+                                        {alt.topSuppliers.slice(0, 3).map((s, i) => (
                                             <div 
                                                 key={i} 
-                                                className="flex justify-between items-center p-2 bg-slate-50 rounded"
+                                                className="flex justify-between items-center p-2 bg-slate-50 rounded cursor-pointer hover:bg-slate-100"
+                                                onClick={() => onSupplierSelect?.(s.name)}
                                             >
                                                 <div>
                                                     <Text className="block">{s.name}</Text>
@@ -465,6 +591,7 @@ export const SourcingRecommendations: React.FC<Props> = ({
                         </div>
                     ),
                 }))}
+                style={{ marginBottom: 24 }}
             />
             
             {/* Data Note */}

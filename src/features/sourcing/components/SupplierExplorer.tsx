@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Input, Card, Tag, Button, Avatar, Typography, Badge, Row, Col, Select, Skeleton, Empty, Drawer, Descriptions, Statistic } from 'antd';
-import { Search, MapPin, Building2, Zap, Filter, CheckCircle, Star, Clock, DollarSign, Globe, X } from 'lucide-react';
+import { Input, Card, Tag, Button, Avatar, Typography, Row, Col, Select, Skeleton, Empty, Drawer, Descriptions, Statistic, Alert } from 'antd';
+import { Search, MapPin, Building2, CheckCircle, Star, ArrowLeft } from 'lucide-react';
+import { getCountryName, COUNTRIES } from '@/components/shared';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -38,12 +39,28 @@ interface CountryFilter {
     count: number;
 }
 
-export const SupplierExplorer: React.FC = () => {
+interface SupplierExplorerProps {
+    /** Pre-populate country filter */
+    initialCountry?: string;
+    /** Pre-populate search with HTS code */
+    initialHtsCode?: string;
+    /** Show back button to return to analysis */
+    onBack?: () => void;
+    /** Context label for filtered view */
+    filterContext?: string;
+}
+
+export const SupplierExplorer: React.FC<SupplierExplorerProps> = ({
+    initialCountry,
+    initialHtsCode,
+    onBack,
+    filterContext,
+}) => {
     const [loading, setLoading] = useState(true);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [total, setTotal] = useState(0);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [countryFilter, setCountryFilter] = useState<string | undefined>();
+    const [searchTerm, setSearchTerm] = useState(initialHtsCode || '');
+    const [countryFilter, setCountryFilter] = useState<string | undefined>(initialCountry);
     const [countries, setCountries] = useState<CountryFilter[]>([]);
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
@@ -70,12 +87,28 @@ export const SupplierExplorer: React.FC = () => {
         }
     };
 
+    // Fetch on mount and when filters change
     useEffect(() => {
         fetchSuppliers();
     }, [countryFilter]);
+    
+    // Also fetch when initial props change
+    useEffect(() => {
+        if (initialCountry !== undefined) {
+            setCountryFilter(initialCountry);
+        }
+        if (initialHtsCode !== undefined) {
+            setSearchTerm(initialHtsCode);
+        }
+    }, [initialCountry, initialHtsCode]);
 
     const handleSearch = () => {
         fetchSuppliers();
+    };
+    
+    const handleClearFilters = () => {
+        setCountryFilter(undefined);
+        setSearchTerm('');
     };
 
     const getTierLabel = (tier: string) => {
@@ -95,9 +128,42 @@ export const SupplierExplorer: React.FC = () => {
             default: return { label: 'Unknown', color: 'default' };
         }
     };
+    
+    const isFiltered = !!initialCountry || !!initialHtsCode;
 
     return (
         <div className="space-y-6">
+            {/* Back Button + Filter Context */}
+            {isFiltered && (
+                <Alert
+                    type="info"
+                    message={
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {onBack && (
+                                    <Button 
+                                        type="text" 
+                                        icon={<ArrowLeft size={16} />} 
+                                        onClick={onBack}
+                                        className="p-0 h-auto mr-2"
+                                    >
+                                        Back to Analysis
+                                    </Button>
+                                )}
+                                <span>
+                                    Showing suppliers in <strong>{getCountryName(initialCountry || '')}</strong>
+                                    {initialHtsCode && <> for HTS <strong>{initialHtsCode}</strong></>}
+                                </span>
+                            </div>
+                            <Button type="link" size="small" onClick={handleClearFilters}>
+                                Clear Filters
+                            </Button>
+                        </div>
+                    }
+                    className="mb-4"
+                />
+            )}
+            
             {/* Hero Search Area */}
             <div className="bg-gradient-to-br from-teal-50 to-emerald-50 p-8 rounded-2xl border border-teal-100">
                 <div className="max-w-2xl mx-auto">
@@ -122,10 +188,17 @@ export const SupplierExplorer: React.FC = () => {
                             style={{ width: 180 }}
                             value={countryFilter}
                             onChange={setCountryFilter}
-                            options={countries.map(c => ({
-                                value: c.code,
-                                label: `${c.name} (${c.count})`,
-                            }))}
+                            options={
+                                countries.length > 0
+                                    ? countries.map(c => ({
+                                        value: c.code,
+                                        label: `${c.name} (${c.count})`,
+                                    }))
+                                    : COUNTRIES.map(c => ({
+                                        value: c.value,
+                                        label: c.label,
+                                    }))
+                            }
                         />
                         <Button 
                             type="primary" 
@@ -137,14 +210,16 @@ export const SupplierExplorer: React.FC = () => {
                             Search
                         </Button>
                     </div>
-                    <div className="mt-3 text-center">
-                        <Text type="secondary" className="text-xs">
-                            Popular: 
-                            <Tag className="ml-2 cursor-pointer" onClick={() => { setSearchTerm('Cotton'); handleSearch(); }}>Cotton</Tag>
-                            <Tag className="cursor-pointer" onClick={() => { setSearchTerm('Electronics'); handleSearch(); }}>Electronics</Tag>
-                            <Tag className="cursor-pointer" onClick={() => { setSearchTerm('Leather'); handleSearch(); }}>Leather</Tag>
-                        </Text>
-                    </div>
+                    {!isFiltered && (
+                        <div className="mt-3 text-center">
+                            <Text type="secondary" className="text-xs">
+                                Popular: 
+                                <Tag className="ml-2 cursor-pointer" onClick={() => { setSearchTerm('Cotton'); handleSearch(); }}>Cotton</Tag>
+                                <Tag className="cursor-pointer" onClick={() => { setSearchTerm('Electronics'); handleSearch(); }}>Electronics</Tag>
+                                <Tag className="cursor-pointer" onClick={() => { setSearchTerm('Leather'); handleSearch(); }}>Leather</Tag>
+                            </Text>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -166,6 +241,11 @@ export const SupplierExplorer: React.FC = () => {
                             <Text type="secondary" className="text-xs">
                                 Try adjusting your search criteria
                             </Text>
+                            {isFiltered && (
+                                <Button type="link" onClick={handleClearFilters} className="mt-2">
+                                    Clear all filters
+                                </Button>
+                            )}
                         </div>
                     }
                 />
@@ -341,5 +421,3 @@ export const SupplierExplorer: React.FC = () => {
         </div>
     );
 };
-
-
