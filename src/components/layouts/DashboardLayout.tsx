@@ -35,9 +35,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             label: 'Overview',
         },
         {
-            key: '/dashboard/classifications',
+            key: '/dashboard/classify',
             icon: <ShieldCheck size={18} />,
-            label: 'Classifications',
+            label: 'Classify',
+        },
+        {
+            key: '/dashboard/classifications',
+            icon: <Search size={18} />,
+            label: 'History',
         },
         {
             key: '/dashboard/suppliers',

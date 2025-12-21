@@ -57,6 +57,30 @@ export interface ProductCategoryMapping {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const HTS_CHAPTERS: Record<string, ChapterInfo> = {
+    '71': {
+        chapter: '71',
+        section: 14,
+        title: 'Natural or Cultured Pearls, Precious Stones, Precious Metals; Imitation Jewelry',
+        description: 'Precious metals, jewelry, imitation jewelry, and bijouterie',
+        commonProducts: [
+            'gold jewelry', 'silver jewelry', 'diamonds', 'pearls',
+            'costume jewelry', 'imitation jewelry', 'bijouterie',
+            'fashion rings', 'necklaces', 'bracelets', 'earrings',
+            'finger rings', 'toe rings', 'body jewelry', 'fashion accessories'
+        ],
+        keyMaterials: [
+            'gold', 'silver', 'platinum', 'base metal (plated)',
+            'plastic (imitation jewelry)', 'rubber (fashion jewelry)',
+            'glass (imitation gems)', 'any material (fashion/costume jewelry)'
+        ],
+        notes: [
+            '7113: Jewelry of precious metal',
+            '7117: IMITATION JEWELRY - includes fashion jewelry of ANY material',
+            '7117.19: Of base metal (plated or not)',
+            '7117.90: OTHER imitation jewelry - includes plastic, rubber, textile jewelry',
+            'IMPORTANT: Fashion rings, bracelets, etc. worn as accessories = 7117, not 39/40'
+        ]
+    },
     '39': {
         chapter: '39',
         section: 7,
@@ -297,6 +321,39 @@ export const HTS_CHAPTERS: Record<string, ChapterInfo> = {
 
 export const PRODUCT_CATEGORY_MAPPINGS: ProductCategoryMapping[] = [
     // ───────────────────────────────────────────────────────────────────
+    // JEWELRY / ACCESSORIES (worn on the body as adornment)
+    // ───────────────────────────────────────────────────────────────────
+    {
+        category: 'Jewelry / Fashion Accessories',
+        keywords: [
+            'ring', 'finger ring', 'toe ring', 'necklace', 'bracelet', 
+            'earring', 'anklet', 'pendant', 'charm', 'bangle', 'cuff',
+            'fashion jewelry', 'costume jewelry', 'imitation jewelry',
+            'body jewelry', 'bijouterie', 'fashion accessory'
+        ],
+        primaryChapters: ['71'], // Chapter 71 for jewelry
+        materialOverrides: {
+            'gold': ['71'],       // Precious metal jewelry
+            'silver': ['71'],     // Precious metal jewelry
+            'platinum': ['71'],   // Precious metal jewelry
+            'rubber': ['71'],     // Fashion/imitation jewelry of rubber
+            'plastic': ['71'],    // Fashion/imitation jewelry of plastic
+            'silicone': ['71'],   // Fashion/imitation jewelry of silicone
+            'base metal': ['71'], // Imitation jewelry of base metal
+            'textile': ['71'],    // Textile jewelry/accessories
+            'leather': ['71'],    // Leather bracelets, etc.
+        },
+        notes: [
+            'IMPORTANT: Items worn on the body as adornment → Chapter 71',
+            '7113: Jewelry of precious metal (gold, silver, platinum)',
+            '7117: IMITATION JEWELRY - covers fashion jewelry of ANY material',
+            '7117.90: Other imitation jewelry (rubber, plastic, textile, etc.)',
+            'Rubber finger rings worn as accessories → 7117.90, NOT 4016',
+            'Key: Ask "Is this worn as jewelry/adornment?" If yes → 71'
+        ]
+    },
+
+    // ───────────────────────────────────────────────────────────────────
     // HEARING PROTECTION / EAR PLUGS
     // ───────────────────────────────────────────────────────────────────
     {
@@ -503,6 +560,41 @@ export interface HeadingMapping {
 }
 
 export const HEADING_MAPPINGS: HeadingMapping[] = [
+    // Chapter 71 headings - JEWELRY
+    {
+        heading: '7113',
+        description: 'Articles of jewelry and parts thereof, of precious metal',
+        matchPatterns: [
+            'gold ring', 'silver ring', 'platinum ring', 'gold necklace',
+            'gold bracelet', 'silver bracelet', 'precious metal jewelry'
+        ],
+        materialConditions: ['gold', 'silver', 'platinum', 'precious metal'],
+        notes: [
+            '7113.11: Silver jewelry',
+            '7113.19: Other precious metal jewelry',
+            '7113.20: Of base metal clad with precious metal'
+        ]
+    },
+    {
+        heading: '7117',
+        description: 'Imitation jewelry',
+        matchPatterns: [
+            'finger ring', 'toe ring', 'fashion ring', 'costume ring',
+            'rubber ring worn', 'silicone ring', 'plastic ring',
+            'bracelet', 'necklace', 'earring', 'fashion jewelry',
+            'costume jewelry', 'imitation jewelry', 'bijouterie',
+            'bangle', 'anklet', 'body jewelry', 'fashion accessory'
+        ],
+        materialConditions: ['rubber', 'plastic', 'silicone', 'base metal', 'textile', 'leather', 'glass'],
+        notes: [
+            '7117.11: Cuff links and studs',
+            '7117.19: Other imitation jewelry of base metal',
+            '7117.90: OTHER imitation jewelry - CATCH-ALL for rubber, plastic, textile jewelry',
+            'IMPORTANT: Finger rings made of rubber/plastic/silicone for wearing → 7117.90',
+            'NOT 4016 (mechanical rubber articles) or 3926 (plastic articles)'
+        ]
+    },
+
     // Chapter 39 headings
     {
         heading: '3926',
