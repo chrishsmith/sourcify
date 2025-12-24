@@ -945,3 +945,151 @@ enum HtsMatchType {
   prefix            // Matches HTS codes starting with this
   chapter           // Matches entire chapter
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HTS CODE DATABASE
+// Complete US Harmonized Tariff Schedule stored locally for fast queries
+// Source: USITC Official Excel Publication (https://hts.usitc.gov/)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model HtsCode {
+  id              String   @id @default(cuid())
+  
+  // Code structure
+  code            String   @unique  // "6109100012" (10 digits max, no dots)
+  codeFormatted   String             // "6109.10.00.12" (with dots for display)
+  level           HtsLevel           // chapter, heading, subheading, tariff_line, statistical
+  
+  // Hierarchy relationships
+  parentCode      String?            // "61091000" for "6109100012"
+  chapter         String             // "61" (first 2 digits)
+  heading         String?            // "6109" (first 4 digits)
+  subheading      String?            // "610910" (first 6 digits)
+  
+  // Description
+  description     String   @db.Text
+  indent          Int      @default(0)  // Indentation level in HTS (0-5)
+  
+  // Duty rates (as strings from HTS - can be complex)
+  generalRate     String?            // "16.5%" or "Free" or "2.4¢/kg + 5.6%"
+  specialRates    String?  @db.Text  // "Free (AU, BH, CL, CO, IL, JO, KR...)"
+  column2Rate     String?            // Rate for non-NTR countries
+  units           String?            // "doz" or "kg" or "No." or "doz/kg"
+  
+  // Parsed rates for calculations
+  adValoremRate   Float?             // 16.5 (just the percentage part)
+  specificRate    Float?             // 2.4 (cents/amount per unit)
+  specificUnit    String?            // "kg", "doz", "No.", etc.
+  
+  // AI-extracted metadata (populated on import)
+  keywords        String[]           // ["cotton", "t-shirt", "knit", "apparel"]
+  productCategory String?            // "apparel", "electronics", "kitchenware"
+  
+  // Parent indent groupings (captured from HTS Excel structure)
+  // e.g., ["Men's or boys'", "T-shirts"] or ["Kitchen and table implements"]
+  parentGroupings String[]           // Indent text that applies to this code
+  
+  // Effective dates
+  effectiveDate   DateTime?
+  expirationDate  DateTime?
+  
+  // Sync metadata
+  lastSynced      DateTime @default(now())
+  sourceRevision  String?            // "2025 HTSA Rev 1"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([chapter])
+  @@index([heading])
+  @@index([subheading])
+  @@index([parentCode])
+  @@index([level])
+  @@index([keywords], type: Gin)
+  @@map("hts_code")
+}
+
+enum HtsLevel {
+  chapter         // 2-digit: "61"
+  heading         // 4-digit: "6109"
+  subheading      // 6-digit: "610910"
+  tariff_line     // 8-digit: "61091000"
+  statistical     // 10-digit: "6109100012"
+}
+
+// HTS Schedule Revision Tracking
+// Tracks what version of the HTS we have vs what's available
+model HtsRevision {
+  id              String   @id @default(cuid())
+  
+  // Revision identification
+  revisionId      String   @unique  // "2025-basic-rev1" or "2025.1"
+  year            Int                // 2025
+  revisionNumber  Int      @default(1)  // 1, 2, 3 for mid-year revisions
+  
+  // Source info
+  sourceUrl       String?            // USITC download URL
+  publishedDate   DateTime?          // When USITC published this revision
+  effectiveDate   DateTime?          // When it takes legal effect
+  
+  // Our sync status
+  status          RevisionStatus @default(available)
+  syncedAt        DateTime?          // When we imported this revision
+  totalCodes      Int?               // How many codes in this revision
+  
+  // Notes
+  changesSummary  String?  @db.Text  // What changed from previous revision
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([year, revisionNumber])
+  @@index([status])
+  @@map("hts_revision")
+}
+
+enum RevisionStatus {
+  available       // We know about it, haven't synced
+  syncing         // Currently importing
+  current         // This is what we have loaded
+  superseded      // We've moved to a newer revision
+}
+
+// Metadata for HTS sync operations
+model HtsSyncLog {
+  id              String   @id @default(cuid())
+  
+  // Sync details
+  sourceFile      String             // "hts_2025_rev1.xlsx"
+  sourceRevision  String             // "2025 HTSA Rev 1"
+  sourceUrl       String?            // Where we downloaded from
+  revisionId      String?            // Link to HtsRevision
+  
+  // Results
+  status          SyncStatus
+  totalRecords    Int       @default(0)
+  recordsCreated  Int       @default(0)
+  recordsUpdated  Int       @default(0)
+  recordsExpired  Int       @default(0)
+  errors          Json?              // Array of parsing errors
+  
+  // Timing
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([revisionId])
+  @@map("hts_sync_log")
+}
+
+enum SyncStatus {
+  pending
+  running
+  completed
+  failed
+}

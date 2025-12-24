@@ -12,7 +12,8 @@
  * @module ambiguityDetector
  */
 
-import { searchHTSCodes, getHTSHierarchy } from '@/services/usitc';
+import { searchHTSCodes } from '@/services/usitc';
+import { getHTSHierarchy } from '@/services/htsHierarchy';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -239,9 +240,18 @@ export async function analyzeAmbiguity(
     const possibleCodes = matchCodesToInput(allCodes, decisionVariables, productDescription, material, unitValue);
     
     // Step 4: Identify which questions still need answers
-    const questionsToAsk = decisionVariables.filter(v => 
-        v.detectedValue === undefined || v.confidence < 70
-    );
+    // IMPORTANT: Show ALL questions that have multiple options, even if we detected a value
+    // The UI will pre-select the detected answer but still allow the user to change it
+    // This helps users see all their options and catches edge cases
+    const questionsToAsk = decisionVariables.filter(v => {
+        // Always show questions with multiple options
+        if (v.options && v.options.length >= 2) return true;
+        // Show value questions if no value detected
+        if (v.type === 'value' && !v.detectedValue) return true;
+        // Skip if we have very high confidence from explicit user input
+        if (v.detectedSource === 'user_input' && v.confidence >= 95) return false;
+        return true;
+    });
     
     // Step 5: Calculate duty range
     const dutyRange = calculateDutyRange(possibleCodes, countryOfOrigin);
@@ -345,10 +355,8 @@ function extractDecisionVariables(
     console.log('[Ambiguity] Grouped differentiators:', Object.keys(groupedDiffs));
     
     // Step 3: For each category with multiple options, create a decision variable
-    // Skip "other" category - it's usually noise
+    // Process ALL categories including "other" - questions should be generated dynamically from HTS data
     for (const [category, phrases] of Object.entries(groupedDiffs)) {
-        if (category === 'other') continue; // Skip uncategorized noise
-        
         // Filter to only meaningful phrases (not noise)
         const meaningfulPhrases = phrases.filter(p => isMeaningfulDifferentiator(p.phrase));
         if (meaningfulPhrases.length === 0) continue;
@@ -825,11 +833,25 @@ function createDecisionVariable(
         unitValue
     );
     
+    // Generate a meaningful question - use config if available, otherwise derive from the options
+    let question = categoryConfig?.question;
+    if (!question) {
+        // For uncategorized ("other") phrases, generate question from the actual options
+        if (options.length === 2 && options.some(o => o.value === 'other')) {
+            // Binary choice - "Is it X or something else?"
+            const specificOption = options.find(o => o.value !== 'other');
+            question = `Is this ${specificOption?.label.toLowerCase()}?`;
+        } else {
+            // Multiple options - "Which applies to your product?"
+            question = 'Which of these applies to your product?';
+        }
+    }
+    
     return {
         id: `${category}_decision`,
-        name: categoryName,
+        name: categoryName === 'Other' ? 'Product Specification' : categoryName,
         type: 'select',
-        question: categoryConfig?.question || `What is the ${categoryName.toLowerCase()}?`,
+        question,
         options,
         detectedValue,
         detectedSource,
@@ -1276,13 +1298,5 @@ function createUnambiguousResult(
     };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-export {
-    analyzeAmbiguity,
-    parseDutyRate,
-    DIMENSION_CATEGORIES,
-};
+// parseDutyRate and DIMENSION_CATEGORIES are exported inline above
 

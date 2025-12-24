@@ -1,15 +1,52 @@
 # Sourcify Development Progress
 
-> **Last Updated:** December 20, 2025  
-> **Current Phase:** Phase 2 - Trade Intelligence  
-> **Current Sprint:** Sprint 3
+> **Last Updated:** December 24, 2025  
+> **Current Phase:** Phase 2.5 - HTS Classification System  
+> **Current Sprint:** Sprint 4
 
 ---
 
-## 🎯 Current Sprint: Sprint 3
+## 🎯 Current Sprint: Sprint 4
+
+**Theme:** HTS Classification System - Local Database  
+**Dates:** Dec 23 - Dec 30, 2025  
+**Goal:** Build intelligent HTS classification with local database
+
+> **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION.md`](./ARCHITECTURE_HTS_CLASSIFICATION.md) for full architecture.
+
+### Completed This Sprint (Dec 23-24, 2025)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 4.1 HTS Database Schema | ✅ Complete | `HtsCode`, `HtsSyncLog`, `HtsRevision` models |
+| 4.2 USITC Excel Parser | ✅ Complete | `htsImport.ts` - parses official HTS xlsx |
+| 4.3 HTS Query Service | ✅ Complete | `htsDatabase.ts` - hierarchy, search, siblings |
+| 4.4 Smart Revision Checking | ✅ Complete | Only syncs when USITC publishes new version |
+| 4.5 API Endpoints | ✅ Complete | `/api/hts/sync`, `/api/hts/search`, `/api/hts/[code]` |
+| 4.6 Initial Data Load | ✅ Complete | **30,115 HTS codes imported** |
+| 4.7 Dynamic Search Variations | ✅ Complete | "tshirt" finds "t-shirt" automatically |
+
+### Completed This Sprint (Dec 24, 2025 - V5 Classification System)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 4.8 Inference Engine V5 | ✅ Complete | `inferenceEngineV5.ts` - extracts stated/inferred/assumed |
+| 4.9 Classification Engine V5 | ✅ Complete | `classificationEngineV5.ts` - uses local HTS DB |
+| 4.10 Justification Generator | ✅ Complete | `justificationGenerator.ts` - Zonos-style explanations |
+| 4.11 V5 API Endpoint | ✅ Complete | `POST /api/classify-v5` |
+| 4.12 V5 UI Component | ✅ Complete | `ClassificationV5.tsx` - default on classify page |
+| 4.13 Human-readable Justification | ✅ Complete | "designed for men" not "designed for men's" |
+| 4.14 Button State UX | ✅ Complete | Shows "Clear & Start Over" / "Re-classify" after first run |
+| 4.15 Hierarchy UI Enhancement | ✅ Complete | Shows all descriptions, tree-style arrows |
+| 4.16 Parent Groupings Capture | ✅ Complete | Captures HTS indent rows like "Men's or boys':" |
+| 4.17 Inline Grouping Display | ✅ Complete | Shows `[Men's or boys'] T-shirts, all white...` |
+
+---
+
+## 📋 Previous Sprint: Sprint 3 (Complete ✅)
 
 **Theme:** Tariff Monitoring UI  
-**Dates:** Dec 20 - Dec 27, 2025  
+**Dates:** Dec 20 - Dec 23, 2025  
 **Goal:** Build the Tariff Monitoring UI (backend already complete)
 
 > **📐 Design Doc:** See [`ARCHITECTURE_TARIFF_MONITORING.md`](./ARCHITECTURE_TARIFF_MONITORING.md) for full wireframes and specs.
@@ -120,7 +157,7 @@
 
 **Phase 1.5 Overall: 100% ✅**
 
-### Phase 2: Trade Intelligence ~95%
+### Phase 2: Trade Intelligence ✅ 95%
 
 | Task | Status | Completion |
 |------|--------|------------|
@@ -133,6 +170,20 @@
 | 2.7 Data Sources Integration | ✅ | 100% |
 
 **Phase 2 Overall: 95%**
+
+### Phase 2.5: HTS Classification System ✅ 100%
+
+| Task | Status | Completion |
+|------|--------|------------|
+| Local HTS Database | ✅ | 100% - 30,115 codes imported |
+| HTS Query APIs | ✅ | 100% - search, hierarchy, siblings |
+| Smart Revision Checking | ✅ | 100% - Only sync when USITC updates |
+| Dynamic Search Variations | ✅ | 100% - Handles hyphen/space variants |
+| Inference Engine V5 | ✅ | 100% - Extracts stated/inferred/assumed |
+| Classification Engine V5 | ✅ | 100% - Uses local HTS DB |
+| Justification Generator | ✅ | 100% - Zonos-style explanations |
+
+**Phase 2.5 Overall: 100% ✅**
 
 ---
 
@@ -157,6 +208,14 @@
 - [x] **Dec 20, 2025** - Classification Path UI redesigned - clean lineage + expandable siblings 🎨
 - [x] **Dec 20, 2025** - Tariff Monitoring UI complete - entry points, drawer, bulk actions 🔔
 - [x] **Dec 20, 2025** - Classification API migrated to registry - consistent rates everywhere! 🔗
+- [x] **Dec 23, 2025** - **Local HTS Database LIVE** - 30,115 codes from USITC Excel 📦
+- [x] **Dec 23, 2025** - HTS Search API with dynamic variation handling (tshirt → t-shirt) 🔍
+- [x] **Dec 23, 2025** - Smart revision checking - only syncs when USITC updates 🧠
+- [x] **Dec 23, 2025** - **Classification Engine V5** - "Infer first, ask later" with transparency 🎯
+- [x] **Dec 23, 2025** - **Justification Generator** - Zonos-style explanations 📝
+- [x] **Dec 24, 2025** - **V5 UI Complete** - Full classification UI with transparency panel 🎨
+- [x] **Dec 24, 2025** - **HTS Hierarchy UI** - Tree-view with all descriptions + inline groupings 🌳
+- [x] **Dec 24, 2025** - **Parent Groupings** - Captures "Men's or boys':", "Other:" from HTS indent structure 📋
 - [ ] Automated daily sync configured
 - [ ] First paying customer
 
@@ -173,6 +232,18 @@ The tariff registry **must be synced** to stay accurate. Until automated:
 curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 ```
 
+### HTS Database Sync
+
+The HTS database uses **smart revision checking** - only syncs when USITC publishes new version:
+
+```bash
+# Check status (GET)
+curl http://localhost:3000/api/hts/sync
+
+# Force re-import (POST)
+curl -X POST "http://localhost:3000/api/hts/sync?force=true"
+```
+
 ### FTA ≠ Duty Free
 
 As of April 2025:
@@ -184,17 +255,18 @@ As of April 2025:
 
 ## 🗃️ Data Sources Status
 
-### Active (7)
+### Active (8)
 
-| Source | Status | Last Sync |
-|--------|--------|-----------|
-| ISO 3166-1 Countries | ✅ | Dec 20, 2025 |
-| USITC HTS API | ✅ | Dec 20, 2025 |
-| USITC DataWeb | ✅ | Dec 20, 2025 |
-| Federal Register | ✅ | Dec 20, 2025 |
-| USTR FTA List | ✅ | Dec 20, 2025 |
-| OFAC Sanctions | ✅ | Dec 20, 2025 |
-| AD/CVD Orders | ✅ | Dec 20, 2025 |
+| Source | Status | Last Sync | Records |
+|--------|--------|-----------|---------|
+| **USITC HTS Excel** | ✅ | Dec 23, 2025 | **30,115 codes** |
+| ISO 3166-1 Countries | ✅ | Dec 20, 2025 | 199 countries |
+| USITC HTS API | ✅ | Dec 20, 2025 | Chapter 99 rates |
+| USITC DataWeb | ✅ | Dec 20, 2025 | Import statistics |
+| Federal Register | ✅ | Dec 20, 2025 | Policy changes |
+| USTR FTA List | ✅ | Dec 20, 2025 | 20 FTA partners |
+| OFAC Sanctions | ✅ | Dec 20, 2025 | 7 sanctioned |
+| AD/CVD Orders | ✅ | Dec 20, 2025 | High-risk chapters |
 
 ### Planned (6)
 

@@ -378,3 +378,5 @@ export const TariffIntelligenceCard: React.FC<Props> = ({ className }) => {
 
 export default TariffIntelligenceCard;
 
+
+

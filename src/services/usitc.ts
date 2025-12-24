@@ -1,6 +1,9 @@
 // USITC HTS API Service
 // Official API for Harmonized Tariff Schedule lookups and duty rates
-// Base URL: https://hts.usitc.gov/reststop
+// 
+// Two APIs available:
+// 1. HTS Search API (hts.usitc.gov/reststop) - Free, no auth, but may be unavailable
+// 2. DataWeb API (datawebws.usitc.gov/dataweb) - Requires API key, more reliable
 
 export interface HTSSearchResult {
     htsno: string;          // HTS number (e.g., "8471.30.01")
@@ -20,34 +23,306 @@ export interface HTSValidationResult {
     error?: string;
 }
 
+// Primary: HTS Search API (free but may be down during gov shutdowns)
 const HTS_API_BASE = 'https://hts.usitc.gov/reststop';
+
+// Fallback: DataWeb API (requires USITC_DATAWEB_API_KEY in .env.local)
+const DATAWEB_API_BASE = 'https://datawebws.usitc.gov/dataweb';
 
 /**
  * Search for HTS codes by keyword
  * Returns up to 100 matching tariff articles
+ * 
+ * Strategy:
+ * 1. Try HTS Search API first (free, no auth)
+ * 2. Fall back to DataWeb API if HTS Search fails (requires API key)
  */
 export async function searchHTSCodes(query: string): Promise<HTSSearchResult[]> {
+    // Try HTS Search API first
+    const htsResults = await searchHTSCodesViaHTS(query);
+    if (htsResults.length > 0) {
+        return htsResults;
+    }
+    
+    // Fall back to DataWeb API
+    console.log('[USITC] HTS Search failed, trying DataWeb API...');
+    const dataWebResults = await searchHTSCodesViaDataWeb(query);
+    return dataWebResults;
+}
+
+/**
+ * Search via HTS Search API (hts.usitc.gov)
+ */
+async function searchHTSCodesViaHTS(query: string): Promise<HTSSearchResult[]> {
     try {
-        const response = await fetch(
-            `${HTS_API_BASE}/search?keyword=${encodeURIComponent(query)}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                },
-            }
-        );
+        const url = `${HTS_API_BASE}/search?keyword=${encodeURIComponent(query)}`;
+        console.log(`[USITC-HTS] Searching: ${url}`);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Sourcify/1.0 (HTS Classification Service)',
+            },
+            cache: 'no-store',
+        });
 
         if (!response.ok) {
-            throw new Error(`HTS API error: ${response.status}`);
+            console.error(`[USITC-HTS] HTTP ${response.status} for query: ${query}`);
+            return [];
         }
 
         const data = await response.json();
+        console.log(`[USITC-HTS] Found ${data?.length || 0} results for: ${query}`);
         return data as HTSSearchResult[];
     } catch (error) {
-        console.error('HTS search error:', error);
+        console.error('[USITC-HTS] Search error:', error);
         return [];
     }
+}
+
+/**
+ * Search via DataWeb API (datawebws.usitc.gov)
+ * Requires USITC_DATAWEB_API_KEY environment variable
+ */
+async function searchHTSCodesViaDataWeb(query: string): Promise<HTSSearchResult[]> {
+    const apiKey = process.env.USITC_DATAWEB_API_KEY;
+    
+    if (!apiKey) {
+        console.warn('[USITC-DataWeb] No API key - set USITC_DATAWEB_API_KEY in .env.local');
+        console.warn('[USITC-DataWeb] Get your key at: https://dataweb.usitc.gov/api-key');
+        return [];
+    }
+    
+    try {
+        // Use commodity tree endpoint to search for HTS codes
+        // The query might be a heading (4-digit) or keyword
+        const isHtsCode = /^\d{4,}$/.test(query.replace(/\./g, ''));
+        
+        if (isHtsCode) {
+            // Search by HTS code - use commodity tree
+            return await searchByHtsCode(query, apiKey);
+        } else {
+            // Keyword search - use description lookup with broader search
+            return await searchByKeyword(query, apiKey);
+        }
+    } catch (error) {
+        console.error('[USITC-DataWeb] Search error:', error);
+        return [];
+    }
+}
+
+/**
+ * Search DataWeb by HTS code (chapter/heading)
+ * Uses commodityDescriptionLookup endpoint which is more reliable
+ */
+async function searchByHtsCode(code: string, apiKey: string): Promise<HTSSearchResult[]> {
+    const cleanCode = code.replace(/\./g, '');
+    const chapter = cleanCode.substring(0, 2);
+    
+    console.log(`[USITC-DataWeb] Searching by code: ${code} (chapter ${chapter})`);
+    
+    try {
+        // Use commodityDescriptionLookup - more reliable than commodityTree
+        const requestBody = {
+            classificationSystem: 'HTS',
+            commodities: [cleanCode], // Pass the code as-is
+        };
+        console.log(`[USITC-DataWeb] Request body:`, JSON.stringify(requestBody));
+        
+        const response = await fetch(`${DATAWEB_API_BASE}/api/v2/commodity/commodityDescriptionLookup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
+        
+        console.log(`[USITC-DataWeb] Response status: ${response.status}`);
+        
+        const responseText = await response.text();
+        
+        // Check if we got HTML (maintenance page) instead of JSON
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+            console.error(`[USITC-DataWeb] Got HTML page instead of JSON - API may be under maintenance`);
+            return [];
+        }
+        
+        if (!response.ok) {
+            console.error(`[USITC-DataWeb] Error: ${response.status}`, responseText.substring(0, 500));
+            return [];
+        }
+        
+        const data = JSON.parse(responseText);
+        console.log(`[USITC-DataWeb] Response data keys:`, Object.keys(data || {}));
+        console.log(`[USITC-DataWeb] Response sample:`, JSON.stringify(data).substring(0, 1000));
+        return parseDataWebDescriptionLookup(data, cleanCode);
+    } catch (error) {
+        console.error('[USITC-DataWeb] Lookup fetch error:', error);
+        return [];
+    }
+}
+
+/**
+ * Parse DataWeb commodityDescriptionLookup response
+ */
+function parseDataWebDescriptionLookup(data: any, targetCode: string): HTSSearchResult[] {
+    const results: HTSSearchResult[] = [];
+    
+    try {
+        // Response format: { "6109": "T-shirts, singlets, tank tops...", ... }
+        const entries = Object.entries(data || {});
+        
+        for (const [code, description] of entries) {
+            if (typeof description === 'string') {
+                results.push({
+                    htsno: formatHtsNumber(code),
+                    description: description,
+                    general: '', // DataWeb doesn't return duty rates in this endpoint
+                    special: '',
+                    other: '',
+                    units: '',
+                    chapter: code.replace(/\./g, '').substring(0, 2),
+                    indent: 0,
+                });
+            }
+        }
+    } catch (error) {
+        console.error('[USITC-DataWeb] Parse description lookup error:', error);
+    }
+    
+    console.log(`[USITC-DataWeb] Parsed ${results.length} codes from description lookup`);
+    return results;
+}
+
+/**
+ * Search DataWeb by keyword
+ */
+async function searchByKeyword(keyword: string, apiKey: string): Promise<HTSSearchResult[]> {
+    console.log(`[USITC-DataWeb] Searching by keyword: ${keyword}`);
+    
+    try {
+        // Use validateCommoditySearch to find matching codes
+        const requestBody = {
+            classificationSystem: 'HTS',
+            searchString: keyword,
+            granularity: '6', // Start with 6-digit for broader results
+        };
+        console.log(`[USITC-DataWeb] Keyword request body:`, JSON.stringify(requestBody));
+        
+        const response = await fetch(`${DATAWEB_API_BASE}/api/v2/commodity/validateCommoditySearch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
+        
+        console.log(`[USITC-DataWeb] Keyword response status: ${response.status}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[USITC-DataWeb] Search error: ${response.status}`, errorText.substring(0, 500));
+            return [];
+        }
+        
+        const data = await response.json();
+        console.log(`[USITC-DataWeb] Keyword response keys:`, Object.keys(data || {}));
+        console.log(`[USITC-DataWeb] Keyword response sample:`, JSON.stringify(data).substring(0, 500));
+        return parseDataWebSearchResults(data);
+    } catch (error) {
+        console.error('[USITC-DataWeb] Search fetch error:', error);
+        return [];
+    }
+}
+
+/**
+ * Parse DataWeb commodity tree response into HTSSearchResult format
+ */
+function parseDataWebCommodityTree(data: any, targetCode: string): HTSSearchResult[] {
+    const results: HTSSearchResult[] = [];
+    
+    try {
+        // DataWeb returns nested structure - flatten it
+        const items = data?.options || data?.commodities || data || [];
+        
+        for (const item of items) {
+            if (item.value && item.name) {
+                const code = item.value.replace(/\./g, '');
+                // Filter to codes that match our target
+                if (code.startsWith(targetCode.substring(0, 4))) {
+                    results.push({
+                        htsno: formatHtsNumber(item.value),
+                        description: item.name || item.description || '',
+                        general: item.general || '',
+                        special: item.special || '',
+                        other: item.other || '',
+                        units: item.units || '',
+                        chapter: code.substring(0, 2),
+                        indent: item.indent || 0,
+                    });
+                }
+            }
+            
+            // Check for nested children
+            if (item.children) {
+                const childResults = parseDataWebCommodityTree({ options: item.children }, targetCode);
+                results.push(...childResults);
+            }
+        }
+    } catch (error) {
+        console.error('[USITC-DataWeb] Parse tree error:', error);
+    }
+    
+    console.log(`[USITC-DataWeb] Parsed ${results.length} codes from tree`);
+    return results;
+}
+
+/**
+ * Parse DataWeb search results into HTSSearchResult format
+ */
+function parseDataWebSearchResults(data: any): HTSSearchResult[] {
+    const results: HTSSearchResult[] = [];
+    
+    try {
+        const items = data?.commodities || data?.options || data?.results || [];
+        
+        for (const item of items) {
+            if (item.value || item.code || item.htsno) {
+                const code = item.value || item.code || item.htsno;
+                results.push({
+                    htsno: formatHtsNumber(code),
+                    description: item.name || item.description || item.label || '',
+                    general: item.general || item.dutyRate || '',
+                    special: item.special || '',
+                    other: item.other || '',
+                    units: item.units || '',
+                    chapter: code.replace(/\./g, '').substring(0, 2),
+                    indent: item.indent || 0,
+                });
+            }
+        }
+    } catch (error) {
+        console.error('[USITC-DataWeb] Parse search error:', error);
+    }
+    
+    console.log(`[USITC-DataWeb] Parsed ${results.length} codes from search`);
+    return results;
+}
+
+/**
+ * Format HTS number with dots (e.g., "6109100010" -> "6109.10.00.10")
+ */
+function formatHtsNumber(code: string): string {
+    const clean = code.replace(/\./g, '');
+    if (clean.length <= 4) return clean;
+    if (clean.length <= 6) return `${clean.substring(0, 4)}.${clean.substring(4)}`;
+    if (clean.length <= 8) return `${clean.substring(0, 4)}.${clean.substring(4, 6)}.${clean.substring(6)}`;
+    return `${clean.substring(0, 4)}.${clean.substring(4, 6)}.${clean.substring(6, 8)}.${clean.substring(8)}`;
 }
 
 /**

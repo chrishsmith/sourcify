@@ -209,3 +209,5 @@ const SiblingItem: React.FC<SiblingItemProps> = ({ sibling, compact }) => {
 
 export default ClassificationPath;
 
+
+

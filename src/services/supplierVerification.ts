@@ -493,3 +493,5 @@ export async function getVerificationDetails(supplierId: string): Promise<{
     
     return { score, badges, trustLevel, summary };
 }
+
+
