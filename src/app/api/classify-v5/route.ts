@@ -2,12 +2,21 @@
  * API: Classification Engine V5 - "Infer First, Ask Later"
  * POST /api/classify-v5
  * 
- * Full classification with transparency about what was stated vs assumed
+ * Full classification with transparency about what was stated vs assumed.
+ * Now saves to SearchHistory for persistence.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyProductV5, ClassificationV5Result } from '@/services/classificationEngineV5';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
+import { classifyProductV5, ClassificationV5Result, ClassificationV5Input } from '@/services/classificationEngineV5';
 import { generateJustification, generateQuickJustification } from '@/services/justificationGenerator';
+import { 
+  convertV5ResultToClassificationResult, 
+  convertV5InputToClassificationInput,
+  extractEffectiveRateFromV5,
+} from '@/services/classificationV5Adapter';
+import { saveSearchToHistory } from '@/services/searchHistory';
 
 /**
  * Extract intermediate HTS groupings from classification context
@@ -37,7 +46,7 @@ function extractContextPath(result: ClassificationV5Result): { groupings: string
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { description, material, use, origin, value, userAnswers } = body;
+    const { description, material, use, origin, value, userAnswers, saveToHistory = true } = body;
     
     if (!description) {
       return NextResponse.json(
@@ -48,14 +57,29 @@ export async function POST(request: NextRequest) {
     
     console.log('[Classify V5] Starting classification for:', description);
     
-    const result = await classifyProductV5({
+    // Get user session (optional - anonymous users can still classify)
+    let userId: string | undefined;
+    try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+      userId = session?.user?.id;
+    } catch {
+      // Anonymous user - continue without userId
+    }
+    
+    // Build V5 input
+    const v5Input: ClassificationV5Input = {
       description,
       material,
       use,
       origin,
       value,
       userAnswers,
-    });
+    };
+    
+    // Run classification
+    const result = await classifyProductV5(v5Input);
     
     // Generate justification
     const justification = generateJustification(result);
@@ -63,6 +87,28 @@ export async function POST(request: NextRequest) {
     
     // Extract context path for intermediate HTS groupings
     const contextPath = extractContextPath(result);
+    
+    // Save to search history (if classification was successful and saveToHistory is true)
+    let searchHistoryId: string | undefined;
+    if (saveToHistory && result.bestMatch) {
+      try {
+        // Convert to standard format for storage
+        const classificationResult = convertV5ResultToClassificationResult(result, v5Input);
+        const classificationInput = convertV5InputToClassificationInput(v5Input);
+        
+        searchHistoryId = await saveSearchToHistory(
+          classificationInput,
+          classificationResult,
+          userId,
+          { searchType: 'SINGLE' }
+        );
+        
+        console.log('[Classify V5] Saved to history:', searchHistoryId);
+      } catch (saveError) {
+        // Don't fail the request if saving fails
+        console.error('[Classify V5] Failed to save to history:', saveError);
+      }
+    }
     
     return NextResponse.json({
       success: true,
@@ -120,8 +166,17 @@ export async function POST(request: NextRequest) {
         confidence: justification.confidenceExplanation,
         caveats: justification.caveats,
         refinementSuggestions: justification.refinementSuggestions,
-        // Full text available on demand
         fullTextAvailable: true,
+      },
+      
+      // Database reference (for history, save, monitor)
+      searchHistoryId,
+      
+      // V5 raw result (for save functionality)
+      v5Result: {
+        inferenceResult: result.inferenceResult,
+        bestMatch: result.bestMatch,
+        effectiveRate: extractEffectiveRateFromV5(result),
       },
       
       // Meta

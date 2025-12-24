@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Tabs, Button, Typography, Row, Col, Modal, Upload, message, Steps, Progress } from 'antd';
-import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History } from 'lucide-react';
+import { Tabs, Button, Typography, Modal, Upload, message, Progress } from 'antd';
+import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
-import { ClassificationForm } from '@/features/compliance/components/ClassificationForm';
+import ClassificationV5 from '@/features/compliance/components/ClassificationV5';
 import { ClassificationResultDisplay } from '@/features/compliance/components/ClassificationResult';
 import { SearchHistoryPanel } from '@/features/compliance/components/SearchHistoryPanel';
 import { getClassificationById } from '@/services/classificationHistory';
@@ -99,17 +99,11 @@ export const ClassificationsPageContent = () => {
             key: '1',
             label: (
                 <span className="flex items-center gap-2">
-                    <FileSpreadsheet size={16} />
+                    <Sparkles size={16} />
                     New Classification
                 </span>
             ),
-            children: (
-                <Row justify="center">
-                    <Col xs={24} lg={16}>
-                        <ClassificationForm />
-                    </Col>
-                </Row>
-            ),
+            children: <ClassificationV5 />,
         },
         {
             key: '2',

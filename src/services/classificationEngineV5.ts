@@ -85,7 +85,7 @@ export interface ClassificationV5Result {
     heading: { code: string; description: string } | null;
     subheading: { code: string; description: string } | null;
     tariffLine: { code: string; description: string } | null;
-    statistical: { code: string; description: string } | null;
+    statistical: { code: string; description: string; parentGroupings?: string[] } | null;
   };
   
   // Alternative candidates
@@ -511,7 +511,11 @@ async function buildHierarchy(htsCode: string): Promise<ClassificationV5Result['
         result.tariffLine = { code: item.codeFormatted, description: item.description };
         break;
       case HtsLevel.statistical:
-        result.statistical = { code: item.codeFormatted, description: item.description };
+        result.statistical = { 
+          code: item.codeFormatted, 
+          description: item.description,
+          parentGroupings: item.parentGroupings || [],
+        };
         break;
     }
   }

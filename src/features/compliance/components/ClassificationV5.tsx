@@ -3,12 +3,15 @@
 import React, { useState } from 'react';
 import { 
     Card, Typography, Input, Button, Tag, Alert, Divider, 
-    Space, Tooltip, Collapse, Radio, Spin, Progress
+    Space, Tooltip, Collapse, Radio, Spin, Progress, 
+    Dropdown, message, Modal
 } from 'antd';
+import type { MenuProps } from 'antd';
 import { 
     Loader2, CheckCircle, AlertTriangle, HelpCircle, 
     Sparkles, Eye, ChevronRight, Brain,
-    HelpCircleIcon, Lightbulb
+    HelpCircleIcon, Lightbulb, Bell, Bookmark, 
+    MoreVertical, Save, ExternalLink
 } from 'lucide-react';
 
 const { Title, Text, Paragraph } = Typography;
@@ -71,6 +74,12 @@ interface Justification {
     refinementSuggestions: string[];
 }
 
+interface V5RawResult {
+    inferenceResult: unknown;
+    bestMatch: unknown;
+    effectiveRate: number | null;
+}
+
 interface APIResponse {
     success: boolean;
     classification: ClassificationResult | null;
@@ -82,19 +91,27 @@ interface APIResponse {
     alternatives: Alternative[];
     justification: Justification;
     processingTimeMs: number;
+    searchHistoryId?: string;
+    v5Result?: V5RawResult;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 
-export default function ClassificationV5() {
+interface ClassificationV5Props {
+    onSaveSuccess?: () => void;
+}
+
+export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Props = {}) {
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<APIResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showJustification, setShowJustification] = useState(false);
     const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     const handleClassify = async (answers?: Record<string, string>) => {
         if (!description.trim()) return;
@@ -141,6 +158,122 @@ export default function ClassificationV5() {
             default: return 'default';
         }
     };
+
+    // Generate a product name from the classification
+    const generateProductName = (): string => {
+        if (!result?.classification) return 'Product';
+        
+        // Try to extract from stated attributes
+        const stated = result.transparency.whatYouToldUs;
+        const productTypeStated = stated.find(s => 
+            s.toLowerCase().includes('product type') || s.toLowerCase().includes('type:')
+        );
+        
+        if (productTypeStated) {
+            const parts = productTypeStated.split(':');
+            if (parts.length > 1) {
+                const name = parts[1].trim();
+                return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+            }
+        }
+        
+        // Use first 3 words of heading description
+        if (result.hierarchy.heading?.description) {
+            const words = result.hierarchy.heading.description.split(' ').slice(0, 3);
+            return words.join(' ').replace(/[,;:]$/, '');
+        }
+        
+        return 'Product';
+    };
+
+    // Save product to library (without monitoring)
+    const handleSaveToLibrary = async (withMonitoring: boolean = false) => {
+        if (!result?.classification) return;
+        
+        setSaving(true);
+        try {
+            const productName = generateProductName();
+            
+            const response = await fetch('/api/saved-products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: productName,
+                    description: description,
+                    htsCode: result.classification.htsCode.replace(/\./g, ''),
+                    htsDescription: result.classification.description,
+                    countryOfOrigin: 'CN', // Default - user can change later
+                    baseDutyRate: result.classification.generalRate,
+                    effectiveDutyRate: result.v5Result?.effectiveRate,
+                    latestClassification: {
+                        htsCode: result.classification.htsCode,
+                        description: result.classification.description,
+                        confidence: result.classification.confidence,
+                        transparency: result.transparency,
+                        hierarchy: result.hierarchy,
+                    },
+                    isMonitored: withMonitoring,
+                    isFavorite: false,
+                }),
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to save');
+            }
+            
+            setSaved(true);
+            message.success({
+                content: (
+                    <span>
+                        <CheckCircle size={14} className="inline mr-2 text-green-500" />
+                        {withMonitoring ? 'Product saved & monitoring enabled!' : 'Product saved to library!'}
+                        <Button 
+                            type="link" 
+                            size="small"
+                            onClick={() => window.location.href = withMonitoring 
+                                ? '/dashboard/sourcing?tab=monitoring' 
+                                : '/dashboard/classifications?tab=3'}
+                            className="ml-2"
+                        >
+                            View →
+                        </Button>
+                    </span>
+                ),
+                duration: 5,
+            });
+            
+            onSaveSuccess?.();
+        } catch (err) {
+            message.error(err instanceof Error ? err.message : 'Failed to save product');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Dropdown menu for save options
+    const saveMenuItems: MenuProps['items'] = [
+        {
+            key: 'save-monitor',
+            label: (
+                <div className="flex items-center gap-2">
+                    <Bell size={14} />
+                    <span>Save & Monitor Tariffs</span>
+                </div>
+            ),
+            onClick: () => handleSaveToLibrary(true),
+        },
+        {
+            key: 'save-only',
+            label: (
+                <div className="flex items-center gap-2">
+                    <Bookmark size={14} />
+                    <span>Save to Library</span>
+                </div>
+            ),
+            onClick: () => handleSaveToLibrary(false),
+        },
+    ];
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -255,12 +388,56 @@ export default function ClassificationV5() {
                         )}
 
                         {/* Quick Justification */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <Lightbulb className="w-4 h-4 text-yellow-500" />
                                 <Text strong>Why this code?</Text>
                             </div>
                             <Text>{result.justification.quick}</Text>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                            {saved ? (
+                                <Button 
+                                    type="primary" 
+                                    icon={<CheckCircle className="w-4 h-4" />}
+                                    disabled
+                                    className="bg-green-600"
+                                >
+                                    Saved
+                                </Button>
+                            ) : (
+                                <Dropdown.Button
+                                    type="primary"
+                                    menu={{ items: saveMenuItems }}
+                                    onClick={() => handleSaveToLibrary(true)}
+                                    loading={saving}
+                                    icon={<MoreVertical className="w-4 h-4" />}
+                                    className="bg-teal-600 hover:bg-teal-700"
+                                >
+                                    <Bell className="w-4 h-4 mr-2" />
+                                    Save & Monitor
+                                </Dropdown.Button>
+                            )}
+                            
+                            <Tooltip title="View full sourcing analysis">
+                                <Button 
+                                    onClick={() => {
+                                        const hts = result.classification?.htsCode.replace(/\./g, '');
+                                        window.location.href = `/dashboard/sourcing?hts=${hts}&from=CN`;
+                                    }}
+                                    icon={<ExternalLink className="w-4 h-4" />}
+                                >
+                                    Sourcing Analysis
+                                </Button>
+                            </Tooltip>
+                            
+                            {result.searchHistoryId && (
+                                <Text type="secondary" className="text-xs ml-auto">
+                                    Saved to history
+                                </Text>
+                            )}
                         </div>
                     </Card>
 
