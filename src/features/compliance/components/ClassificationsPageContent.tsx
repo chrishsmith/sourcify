@@ -143,27 +143,30 @@ export const ClassificationsPageContent = () => {
     ];
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
+        <div className="w-full">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                 <div>
-                    <Title level={2} style={{ margin: 0 }}>Classifications</Title>
+                    <Title level={2} className="!mb-1">Classifications</Title>
                     <Text type="secondary">Classify products, view history, and manage your product library.</Text>
                 </div>
                 <Button 
                     type="primary" 
                     icon={<UploadIcon size={18} />} 
-                    className="bg-teal-600"
+                    className="bg-teal-600 w-full sm:w-auto"
                     onClick={() => setBulkModalOpen(true)}
                 >
                     Bulk Import
                 </Button>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            {/* Main Content Card */}
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 w-full">
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
                     items={items}
+                    className="w-full [&_.ant-tabs-content]:w-full [&_.ant-tabs-tabpane]:w-full"
                 />
             </div>
 

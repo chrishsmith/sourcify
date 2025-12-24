@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Menu, Button, Avatar, Dropdown, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
 import {
     LayoutDashboard,
-    ShieldCheck,
-    Search,
+    FileSearch,
+    Package,
     Settings,
     Bell,
     LogOut,
@@ -14,6 +14,8 @@ import {
     ChevronRight,
     Anchor,
     Globe,
+    Menu as MenuIcon,
+    X,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -25,8 +27,29 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
+
+    // Handle responsive breakpoint
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+            if (window.innerWidth >= 768) {
+                setMobileOpen(false);
+            }
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
 
     const menuItems: MenuProps['items'] = [
         {
@@ -35,18 +58,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             label: 'Overview',
         },
         {
-            key: '/dashboard/classify',
-            icon: <ShieldCheck size={18} />,
-            label: 'Classify',
-        },
-        {
             key: '/dashboard/classifications',
-            icon: <Search size={18} />,
-            label: 'History',
+            icon: <FileSearch size={18} />,
+            label: 'Classifications',
         },
         {
             key: '/dashboard/suppliers',
-            icon: <Search size={18} />,
+            icon: <Package size={18} />,
             label: 'Supplier Explorer',
         },
         {
@@ -64,42 +82,51 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         },
     ];
 
-    return (
-        <Layout className="min-h-screen">
-            {/* Clean White Sidebar */}
-            <Sider
-                trigger={null}
-                collapsible
-                collapsed={collapsed}
-                width={240}
-                collapsedWidth={72}
-                className="bg-white border-r border-slate-200 h-screen sticky top-0 left-0"
-                theme="light"
-            >
-                {/* Logo */}
-                <div className="h-16 flex items-center px-4 border-b border-slate-100">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-teal-600 p-2 rounded-lg">
-                            <Anchor className="w-5 h-5 text-white" />
-                        </div>
-                        {!collapsed && (
-                            <span className="font-semibold text-lg text-slate-900">Sourcify</span>
-                        )}
-                    </div>
-                </div>
+    // Get selected key - handle classify route mapping to classifications
+    const getSelectedKey = () => {
+        if (pathname.startsWith('/dashboard/classify')) {
+            return '/dashboard/classifications';
+        }
+        return pathname;
+    };
 
-                {/* Navigation */}
+    const handleMenuClick = ({ key }: { key: string }) => {
+        router.push(key);
+    };
+
+    const Logo = ({ showText = true }: { showText?: boolean }) => (
+        <div className="flex items-center gap-3">
+            <div className="bg-teal-600 p-2 rounded-lg flex-shrink-0">
+                <Anchor className="w-5 h-5 text-white" />
+            </div>
+            {showText && (
+                <span className="font-semibold text-lg text-slate-900">Sourcify</span>
+            )}
+        </div>
+    );
+
+    const SidebarContent = ({ showCollapseButton = true }: { showCollapseButton?: boolean }) => (
+        <div className="flex flex-col h-full">
+            {/* Logo */}
+            <div className="h-16 flex items-center px-4 border-b border-slate-100 flex-shrink-0">
+                <Logo showText={!collapsed || isMobile} />
+            </div>
+
+            {/* Navigation - scrollable */}
+            <div className="flex-1 overflow-y-auto py-2">
                 <Menu
                     mode="inline"
-                    selectedKeys={[pathname]}
+                    selectedKeys={[getSelectedKey()]}
                     items={menuItems}
-                    onClick={({ key }) => router.push(key)}
-                    className="border-none mt-2"
+                    onClick={handleMenuClick}
+                    className="border-none"
                     style={{ background: 'transparent' }}
                 />
+            </div>
 
-                {/* Collapse Toggle */}
-                <div className="absolute bottom-4 left-0 right-0 px-4">
+            {/* Collapse Toggle - fixed at bottom */}
+            {showCollapseButton && !isMobile && (
+                <div className="flex-shrink-0 p-4 border-t border-slate-100">
                     <Button
                         type="text"
                         onClick={() => setCollapsed(!collapsed)}
@@ -109,49 +136,153 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                         {!collapsed && <span className="ml-2">Collapse</span>}
                     </Button>
                 </div>
-            </Sider>
+            )}
+        </div>
+    );
 
-            <Layout>
-                {/* Clean Header */}
-                <Header className="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between sticky top-0 z-10">
-                    <div>
-                        <h1 className="text-lg font-semibold text-slate-900 capitalize m-0">
-                            {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
+    const UserMenu = () => (
+        <Dropdown
+            menu={{
+                items: [
+                    { key: 'profile', label: 'My Profile' },
+                    { type: 'divider' },
+                    { 
+                        key: 'logout', 
+                        icon: <LogOut size={14} />, 
+                        label: 'Sign Out', 
+                        danger: true, 
+                        onClick: () => router.push('/login') 
+                    }
+                ]
+            }}
+            trigger={['click']}
+            placement="bottomRight"
+        >
+            <div className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 py-1.5 px-2 rounded-lg transition-colors">
+                <Avatar size={32} style={{ backgroundColor: '#0D9488' }}>JD</Avatar>
+                <div className="hidden sm:block text-sm leading-tight">
+                    <div className="font-medium text-slate-900">John Doe</div>
+                    <div className="text-slate-500 text-xs">Acme Corp</div>
+                </div>
+            </div>
+        </Dropdown>
+    );
+
+    // Get page title from pathname
+    const getPageTitle = () => {
+        const segment = pathname.split('/').pop() || 'dashboard';
+        const titles: Record<string, string> = {
+            'dashboard': 'Overview',
+            'classifications': 'Classifications',
+            'classify': 'Classify Product',
+            'suppliers': 'Supplier Explorer',
+            'sourcing': 'Sourcing Intelligence',
+            'settings': 'Settings',
+        };
+        return titles[segment] || segment.replace('-', ' ');
+    };
+
+    return (
+        <Layout className="min-h-screen">
+            {/* Desktop Sidebar */}
+            {!isMobile && (
+                <Sider
+                    trigger={null}
+                    collapsible
+                    collapsed={collapsed}
+                    width={240}
+                    collapsedWidth={72}
+                    className="!bg-white border-r border-slate-200 !fixed left-0 top-0 bottom-0 z-20"
+                    theme="light"
+                    style={{ 
+                        height: '100vh',
+                        overflow: 'hidden',
+                    }}
+                >
+                    <SidebarContent />
+                </Sider>
+            )}
+
+            {/* Mobile Drawer */}
+            <Drawer
+                open={mobileOpen}
+                onClose={() => setMobileOpen(false)}
+                placement="left"
+                width={280}
+                closable={false}
+                styles={{ 
+                    body: { padding: 0 },
+                    header: { display: 'none' }
+                }}
+            >
+                <div className="h-full bg-white">
+                    {/* Mobile drawer header with close button */}
+                    <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
+                        <Logo />
+                        <Button
+                            type="text"
+                            icon={<X size={20} />}
+                            onClick={() => setMobileOpen(false)}
+                            className="text-slate-500 hover:text-slate-700"
+                        />
+                    </div>
+                    
+                    {/* Navigation */}
+                    <div className="py-2 overflow-y-auto" style={{ height: 'calc(100vh - 64px)' }}>
+                        <Menu
+                            mode="inline"
+                            selectedKeys={[getSelectedKey()]}
+                            items={menuItems}
+                            onClick={handleMenuClick}
+                            className="border-none"
+                            style={{ background: 'transparent' }}
+                        />
+                    </div>
+                </div>
+            </Drawer>
+
+            {/* Main Layout */}
+            <Layout 
+                className="transition-all duration-200"
+                style={{ 
+                    marginLeft: isMobile ? 0 : (collapsed ? 72 : 240),
+                }}
+            >
+                {/* Header */}
+                <Header 
+                    className="!bg-white border-b border-slate-200 !h-16 !px-4 md:!px-6 flex items-center justify-between sticky top-0 z-10"
+                    style={{ lineHeight: 'normal' }}
+                >
+                    <div className="flex items-center gap-3">
+                        {/* Mobile menu button */}
+                        {isMobile && (
+                            <Button
+                                type="text"
+                                icon={<MenuIcon size={20} />}
+                                onClick={() => setMobileOpen(true)}
+                                className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 -ml-2"
+                            />
+                        )}
+                        <h1 className="text-lg font-semibold text-slate-900 m-0 capitalize">
+                            {getPageTitle()}
                         </h1>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         <Button
                             type="text"
                             shape="circle"
                             icon={<Bell size={18} className="text-slate-500" />}
                             className="hover:bg-slate-100"
+                            aria-label="Notifications"
                         />
-
-                        <Dropdown
-                            menu={{
-                                items: [
-                                    { key: 'profile', label: 'My Profile' },
-                                    { type: 'divider' },
-                                    { key: 'logout', icon: <LogOut size={14} />, label: 'Sign Out', danger: true, onClick: () => router.push('/login') }
-                                ]
-                            }}
-                        >
-                            <div className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 py-1.5 px-2 rounded-lg">
-                                <Avatar size={32} style={{ backgroundColor: '#0D9488' }}>JD</Avatar>
-                                <div className="hidden md:block text-sm leading-tight">
-                                    <div className="font-medium text-slate-900">John Doe</div>
-                                    <div className="text-slate-500 text-xs">Acme Corp</div>
-                                </div>
-                            </div>
-                        </Dropdown>
+                        <UserMenu />
                     </div>
                 </Header>
 
-                <Content className="p-6 bg-slate-50">
-                    <div className="max-w-7xl mx-auto">
-                        {children}
-                    </div>
+                {/* Content */}
+                <Content className="p-4 md:p-6 lg:p-8 bg-slate-50 min-h-[calc(100vh-64px)]">
+                    {children}
                 </Content>
             </Layout>
         </Layout>

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { 
     Card, Typography, Input, Button, Tag, Alert, Divider, 
     Space, Tooltip, Collapse, Radio, Spin, Progress, 
-    Dropdown, message, Modal
+    Dropdown, message, Modal, Flex
 } from 'antd';
 import type { MenuProps } from 'antd';
 import { 
@@ -276,47 +276,31 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
     ];
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full">
             {/* Input Card */}
-            <Card className="mb-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
+            <Card className="mb-6 shadow-sm w-full" styles={{ body: { padding: '24px' } }}>
+                {/* Header */}
+                <div className="flex flex-wrap items-center gap-2 mb-6">
                     <Brain className="w-5 h-5 text-purple-500" />
                     <Title level={4} className="!mb-0">Describe Your Product</Title>
                     <Tag color="purple">V5 - Infer First</Tag>
                 </div>
                 
-                <TextArea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="e.g., white cotton t-shirt for men, short sleeve"
-                    rows={3}
-                    className="mb-4"
-                />
-                
-                {!result ? (
-                    <Button 
-                        type="primary" 
+                {/* Input */}
+                <div className="mb-6">
+                    <TextArea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="e.g., white cotton t-shirt for men, short sleeve"
+                        rows={4}
                         size="large"
-                        loading={loading}
-                        onClick={() => handleClassify()}
-                        disabled={!description.trim()}
-                        icon={<Sparkles className="w-4 h-4" />}
-                    >
-                        Classify Product
-                    </Button>
-                ) : (
-                    <div className="flex items-center gap-3">
-                        <Button 
-                            type="default" 
-                            size="large"
-                            loading={loading}
-                            onClick={() => {
-                                setResult(null);
-                                setUserAnswers({});
-                            }}
-                        >
-                            Clear & Start Over
-                        </Button>
+                        style={{ fontSize: '16px' }}
+                    />
+                </div>
+                
+                {/* Actions */}
+                <Space size="middle" wrap className="w-full">
+                    {!result ? (
                         <Button 
                             type="primary" 
                             size="large"
@@ -324,14 +308,40 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                             onClick={() => handleClassify()}
                             disabled={!description.trim()}
                             icon={<Sparkles className="w-4 h-4" />}
+                            className="min-w-[180px]"
                         >
-                            Re-classify
+                            Classify Product
                         </Button>
-                    </div>
-                )}
+                    ) : (
+                        <>
+                            <Button 
+                                type="default" 
+                                size="large"
+                                loading={loading}
+                                onClick={() => {
+                                    setResult(null);
+                                    setUserAnswers({});
+                                }}
+                            >
+                                Clear & Start Over
+                            </Button>
+                            <Button 
+                                type="primary" 
+                                size="large"
+                                loading={loading}
+                                onClick={() => handleClassify()}
+                                disabled={!description.trim()}
+                                icon={<Sparkles className="w-4 h-4" />}
+                            >
+                                Re-classify
+                            </Button>
+                        </>
+                    )}
+                </Space>
                 
+                {/* Loading State */}
                 {loading && (
-                    <div className="mt-4 flex items-center gap-2 text-gray-500">
+                    <div className="mt-6 flex items-center gap-3 text-gray-500">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <Text type="secondary">Analyzing with AI + local HTS database...</Text>
                     </div>
@@ -349,16 +359,40 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                 />
             )}
 
+            {/* No Results Found */}
+            {result && !result.classification && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    className="mb-6"
+                    message="No HTS Code Found"
+                    description={
+                        <div className="space-y-2">
+                            <p>We couldn&apos;t find a matching HTS code for <strong>&quot;{description}&quot;</strong>.</p>
+                            <p className="text-sm text-gray-600">Try adding more details:</p>
+                            <ul className="text-sm text-gray-600 list-disc ml-4">
+                                <li>What material is it made of? (e.g., plastic, ceramic, metal)</li>
+                                <li>What is its primary use? (e.g., decorative, functional)</li>
+                                <li>Any specific characteristics? (e.g., size, color, style)</li>
+                            </ul>
+                            <p className="text-sm mt-2">
+                                <strong>Example:</strong> Instead of &quot;indoor planter&quot;, try &quot;ceramic flower pot for indoor plants&quot;
+                            </p>
+                        </div>
+                    }
+                />
+            )}
+
             {/* Result */}
             {result && result.classification && (
                 <>
                     {/* Main Classification Card */}
-                    <Card className="mb-6 shadow-sm border-l-4 border-l-green-500">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <CheckCircle className="w-5 h-5 text-green-500" />
-                                    <Title level={3} className="!mb-0">
+                    <Card className="mb-6 shadow-sm border-l-4 border-l-green-500 w-full">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                    <Title level={3} className="!mb-0 break-all">
                                         {result.classification.htsCode}
                                     </Title>
                                     <Tag color={getConfidenceColor(result.classification.confidenceLabel)}>
@@ -370,7 +404,7 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                                 </Text>
                             </div>
                             {result.classification.generalRate && (
-                                <div className="text-right">
+                                <div className="text-left sm:text-right flex-shrink-0">
                                     <Text type="secondary">Duty Rate</Text>
                                     <div className="text-2xl font-bold text-blue-600">
                                         {result.classification.generalRate}
@@ -388,22 +422,22 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                         )}
 
                         {/* Quick Justification */}
-                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                        <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-4">
                             <div className="flex items-center gap-2 mb-2">
-                                <Lightbulb className="w-4 h-4 text-yellow-500" />
+                                <Lightbulb className="w-4 h-4 text-yellow-500 flex-shrink-0" />
                                 <Text strong>Why this code?</Text>
                             </div>
                             <Text>{result.justification.quick}</Text>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-gray-100">
                             {saved ? (
                                 <Button 
                                     type="primary" 
                                     icon={<CheckCircle className="w-4 h-4" />}
                                     disabled
-                                    className="bg-green-600"
+                                    className="bg-green-600 w-full sm:w-auto"
                                 >
                                     Saved
                                 </Button>
@@ -428,13 +462,14 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                                         window.location.href = `/dashboard/sourcing?hts=${hts}&from=CN`;
                                     }}
                                     icon={<ExternalLink className="w-4 h-4" />}
+                                    className="w-full sm:w-auto"
                                 >
                                     Sourcing Analysis
                                 </Button>
                             </Tooltip>
                             
                             {result.searchHistoryId && (
-                                <Text type="secondary" className="text-xs ml-auto">
+                                <Text type="secondary" className="text-xs text-center sm:text-left sm:ml-auto">
                                     Saved to history
                                 </Text>
                             )}
@@ -442,13 +477,13 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                     </Card>
 
                     {/* Transparency Card - THE KEY FEATURE */}
-                    <Card className="mb-6 shadow-sm" title={
+                    <Card className="mb-6 shadow-sm w-full" title={
                         <div className="flex items-center gap-2">
                             <Eye className="w-5 h-5 text-blue-500" />
-                            <span>Transparency: What We Know vs Assumed</span>
+                            <span className="text-sm sm:text-base">Transparency: What We Know vs Assumed</span>
                         </div>
                     }>
-                        <div className="grid md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             {/* Stated */}
                             <div className="bg-green-50 p-4 rounded-lg">
                                 <div className="flex items-center gap-2 mb-2">
@@ -504,7 +539,7 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
 
                     {/* Optional Questions Card */}
                     {result.questions && result.questions.items.length > 0 && (
-                        <Card className="mb-6 shadow-sm border-l-4 border-l-purple-400" title={
+                        <Card className="mb-6 shadow-sm border-l-4 border-l-purple-400 w-full" title={
                             <div className="flex items-center gap-2">
                                 <HelpCircleIcon className="w-5 h-5 text-purple-500" />
                                 <span>Optional: Refine Your Classification</span>
@@ -554,7 +589,7 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                     )}
 
                     {/* HTS Hierarchy with inline grouping context */}
-                    <Card className="mb-6 shadow-sm" title="HTS Hierarchy">
+                    <Card className="mb-6 shadow-sm w-full" title="HTS Hierarchy">
                         <div className="space-y-3">
                             {result.hierarchy.chapter && (
                                 <div className="flex items-start gap-2 p-2 rounded hover:bg-gray-50">

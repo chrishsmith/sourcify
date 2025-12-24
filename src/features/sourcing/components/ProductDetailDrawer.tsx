@@ -334,7 +334,7 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
         <Drawer
             open={open}
             onClose={onClose}
-            width={640}
+            size="large"
             title={null}
             styles={{ body: { padding: 0 } }}
         >
