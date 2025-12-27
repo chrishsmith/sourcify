@@ -32,14 +32,32 @@ function extractContextPath(result: ClassificationV5Result): { groupings: string
   // Get parentGroupings from the statistical code (populated during HTS import)
   const storedGroupings = (result.hierarchy.statistical as any).parentGroupings as string[] | undefined;
   
+  // Debug logging to understand what's being stored
+  console.log('[ContextPath] Code:', result.hierarchy.statistical.code);
+  console.log('[ContextPath] parentGroupings:', storedGroupings);
+  
   if (storedGroupings && storedGroupings.length > 0) {
-    return {
-      groupings: storedGroupings,
-      fullPath: storedGroupings.join(' › '),
-    };
+    // Filter out any groupings that look like full subheading descriptions
+    // (they start with the parent level description - we only want INDENT groupings)
+    const indentGroupings = storedGroupings.filter(g => 
+      // Keep it if it's short (indent groupings are usually brief like "Men's or boys':")
+      // or if it doesn't match the subheading description
+      g.length < 100 && 
+      !g.includes('other than of porcelain') && // Chapter 69 specific
+      !g.includes('articles and') // Common in long descriptions
+    );
+    
+    console.log('[ContextPath] filtered groupings:', indentGroupings);
+    
+    if (indentGroupings.length > 0) {
+      return {
+        groupings: indentGroupings,
+        fullPath: indentGroupings.join(' › '),
+      };
+    }
   }
   
-  // No groupings stored - return null (don't guess)
+  // No valid indent groupings - return null (don't show the orange bracket)
   return null;
 }
 

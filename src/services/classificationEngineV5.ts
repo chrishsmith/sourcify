@@ -23,12 +23,29 @@ import {
 } from './inferenceEngineV5';
 import { 
   searchHtsCodes, 
-  getHtsCodeDetails, 
   getHtsHierarchy,
-  getHtsChildren,
+  getHtsCode,
+  HtsLevel,
+  type HtsSearchResult,
   type HtsCodeResult,
 } from './htsDatabase';
-import { HtsLevel } from '@prisma/client';
+import {
+  ENABLE_AI_PRODUCT_NORMALIZATION,
+  normalizeProductDescription,
+  expandSearchTerms,
+  type NormalizationResult,
+} from './productNormalization';
+import {
+  classifyWithAI,
+  validateAndEnrichRecommendations,
+  type AIClassificationRecommendation,
+} from './aiClassificationEngine';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEATURE FLAG: AI-FIRST CLASSIFICATION
+// When enabled, the AI directly recommends HTS codes instead of just extracting keywords
+// ═══════════════════════════════════════════════════════════════════════════════
+export const ENABLE_AI_FIRST_CLASSIFICATION = true;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -115,6 +132,25 @@ export interface ClassificationV5Result {
   processingTimeMs: number;
   searchTermsUsed: string[];
   
+  // AI expert recommendation (if AI-first classification enabled)
+  aiRecommendation?: {
+    understanding: string;
+    primaryCode: string;
+    reasoning: string;
+    confidence: number;
+  };
+  
+  // AI normalization info (if used)
+  normalization?: {
+    used: boolean;
+    interpretation?: string;
+    tradeTerms?: string[];
+    clarification?: {
+      question: string;
+      options: string[];
+    };
+  };
+  
   // For refinement
   inferenceResult: InferenceResult;
 }
@@ -130,23 +166,118 @@ export async function classifyProductV5(
   
   console.log('[ClassifyV5] Starting classification for:', input.description);
   
-  // Step 1: Extract attributes using inference engine
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AI-FIRST CLASSIFICATION
+  // The AI is the customs expert - it DIRECTLY recommends HTS codes
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  let aiRecommendation: AIClassificationRecommendation | undefined;
+  
+  if (ENABLE_AI_FIRST_CLASSIFICATION) {
+    console.log('[ClassifyV5] Using AI-first classification');
+    
+    // Get AI's direct classification recommendations
+    aiRecommendation = await classifyWithAI(input.description, {
+      material: input.material,
+      use: input.use,
+    });
+    
+    // Validate AI recommendations against our database
+    aiRecommendation = await validateAndEnrichRecommendations(aiRecommendation);
+    
+    console.log('[ClassifyV5] AI understanding:', aiRecommendation.productUnderstanding.whatThisIs);
+    console.log('[ClassifyV5] AI primary code:', aiRecommendation.recommendations.primary.htsCode);
+    console.log('[ClassifyV5] AI avoid:', aiRecommendation.avoidCodes.map(a => a.code).join(', '));
+  }
+  
+  // Step 1: Extract attributes using inference engine (for transparency display)
   let inference = await extractProductAttributes(input.description, {
     material: input.material,
     use: input.use,
     origin: input.origin,
   });
   
+  // Merge AI recommendation into inference for scoring
+  if (aiRecommendation) {
+    inference.productUnderstanding = {
+      whatThisIs: aiRecommendation.productUnderstanding.whatThisIs,
+      primaryPurpose: 'functional',
+      userContext: aiRecommendation.productUnderstanding.userContext.includes('home') ? 'household' : 
+                   aiRecommendation.productUnderstanding.userContext.includes('industrial') ? 'industrial' : 'household',
+      typicalSize: aiRecommendation.productUnderstanding.typicalSize,
+    };
+    inference.avoidChapters = aiRecommendation.avoidCodes.map(ac => ({
+      chapter: ac.code,
+      reason: ac.reason,
+    }));
+  }
+  
   // Apply any user answers
   if (input.userAnswers && Object.keys(input.userAnswers).length > 0) {
     inference = applyUserAnswers(inference, input.userAnswers);
   }
   
-  // Step 2: Search local HTS database
-  const candidates = await findHtsCandidates(inference);
+  // Step 2: Search local HTS database (with AI normalization fallback)
+  const { candidates, normalization } = await findHtsCandidates(inference);
   
-  // Step 3: Score and rank candidates
-  const scoredCandidates = scoreAndRankCandidates(candidates, inference);
+  // Step 3: Score and rank candidates (uses AI's avoidCodes)
+  let scoredCandidates = scoreAndRankCandidates(candidates, inference);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AI-FIRST: Inject and boost AI-recommended codes
+  // If the AI found a valid code, make sure it's in the candidate pool!
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (aiRecommendation && aiRecommendation.recommendations.primary.htsCode) {
+    const aiPrimaryCode = aiRecommendation.recommendations.primary.htsCode.replace(/\./g, '');
+    const aiPrimaryFormatted = aiRecommendation.recommendations.primary.htsCode;
+    
+    // CRITICAL: If AI's recommended code isn't in candidates, ADD IT
+    const aiCodeExists = scoredCandidates.some(c => 
+      c.htsCode.replace(/\./g, '') === aiPrimaryCode
+    );
+    
+    if (!aiCodeExists && aiPrimaryCode.length >= 8) {
+      // Fetch the actual code from database to get full details
+      const aiCode = await getHtsCode(aiPrimaryCode);
+      if (aiCode) {
+        console.log(`[ClassifyV5] Injecting AI-recommended code: ${aiCode.codeFormatted}`);
+        scoredCandidates.unshift({
+          htsCode: aiCode.code,
+          htsCodeFormatted: aiCode.codeFormatted,
+          description: aiCode.description,
+          level: aiCode.level,
+          generalRate: aiCode.generalRate,
+          adValoremRate: aiCode.adValoremRate,
+          matchScore: 200, // High score - AI expert recommendation
+          matchReasons: [`AI expert recommendation: ${aiRecommendation.recommendations.primary.reasoning}`],
+          uncertainties: [],
+        });
+      }
+    }
+    
+    // Also boost any existing candidates that match
+    for (const candidate of scoredCandidates) {
+      const candidateCode = candidate.htsCode.replace(/\./g, '');
+      
+      // Boost if matches AI's primary recommendation
+      if (candidateCode.startsWith(aiPrimaryCode) || aiPrimaryCode.startsWith(candidateCode)) {
+        candidate.matchScore += 100;
+        candidate.matchReasons.push(`AI expert: ${aiRecommendation.recommendations.primary.reasoning}`);
+      }
+      
+      // Boost if matches AI's by-material recommendations
+      for (const matRec of aiRecommendation.recommendations.byMaterial) {
+        const matCode = matRec.htsCode.replace(/\./g, '');
+        if (candidateCode.startsWith(matCode) || matCode.startsWith(candidateCode)) {
+          candidate.matchScore += 80;
+          candidate.matchReasons.push(`AI (${matRec.conditions}): ${matRec.reasoning}`);
+        }
+      }
+    }
+    
+    // Re-sort after boosting
+    scoredCandidates = scoredCandidates.sort((a, b) => b.matchScore - a.matchScore);
+  }
   
   // Step 4: Calculate duty range if there's uncertainty
   const dutyRange = calculateDutyRange(scoredCandidates);
@@ -158,10 +289,29 @@ export async function classifyProductV5(
     : { chapter: null, heading: null, subheading: null, tariffLine: null, statistical: null };
   
   // Step 6: Enhance questions with duty impact
-  const optionalQuestions = await enhanceQuestionsWithDutyImpact(
+  let optionalQuestions = await enhanceQuestionsWithDutyImpact(
     inference.potentialQuestions,
     scoredCandidates
   );
+  
+  // Add AI's refinement questions
+  if (aiRecommendation && aiRecommendation.refinementQuestions.length > 0) {
+    for (const aq of aiRecommendation.refinementQuestions) {
+      if (!optionalQuestions.find(oq => oq.attributeKey === aq.affects)) {
+        optionalQuestions.push({
+          attributeKey: aq.affects,
+          question: aq.question,
+          options: aq.options,
+          impact: aq.impact,
+          currentAssumption: undefined,
+          potentialDutyChange: undefined,
+        });
+      }
+    }
+  }
+  
+  // Deduplicate semantically similar questions (e.g., "size" vs "capacity" vs "dimensions")
+  optionalQuestions = deduplicateQuestions(optionalQuestions);
   
   // Get transparency summary
   const transparency = getAttributeSummary(inference);
@@ -187,6 +337,20 @@ export async function classifyProductV5(
     optionalQuestions,
     processingTimeMs: Date.now() - startTime,
     searchTermsUsed: inference.searchTerms,
+    // Include AI expert recommendation
+    aiRecommendation: aiRecommendation ? {
+      understanding: aiRecommendation.productUnderstanding.whatThisIs,
+      primaryCode: aiRecommendation.recommendations.primary.htsCode,
+      reasoning: aiRecommendation.reasoning,
+      confidence: aiRecommendation.confidence,
+    } : undefined,
+    // Include normalization info if AI normalization was used
+    normalization: normalization ? {
+      used: normalization.success,
+      interpretation: normalization.interpretation,
+      tradeTerms: normalization.tradeTerms,
+      clarification: normalization.clarification,
+    } : undefined,
     inferenceResult: inference,
   };
 }
@@ -195,8 +359,13 @@ export async function classifyProductV5(
 // CANDIDATE SEARCH
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function findHtsCandidates(inference: InferenceResult): Promise<HtsCodeResult[]> {
-  const allResults: HtsCodeResult[] = [];
+interface FindCandidatesResult {
+  candidates: HtsSearchResult[];
+  normalization?: NormalizationResult;
+}
+
+async function findHtsCandidates(inference: InferenceResult): Promise<FindCandidatesResult> {
+  const allResults: HtsSearchResult[] = [];
   const seenCodes = new Set<string>();
   
   // Extract core product term (e.g., "men's t-shirt" → "t-shirt")
@@ -210,19 +379,90 @@ async function findHtsCandidates(inference: InferenceResult): Promise<HtsCodeRes
     return ['men', 'women', 'boy', 'boys', 'girl', 'girls', 'male', 'female', 'unisex'].includes(cleaned);
   };
   
-  const coreProductTerm = productTerms.find(t => 
-    t.length > 2 && !isGenderTerm(t) && !['for', 'the', 'and', 'with', 'of', 'a', 'an'].includes(t)
-  ) || productTerms[productTerms.length - 1];
+  // Common stop words and adjectives that shouldn't be the core product term
+  const stopWords = ['for', 'the', 'and', 'with', 'of', 'a', 'an', 'in', 'on', 'to'];
+  const commonAdjectives = ['indoor', 'outdoor', 'small', 'large', 'big', 'new', 'old', 'hot', 'cold', 
+    'red', 'blue', 'green', 'black', 'white', 'gray', 'grey', 'brown', 'yellow', 'pink', 'purple', 'orange',
+    'electric', 'electronic', 'digital', 'manual', 'automatic', 'portable', 'wireless', 'wired',
+    'professional', 'commercial', 'industrial', 'residential', 'home', 'office', 'kitchen', 'garden',
+    'modern', 'vintage', 'antique', 'custom', 'standard', 'mini', 'micro', 'mega', 'super', 'ultra'];
   
-  console.log(`[ClassifyV5] Core product term: "${coreProductTerm}" from "${inference.product.productType}"`);
+  // Filter to find significant terms (excluding stop words, gender terms, and common adjectives)
+  const significantTerms = productTerms.filter(t => 
+    t.length > 2 && 
+    !isGenderTerm(t) && 
+    !stopWords.includes(t) &&
+    !commonAdjectives.includes(t)
+  );
+  
+  // In English noun phrases, the NOUN (product) typically comes LAST
+  // "indoor planter" → "planter", "red shirt" → "shirt", "men's cotton t-shirt" → "t-shirt"
+  const coreProductTerm = significantTerms.length > 0 
+    ? significantTerms[significantTerms.length - 1] 
+    : productTerms[productTerms.length - 1];
+  
+  console.log(`[ClassifyV5] Core product term: "${coreProductTerm}" from "${inference.product.productType}" (significant: ${significantTerms.join(', ')})`);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STEP 1: AI NORMALIZATION (PRIMARY, not fallback!)
+  // Translate consumer language → trade/HTS terminology BEFORE searching
+  // "planter" → "flower pot", "plant container", etc.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  let normalization: NormalizationResult | undefined;
+  let normalizedTradeTerms: string[] = [];
+  
+  if (ENABLE_AI_PRODUCT_NORMALIZATION) {
+    console.log('[ClassifyV5] Running AI product normalization for consumer term:', inference.originalInput);
+    normalization = await normalizeProductDescription(inference.originalInput);
+    
+    if (normalization.success && normalization.tradeTerms.length > 0) {
+      normalizedTradeTerms = normalization.tradeTerms;
+      console.log('[ClassifyV5] Normalized trade terms:', normalizedTradeTerms);
+      console.log('[ClassifyV5] Suggested chapters from normalization:', normalization.suggestedChapters);
+    }
+  }
+  
+  // Combine normalization chapters with inference chapters (prioritize normalization)
+  const chaptersToSearch = normalization?.suggestedChapters?.length 
+    ? [...new Set([...normalization.suggestedChapters, ...inference.suggestedChapters])]
+    : inference.suggestedChapters;
   
   // Search strategies ordered by reliability
   const searchStrategies = [
-    // Strategy 1: BEST - Search CORE PRODUCT TERM within suggested chapters
+    // Strategy 1: BEST - Search NORMALIZED TRADE TERMS within suggested chapters
+    // "planter" → search "flower pot", "plant container" in chapters 39, 69, 73
+    async () => {
+      if (normalizedTradeTerms.length === 0) return [];
+      const results: HtsSearchResult[] = [];
+      for (const chapter of chaptersToSearch.slice(0, 4)) {
+        for (const term of normalizedTradeTerms.slice(0, 5)) {
+          const termResults = await searchHtsCodes(term, {
+            limit: 20,
+            chapter,
+          });
+          results.push(...termResults);
+        }
+      }
+      return results;
+    },
+    
+    // Strategy 2: Normalized trade terms globally (important for uncommon products)
+    async () => {
+      if (normalizedTradeTerms.length === 0) return [];
+      const results: HtsSearchResult[] = [];
+      for (const term of normalizedTradeTerms.slice(0, 5)) {
+        const termResults = await searchHtsCodes(term, { limit: 15 });
+        results.push(...termResults);
+      }
+      return results;
+    },
+    
+    // Strategy 3: Core product term within suggested chapters (original approach)
     // "men's t-shirt" → search "t-shirt" in chapter 61
     async () => {
-      const results: HtsCodeResult[] = [];
-      for (const chapter of inference.suggestedChapters.slice(0, 3)) {
+      const results: HtsSearchResult[] = [];
+      for (const chapter of chaptersToSearch.slice(0, 3)) {
         const chapterResults = await searchHtsCodes(coreProductTerm, {
           limit: 30,
           chapter,
@@ -232,10 +472,10 @@ async function findHtsCandidates(inference: InferenceResult): Promise<HtsCodeRes
       return results;
     },
     
-    // Strategy 2: Full product type within chapters (may include gender qualifiers)
+    // Strategy 4: Full product type within chapters (may include gender qualifiers)
     async () => {
-      const results: HtsCodeResult[] = [];
-      for (const chapter of inference.suggestedChapters.slice(0, 2)) {
+      const results: HtsSearchResult[] = [];
+      for (const chapter of chaptersToSearch.slice(0, 2)) {
         const chapterResults = await searchHtsCodes(inference.product.productType, {
           limit: 20,
           chapter,
@@ -245,16 +485,15 @@ async function findHtsCandidates(inference: InferenceResult): Promise<HtsCodeRes
       return results;
     },
     
-    // Strategy 3: Core product term globally (all chapters)
+    // Strategy 5: Core product term globally (all chapters) - lower priority
     () => searchHtsCodes(coreProductTerm, { 
       limit: 30,
-      level: [HtsLevel.statistical, HtsLevel.tariff_line],
     }),
     
-    // Strategy 4: Search terms within suggested chapters
+    // Strategy 6: Search terms within suggested chapters
     async () => {
-      const results: HtsCodeResult[] = [];
-      for (const chapter of inference.suggestedChapters.slice(0, 2)) {
+      const results: HtsSearchResult[] = [];
+      for (const chapter of chaptersToSearch.slice(0, 2)) {
         for (const term of inference.searchTerms.slice(0, 3)) {
           const termResults = await searchHtsCodes(term, {
             limit: 10,
@@ -284,7 +523,40 @@ async function findHtsCandidates(inference: InferenceResult): Promise<HtsCodeRes
   
   console.log(`[ClassifyV5] Found ${allResults.length} unique candidates`);
   
-  return allResults;
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EXPANDED SEARCH FALLBACK (if still 0 candidates)
+  // Try material combinations from normalization
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  if (allResults.length === 0 && normalization?.success && normalization.materialVariants.length > 0) {
+    console.log('[ClassifyV5] No candidates found, trying material combinations...');
+    
+    // Get expanded search terms (trade terms + material combinations)
+    const expandedTerms = expandSearchTerms(normalization);
+    
+    // Search with material-combined terms (e.g., "ceramic flower pot", "plastic pot")
+    for (const term of expandedTerms.slice(0, 15)) {
+      try {
+        const results = await searchHtsCodes(term, {
+          limit: 10,
+          level: [HtsLevel.statistical, HtsLevel.tariff_line],
+        });
+        for (const result of results) {
+          if (!seenCodes.has(result.code)) {
+            seenCodes.add(result.code);
+            allResults.push(result);
+          }
+        }
+      } catch (error) {
+        console.error('[ClassifyV5] Expanded search error:', error);
+      }
+    }
+    
+    console.log(`[ClassifyV5] After expanded search: ${allResults.length} candidates`);
+  }
+  
+  // Return candidates with normalization info (if normalization was performed)
+  return { candidates: allResults, normalization };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -292,7 +564,7 @@ async function findHtsCandidates(inference: InferenceResult): Promise<HtsCodeRes
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function scoreAndRankCandidates(
-  candidates: HtsCodeResult[],
+  candidates: HtsSearchResult[],
   inference: InferenceResult
 ): ClassificationCandidate[] {
   const scored: ClassificationCandidate[] = candidates.map(candidate => {
@@ -355,6 +627,73 @@ function scoreAndRankCandidates(
       uncertainties.push('This code is for raw materials, not finished products');
     }
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AI-DRIVEN CATEGORY PENALTIES
+    // The AI tells us which chapters/codes to AVOID for this product
+    // No hardcoding - the AI understands what the product IS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    if (inference.avoidChapters && inference.avoidChapters.length > 0) {
+      for (const avoidInfo of inference.avoidChapters) {
+        // Check if this candidate matches a chapter we should avoid
+        if (candidate.code.startsWith(avoidInfo.chapter)) {
+          score -= 150; // Heavy penalty for AI-identified wrong chapters
+          uncertainties.push(`AI: ${avoidInfo.reason}`);
+        }
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AI-DRIVEN USER CONTEXT MATCHING
+    // If AI says this is a "household" item, penalize industrial/commercial codes
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const userContext = inference.productUnderstanding?.userContext || 'household';
+    
+    // Household products should match household codes
+    if (userContext === 'household') {
+      // CRITICAL: Heavily penalize codes that EXPLICITLY say "not household"
+      // This is a common trap - 6912.00.20 says "other ware not household ware"
+      if (descLower.includes('not household') || descLower.includes('other than household')) {
+        score -= 200; // VERY heavy penalty - this is explicitly the wrong code
+        uncertainties.push('This code explicitly excludes household items');
+      }
+      
+      // Bonus for household-related descriptions
+      if (descLower.includes('household') && !descLower.includes('not household')) {
+        score += 50;
+        matchReasons.push('HTS is for household articles matching product context');
+      } else if (descLower.includes('domestic') || 
+                 descLower.includes('tableware') || 
+                 descLower.includes('kitchenware')) {
+        score += 40;
+        matchReasons.push('HTS is for domestic/household use');
+      }
+      
+      // Penalty for hotel/restaurant ware codes when product is household
+      if (descLower.includes('hotel') || descLower.includes('restaurant')) {
+        score -= 100;
+        uncertainties.push('This code is for commercial hotel/restaurant use - product is household');
+      }
+      
+      // Penalty for industrial/commercial descriptions
+      if (descLower.includes('industrial') || descLower.includes('commercial') ||
+          descLower.includes('exceeding 300') || descLower.includes('exceeding 100 liters') ||
+          descLower.includes('machinery') || descLower.includes('agricultural')) {
+        score -= 80;
+        uncertainties.push('This code is for industrial/commercial use - product is household');
+      }
+    }
+    
+    // Industrial products should match industrial codes
+    if (userContext === 'industrial') {
+      if (descLower.includes('industrial') || descLower.includes('commercial') ||
+          descLower.includes('machinery') || descLower.includes('equipment')) {
+        score += 40;
+        matchReasons.push('HTS is for industrial/commercial use matching product context');
+      }
+    }
+    
     // Material match
     if (inference.htsAttributes.material) {
       const material = inference.htsAttributes.material.value.toLowerCase();
@@ -410,9 +749,11 @@ function scoreAndRankCandidates(
     }
     
     // Chapter match bonus - CRITICAL for getting the right product category
-    if (inference.suggestedChapters.includes(candidate.chapter)) {
+    // Extract chapter from code (first 2 digits)
+    const candidateChapter = candidate.code.substring(0, 2);
+    if (inference.suggestedChapters.includes(candidateChapter)) {
       score += 40;
-      matchReasons.push(`In suggested chapter ${candidate.chapter}`);
+      matchReasons.push(`In suggested chapter ${candidateChapter}`);
     } else {
       // Penalty for wrong chapter
       score -= 25;
@@ -455,12 +796,8 @@ function scoreAndRankCandidates(
       uncertainties.push('This is a special trade preference code, not a base tariff code');
     }
     
-    // Keyword matches
-    for (const keyword of candidate.keywords || []) {
-      if (inference.searchTerms.some(term => term.includes(keyword) || keyword.includes(term))) {
-        score += 2;
-      }
-    }
+    // Boost score based on matchScore from HTS search (relevance)
+    score += candidate.matchScore * 0.1;
     
     return {
       htsCode: candidate.code,
@@ -468,7 +805,7 @@ function scoreAndRankCandidates(
       description: candidate.description,
       level: candidate.level,
       generalRate: candidate.generalRate,
-      adValoremRate: candidate.adValoremRate,
+      adValoremRate: null, // Not available in HtsSearchResult
       matchScore: score,
       matchReasons,
       uncertainties,
@@ -626,6 +963,72 @@ async function enhanceQuestionsWithDutyImpact(
       potentialDutyChange,
     };
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// QUESTION DEDUPLICATION
+// Detects semantically similar questions and keeps only the best one
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Groups of semantically equivalent attribute concepts
+ * Questions about any of these within a group are considered duplicates
+ */
+const SEMANTIC_ATTRIBUTE_GROUPS: string[][] = [
+  // Size-related attributes
+  ['size', 'capacity', 'dimensions', 'volume', 'sizeCategory', 'typicalSize'],
+  // Use/purpose-related attributes  
+  ['use', 'intendedUse', 'purpose', 'application', 'primaryUse'],
+  // Context-related attributes
+  ['context', 'userContext', 'intendedUseContext', 'setting'],
+];
+
+/**
+ * Deduplicate questions that ask about the same semantic concept
+ * Keeps the question with higher impact, or the first one if equal
+ */
+function deduplicateQuestions(
+  questions: ClassificationV5Result['optionalQuestions']
+): ClassificationV5Result['optionalQuestions'] {
+  const seen = new Map<string, ClassificationV5Result['optionalQuestions'][0]>();
+  const impactOrder = { high: 3, medium: 2, low: 1 };
+  
+  for (const q of questions) {
+    // Find which semantic group this attributeKey belongs to
+    const semanticKey = getSemanticKey(q.attributeKey);
+    
+    const existing = seen.get(semanticKey);
+    if (!existing) {
+      seen.set(semanticKey, q);
+    } else {
+      // Keep the one with higher impact
+      const existingScore = impactOrder[existing.impact] || 0;
+      const newScore = impactOrder[q.impact] || 0;
+      if (newScore > existingScore) {
+        seen.set(semanticKey, q);
+      }
+      // If equal impact, keep the first one (already in seen)
+    }
+  }
+  
+  return Array.from(seen.values());
+}
+
+/**
+ * Get the canonical semantic key for an attribute
+ * Groups like 'size', 'capacity', 'dimensions' all map to the same key
+ */
+function getSemanticKey(attributeKey: string): string {
+  const keyLower = attributeKey.toLowerCase();
+  
+  for (const group of SEMANTIC_ATTRIBUTE_GROUPS) {
+    if (group.some(term => keyLower.includes(term.toLowerCase()))) {
+      return group[0]; // Return canonical term for the group
+    }
+  }
+  
+  // No group found - use the attribute key itself
+  return keyLower;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

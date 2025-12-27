@@ -1,4 +1,4 @@
-# Tariff Monitoring System Architecture
+image.pngimage.png# Tariff Monitoring System Architecture
 
 > **Created:** December 20, 2025  
 > **Last Updated:** December 20, 2025  

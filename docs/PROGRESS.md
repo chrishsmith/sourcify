@@ -1,6 +1,6 @@
 # Sourcify Development Progress
 
-> **Last Updated:** December 24, 2025  
+> **Last Updated:** December 27, 2025  
 > **Current Phase:** Phase 2.5 - HTS Classification System  
 > **Current Sprint:** Sprint 4
 
@@ -40,6 +40,25 @@
 | 4.15 Hierarchy UI Enhancement | ✅ Complete | Shows all descriptions, tree-style arrows |
 | 4.16 Parent Groupings Capture | ✅ Complete | Captures HTS indent rows like "Men's or boys':" |
 | 4.17 Inline Grouping Display | ✅ Complete | Shows `[Men's or boys'] T-shirts, all white...` |
+
+### Completed This Sprint (Dec 27, 2025 - V8 "Arbiter" Classification Engine)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 4.18 V8 Classification Engine | ✅ Complete | "Ask Upfront, Classify with Confidence" |
+| 4.19 Product Classifier | ✅ Complete | `productClassifier.ts` - function vs material routing |
+| 4.20 HTS Decision Tree | ✅ Complete | `htsDecisionTree.ts` - chapter/heading deterministic rules |
+| 4.21 AI-Driven Tree Navigation | ✅ Complete | `selectChildWithAI()` - Grok-3-mini selects best HTS match |
+| 4.22 Ask Upfront Flow | ✅ Complete | Returns questions when material unknown |
+| 4.23 Carve-Out Avoidance | ✅ Complete | Avoids specific codes like "nursing nipples" for general items |
+| 4.24 Full Hierarchy Display | ✅ Complete | Chapter → Heading → Subheading → Tariff → Statistical |
+| 4.25 Concatenated Description | ✅ Complete | Shows full path: "Ceramic Products: Tableware..." |
+| 4.26 V8 API Endpoint | ✅ Complete | `POST /api/classify-v8` with two-phase flow |
+| 4.27 V8 UI Component | ✅ Complete | `ClassificationV8.tsx` - default tab on classifications page |
+| 4.28 Transparency Panel | ✅ Complete | Shows stated vs inferred vs assumed |
+| 4.29 Question UI | ✅ Complete | Material options with chapter/duty hints |
+
+> **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION_V8.md`](./ARCHITECTURE_HTS_CLASSIFICATION_V8.md) for full architecture.
 
 ---
 
@@ -216,6 +235,9 @@
 - [x] **Dec 24, 2025** - **V5 UI Complete** - Full classification UI with transparency panel 🎨
 - [x] **Dec 24, 2025** - **HTS Hierarchy UI** - Tree-view with all descriptions + inline groupings 🌳
 - [x] **Dec 24, 2025** - **Parent Groupings** - Captures "Men's or boys':", "Other:" from HTS indent structure 📋
+- [x] **Dec 27, 2025** - **V8 "Arbiter" Engine** - Ask Upfront, Classify with Confidence 🎯
+- [x] **Dec 27, 2025** - **AI-Driven Tree Navigation** - Grok-3-mini selects best HTS match at each level 🤖
+- [x] **Dec 27, 2025** - **Full Hierarchy Display** - Chapter → Statistical with concatenated descriptions 🌳
 - [ ] Automated daily sync configured
 - [ ] First paying customer
 

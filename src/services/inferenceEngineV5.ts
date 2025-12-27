@@ -48,9 +48,30 @@ export interface ProductIdentification {
 }
 
 /**
+ * AI's understanding of what the product actually IS
+ */
+export interface ProductUnderstanding {
+  whatThisIs: string;           // "A decorative container for holding indoor houseplants"
+  primaryPurpose: 'functional' | 'decorative' | 'both';
+  userContext: 'household' | 'commercial' | 'industrial';
+  typicalSize: string;          // "small (under 5L)", "large (50L+)", etc.
+}
+
+/**
+ * Chapter/code to AVOID and why
+ */
+export interface AvoidChapter {
+  chapter: string;              // "3925" or "84"
+  reason: string;               // "Builder's ware - this is a household article"
+}
+
+/**
  * Complete extraction result
  */
 export interface InferenceResult {
+  // AI's semantic understanding of the product
+  productUnderstanding: ProductUnderstanding;
+  
   // What product is this?
   product: ProductIdentification;
   
@@ -69,6 +90,9 @@ export interface InferenceResult {
   
   // Suggested HTS chapters based on product type
   suggestedChapters: string[];
+  
+  // Chapters/codes to AVOID (with reasons)
+  avoidChapters: AvoidChapter[];
   
   // Search terms for HTS database
   searchTerms: string[];
@@ -126,7 +150,13 @@ export async function extractProductAttributes(
   // Generate search terms from AI results
   const searchTerms = generateSearchTerms(aiResult.productType, aiResult.attributes);
   
+  // Use AI-provided search terms if available, otherwise generate
+  const finalSearchTerms = aiResult.searchTerms.length > 0 
+    ? aiResult.searchTerms 
+    : searchTerms;
+  
   return {
+    productUnderstanding: aiResult.productUnderstanding,
     product: {
       category: aiResult.category,
       productType: aiResult.productType,
@@ -136,7 +166,8 @@ export async function extractProductAttributes(
     attributes: aiResult.attributes,
     htsAttributes,
     suggestedChapters: aiResult.suggestedChapters,
-    searchTerms,
+    avoidChapters: aiResult.avoidChapters,
+    searchTerms: finalSearchTerms,
     potentialQuestions: aiResult.potentialQuestions,
     originalInput: description,
     processingTimeMs: Date.now() - startTime,
@@ -148,74 +179,119 @@ export async function extractProductAttributes(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface AIExtractionResult {
+  productUnderstanding: ProductUnderstanding;
   category: string;
   productType: string;
   productConfidence: number;
   alternativeTypes?: string[];
   attributes: ExtractedAttribute[];
   suggestedChapters: string[];
+  avoidChapters: AvoidChapter[];
+  searchTerms: string[];
   potentialQuestions: InferenceResult['potentialQuestions'];
 }
 
-const EXTRACTION_PROMPT = `You are a U.S. Customs HTS classification expert. Your job is to extract ALL relevant product attributes for tariff classification.
+const EXTRACTION_PROMPT = `You are a U.S. Customs HTS classification expert with deep knowledge of what products actually ARE and how they're classified.
 
 PRODUCT DESCRIPTION:
 "{description}"
 
-TASK: Extract every attribute that could affect HTS classification. Be precise about what was STATED vs what you INFERRED.
+TASK: 
+1. UNDERSTAND what this product actually IS (semantically, not just the words)
+2. Extract all HTS-relevant attributes
+3. Suggest appropriate HTS chapters
+4. CRITICALLY: Identify what codes should be AVOIDED
 
-CRITICAL RULES:
-1. "stated" = User explicitly mentioned it in the description
-2. "inferred" = You determined it with 90%+ confidence from the product type or context
-3. "assumed" = You're guessing based on typical cases (50-89% confidence)
-4. Only use "inferred" when there's strong logical basis (e.g., "smartphone" implies wireless capability)
-5. For uncertain attributes, include alternatives array with other possible values
-6. htsRelevant = true only if the attribute affects tariff classification (not color, brand, etc.)
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: PRODUCT UNDERSTANDING
+═══════════════════════════════════════════════════════════════════════════════
 
-WHAT TO EXTRACT (if applicable to this product):
-- Material/composition (cotton, steel, plastic, etc.)
-- Construction method (knit, woven, molded, forged, etc.)
-- Gender/age (men's, women's, children's, babies', unisex)
-- Intended use (kitchen, industrial, personal, sports, etc.)
-- Form/state (liquid, powder, assembled, parts, etc.)
-- Power source (electric, manual, battery, etc.)
-- Value tier (under $X thresholds if mentioned)
-- Any other attribute that HTS schedules typically differentiate on
+Think about what this product ACTUALLY IS:
+- "indoor planter" = a small decorative container for holding houseplants (typically 0.5-20 liters)
+- "water bottle" = a portable beverage container for personal use
+- "phone case" = a protective accessory for mobile devices
+- "t-shirt" = a casual knit upper body garment
 
-SUGGESTED CHAPTERS:
-Based on the product, suggest 1-3 likely HTS chapters (2-digit codes).
+Consider:
+- Is this a household/consumer item or industrial/commercial equipment?
+- What is the PRIMARY purpose? (functional vs decorative vs both)
+- What is the typical size/scale? (pocket-sized, household, industrial)
+- Who uses this? (consumers at home, businesses, industry)
 
-QUESTIONS TO ASK:
-For any attribute where you marked source as "assumed" or "inferred" with <95% confidence, generate a clarifying question. Rate impact as:
-- "high" = Would change the 4-digit heading or duty rate significantly
-- "medium" = Would change the 6-8 digit subheading
-- "low" = Would only affect statistical suffix
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: HTS CONTEXT - WHAT TO USE vs WHAT TO AVOID
+═══════════════════════════════════════════════════════════════════════════════
 
-Return JSON in this exact format:
+For each product, you must think about:
+- What HTS chapters/headings are APPROPRIATE
+- What HTS chapters/headings should be AVOIDED (and why)
+
+Examples of common misclassifications to AVOID:
+- "planter/flower pot" → USE: 3924 (plastic household articles), 6912 (ceramic household articles)
+                       → AVOID: 3925 (builder's ware - for construction), 8432 (agricultural machinery)
+- "water bottle" → USE: 3924 (plastic household), 7013 (glassware), 7323 (metal household)
+                → AVOID: 7310 (industrial tanks), 3923 (industrial packaging)
+- "phone case" → USE: 3926 (other plastic articles), 4205 (leather articles)
+              → AVOID: 8517 (telephone parts - it's an accessory, not a phone part)
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: ATTRIBUTE EXTRACTION RULES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. "stated" = User explicitly mentioned it
+2. "inferred" = 90%+ confidence from product type (e.g., "planter" implies container for plants)
+3. "assumed" = 50-89% confidence, typical case
+4. htsRelevant = true only if it affects tariff classification
+
+Extract (if applicable):
+- Material/composition
+- Construction method  
+- Gender/age (for apparel)
+- Intended use context (household, industrial, commercial)
+- Form/state (assembled, parts, liquid, etc.)
+- Size category (small/household vs large/industrial)
+- Power source (if applicable)
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════════════════════════════════════════
+
+Return JSON:
 {
-  "category": "apparel|textiles|electronics|machinery|tools|food|chemicals|plastics|metals|vehicles|other",
+  "productUnderstanding": {
+    "whatThisIs": "A decorative container for holding indoor houseplants",
+    "primaryPurpose": "functional|decorative|both",
+    "userContext": "household|commercial|industrial",
+    "typicalSize": "small (under 5L)|medium (5-50L)|large (50L+)|varies"
+  },
+  "category": "household|apparel|electronics|machinery|tools|food|chemicals|plastics|metals|vehicles|other",
   "productType": "specific product type",
   "productConfidence": 0.0-1.0,
   "alternativeTypes": ["other possible types if ambiguous"],
-  "suggestedChapters": ["61", "62"],
+  "suggestedChapters": ["39", "69"],
+  "avoidChapters": [
+    {"chapter": "84", "reason": "Agricultural machinery - this is a household container, not farming equipment"},
+    {"chapter": "3925", "reason": "Builder's ware - this is a household article, not construction material"}
+  ],
+  "searchTerms": ["flower pot", "plant container", "household articles", "pot"],
   "attributes": [
     {
       "key": "material",
-      "value": "cotton",
+      "value": "plastic",
       "source": "stated|inferred|assumed",
       "confidence": 0.0-1.0,
       "reasoning": "Why you determined this",
-      "alternatives": ["polyester", "blend"],
+      "alternatives": ["ceramic", "metal"],
       "htsRelevant": true
     }
   ],
   "potentialQuestions": [
     {
-      "attributeKey": "construction",
-      "question": "How is this garment constructed?",
-      "options": ["Knit/Crocheted", "Woven", "Not sure"],
+      "attributeKey": "material",
+      "question": "What material is your planter made of?",
+      "options": ["Plastic", "Ceramic/Terracotta", "Metal", "Other"],
       "impact": "high",
-      "currentAssumption": "knit"
+      "currentAssumption": "plastic"
     }
   ]
 }`;
@@ -247,7 +323,22 @@ async function callAIForExtraction(description: string): Promise<AIExtractionRes
     
     const parsed = JSON.parse(jsonMatch[0]);
     
+    // Parse product understanding
+    const productUnderstanding: ProductUnderstanding = {
+      whatThisIs: parsed.productUnderstanding?.whatThisIs || `A ${parsed.productType || 'product'}`,
+      primaryPurpose: parsed.productUnderstanding?.primaryPurpose || 'functional',
+      userContext: parsed.productUnderstanding?.userContext || 'household',
+      typicalSize: parsed.productUnderstanding?.typicalSize || 'varies',
+    };
+    
+    // Parse avoid chapters
+    const avoidChapters: AvoidChapter[] = (parsed.avoidChapters || []).map((ac: Record<string, unknown>) => ({
+      chapter: String(ac.chapter || ''),
+      reason: String(ac.reason || ''),
+    }));
+    
     return {
+      productUnderstanding,
       category: parsed.category || 'other',
       productType: parsed.productType || 'unknown product',
       productConfidence: parsed.productConfidence || 0.5,
@@ -262,6 +353,8 @@ async function callAIForExtraction(description: string): Promise<AIExtractionRes
         htsRelevant: attr.htsRelevant !== false,
       })),
       suggestedChapters: parsed.suggestedChapters || [],
+      avoidChapters,
+      searchTerms: parsed.searchTerms || [],
       potentialQuestions: (parsed.potentialQuestions || []).map((q: Record<string, unknown>) => ({
         attributeKey: q.attributeKey as string,
         question: q.question as string,
@@ -279,11 +372,19 @@ async function callAIForExtraction(description: string): Promise<AIExtractionRes
 function getDefaultExtractionResult(description: string): AIExtractionResult {
   // Minimal fallback - just return what we can parse without AI
   return {
+    productUnderstanding: {
+      whatThisIs: description,
+      primaryPurpose: 'functional',
+      userContext: 'household',
+      typicalSize: 'varies',
+    },
     category: 'other',
     productType: description.split(' ').slice(0, 3).join(' '),
     productConfidence: 0.3,
     attributes: [],
     suggestedChapters: [],
+    avoidChapters: [],
+    searchTerms: [],
     potentialQuestions: [],
   };
 }

@@ -10,6 +10,9 @@
 import { prisma } from '@/lib/db';
 import { HtsLevel, Prisma } from '@prisma/client';
 
+// Re-export HtsLevel for convenience
+export { HtsLevel };
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -27,6 +30,7 @@ export interface HtsCodeResult {
   adValoremRate: number | null;
   specificRate: number | null;
   keywords: string[];
+  parentGroupings?: string[];
 }
 
 export interface HtsHierarchyNode {

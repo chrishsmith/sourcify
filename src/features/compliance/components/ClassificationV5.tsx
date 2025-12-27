@@ -106,17 +106,31 @@ interface ClassificationV5Props {
 export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Props = {}) {
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
+    const [refining, setRefining] = useState(false);
     const [result, setResult] = useState<APIResponse | null>(null);
+    const [previousResult, setPreviousResult] = useState<APIResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showJustification, setShowJustification] = useState(false);
     const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
+    const [pendingAnswers, setPendingAnswers] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [justRefined, setJustRefined] = useState(false);
 
-    const handleClassify = async (answers?: Record<string, string>) => {
+    // Check if there are unapplied answers
+    const hasUnappliedAnswers = Object.keys(pendingAnswers).some(
+        key => pendingAnswers[key] !== userAnswers[key]
+    );
+
+    const handleClassify = async (answers?: Record<string, string>, isRefinement = false) => {
         if (!description.trim()) return;
         
-        setLoading(true);
+        if (isRefinement) {
+            setRefining(true);
+            setPreviousResult(result);
+        } else {
+            setLoading(true);
+        }
         setError(null);
         
         try {
@@ -136,19 +150,43 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
             }
             
             setResult(data);
+            
+            if (isRefinement) {
+                setJustRefined(true);
+                // Sync pending answers with applied answers after successful refinement
+                setPendingAnswers(answers || userAnswers);
+                // Clear the "just refined" highlight after 3 seconds
+                setTimeout(() => setJustRefined(false), 3000);
+            } else {
+                // Reset pending answers on fresh classification
+                setPendingAnswers({});
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unknown error');
         } finally {
             setLoading(false);
+            setRefining(false);
         }
     };
 
-    const handleAnswerQuestion = (questionId: string, answer: string) => {
-        const newAnswers = { ...userAnswers, [questionId]: answer };
-        setUserAnswers(newAnswers);
-        // Re-classify with the new answer
-        handleClassify(newAnswers);
+    // Stage an answer locally (doesn't trigger API)
+    const handleSelectAnswer = (questionId: string, answer: string) => {
+        setPendingAnswers(prev => ({ ...prev, [questionId]: answer }));
     };
+
+    // Apply all pending answers at once
+    const handleApplyRefinements = () => {
+        const mergedAnswers = { ...userAnswers, ...pendingAnswers };
+        setUserAnswers(mergedAnswers);
+        handleClassify(mergedAnswers, true);
+    };
+
+    // Check if results changed after refinement
+    const resultChanged = previousResult && result && (
+        previousResult.classification?.htsCode !== result.classification?.htsCode ||
+        previousResult.classification?.generalRate !== result.classification?.generalRate ||
+        previousResult.classification?.confidence !== result.classification?.confidence
+    );
 
     const getConfidenceColor = (label: string) => {
         switch (label) {
@@ -275,10 +313,32 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
         },
     ];
 
+    // Format transparency items for better readability
+    const formatTransparencyItem = (item: string) => {
+        // Split on first colon to separate key from value
+        const colonIndex = item.indexOf(':');
+        if (colonIndex === -1) return { key: null, value: item, reasoning: null };
+        
+        const key = item.substring(0, colonIndex).trim();
+        const rest = item.substring(colonIndex + 1).trim();
+        
+        // Check if there's reasoning in parentheses
+        const parenMatch = rest.match(/^([^(]+)\s*\((.+)\)$/);
+        if (parenMatch) {
+            return { 
+                key, 
+                value: parenMatch[1].trim(), 
+                reasoning: parenMatch[2].trim() 
+            };
+        }
+        
+        return { key, value: rest, reasoning: null };
+    };
+
     return (
-        <div className="w-full">
+        <div className="w-full space-y-6">
             {/* Input Card */}
-            <Card className="mb-6 shadow-sm w-full" styles={{ body: { padding: '24px' } }}>
+            <Card className="shadow-sm w-full" styles={{ body: { padding: '24px' } }}>
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                     <Brain className="w-5 h-5 text-purple-500" />
@@ -320,7 +380,11 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                                 loading={loading}
                                 onClick={() => {
                                     setResult(null);
+                                    setPreviousResult(null);
                                     setUserAnswers({});
+                                    setPendingAnswers({});
+                                    setJustRefined(false);
+                                    setSaved(false);
                                 }}
                             >
                                 Clear & Start Over
@@ -354,7 +418,6 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                     type="error" 
                     message="Classification Error" 
                     description={error}
-                    className="mb-6"
                     showIcon
                 />
             )}
@@ -364,7 +427,6 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                 <Alert
                     type="warning"
                     showIcon
-                    className="mb-6"
                     message="No HTS Code Found"
                     description={
                         <div className="space-y-2">
@@ -385,19 +447,62 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
 
             {/* Result */}
             {result && result.classification && (
-                <>
+                <div className="space-y-6">
                     {/* Main Classification Card */}
-                    <Card className="mb-6 shadow-sm border-l-4 border-l-green-500 w-full">
+                    <Card 
+                        className={`shadow-sm border-l-4 w-full transition-all relative ${
+                            refining 
+                                ? 'border-l-gray-300' 
+                                : justRefined && resultChanged
+                                    ? 'border-l-purple-500 ring-2 ring-purple-200'
+                                    : 'border-l-green-500'
+                        }`}
+                    >
+                        {/* Refining overlay */}
+                        {refining && (
+                            <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10 rounded-lg">
+                                <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                                    <Text>Applying your refinements...</Text>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Result changed indicator */}
+                        {justRefined && resultChanged && (
+                            <Alert
+                                type="success"
+                                message={
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4" />
+                                        <span>
+                                            Classification updated based on your answers!
+                                            {previousResult?.classification?.htsCode !== result.classification.htsCode && (
+                                                <span className="ml-2 text-xs">
+                                                    ({previousResult?.classification?.htsCode} → {result.classification.htsCode})
+                                                </span>
+                                            )}
+                                        </span>
+                                    </div>
+                                }
+                                className="mb-4"
+                                showIcon={false}
+                            />
+                        )}
+
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
                             <div className="flex-1 min-w-0">
                                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                                    <Title level={3} className="!mb-0 break-all">
+                                    <CheckCircle className={`w-5 h-5 flex-shrink-0 ${justRefined && resultChanged ? 'text-purple-500' : 'text-green-500'}`} />
+                                    <Title level={3} className={`!mb-0 break-all ${justRefined && resultChanged ? 'text-purple-700' : ''}`}>
                                         {result.classification.htsCode}
                                     </Title>
                                     <Tag color={getConfidenceColor(result.classification.confidenceLabel)}>
                                         {result.classification.confidence}% {result.classification.confidenceLabel}
                                     </Tag>
+                                    {justRefined && resultChanged && (
+                                        <Tag color="purple">Updated</Tag>
+                                    )}
                                 </div>
                                 <Text className="text-gray-600">
                                     {result.classification.description}
@@ -406,9 +511,15 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                             {result.classification.generalRate && (
                                 <div className="text-left sm:text-right flex-shrink-0">
                                     <Text type="secondary">Duty Rate</Text>
-                                    <div className="text-2xl font-bold text-blue-600">
+                                    <div className={`text-2xl font-bold ${justRefined && resultChanged ? 'text-purple-600' : 'text-blue-600'}`}>
                                         {result.classification.generalRate}
                                     </div>
+                                    {justRefined && previousResult?.classification?.generalRate && 
+                                     previousResult.classification.generalRate !== result.classification.generalRate && (
+                                        <Text type="secondary" className="text-xs line-through">
+                                            was {previousResult.classification.generalRate}
+                                        </Text>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -431,45 +542,49 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-gray-100">
+                        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
                             {saved ? (
                                 <Button 
                                     type="primary" 
                                     icon={<CheckCircle className="w-4 h-4" />}
                                     disabled
-                                    className="bg-green-600 w-full sm:w-auto"
+                                    style={{ backgroundColor: '#16a34a' }}
                                 >
                                     Saved
                                 </Button>
                             ) : (
-                                <Dropdown.Button
-                                    type="primary"
-                                    menu={{ items: saveMenuItems }}
-                                    onClick={() => handleSaveToLibrary(true)}
-                                    loading={saving}
-                                    icon={<MoreVertical className="w-4 h-4" />}
-                                    className="bg-teal-600 hover:bg-teal-700"
-                                >
-                                    <Bell className="w-4 h-4 mr-2" />
-                                    Save & Monitor
-                                </Dropdown.Button>
+                                <Space.Compact>
+                                    <Button
+                                        type="primary"
+                                        onClick={() => handleSaveToLibrary(true)}
+                                        loading={saving}
+                                        icon={<Bell className="w-4 h-4" />}
+                                        style={{ backgroundColor: '#0d9488', borderColor: '#0d9488' }}
+                                    >
+                                        Save & Monitor
+                                    </Button>
+                                    <Dropdown menu={{ items: saveMenuItems }} trigger={['click']}>
+                                        <Button 
+                                            type="primary" 
+                                            icon={<MoreVertical className="w-4 h-4" />}
+                                            style={{ backgroundColor: '#0f766e', borderColor: '#0f766e' }}
+                                        />
+                                    </Dropdown>
+                                </Space.Compact>
                             )}
                             
-                            <Tooltip title="View full sourcing analysis">
-                                <Button 
-                                    onClick={() => {
-                                        const hts = result.classification?.htsCode.replace(/\./g, '');
-                                        window.location.href = `/dashboard/sourcing?hts=${hts}&from=CN`;
-                                    }}
-                                    icon={<ExternalLink className="w-4 h-4" />}
-                                    className="w-full sm:w-auto"
-                                >
-                                    Sourcing Analysis
-                                </Button>
-                            </Tooltip>
+                            <Button 
+                                onClick={() => {
+                                    const hts = result.classification?.htsCode.replace(/\./g, '');
+                                    window.location.href = `/dashboard/sourcing?hts=${hts}&from=CN`;
+                                }}
+                                icon={<ExternalLink className="w-4 h-4" />}
+                            >
+                                Sourcing Analysis
+                            </Button>
                             
                             {result.searchHistoryId && (
-                                <Text type="secondary" className="text-xs text-center sm:text-left sm:ml-auto">
+                                <Text type="secondary" className="text-xs ml-auto">
                                     Saved to history
                                 </Text>
                             )}
@@ -477,59 +592,110 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                     </Card>
 
                     {/* Transparency Card - THE KEY FEATURE */}
-                    <Card className="mb-6 shadow-sm w-full" title={
+                    <Card className="shadow-sm w-full" title={
                         <div className="flex items-center gap-2">
                             <Eye className="w-5 h-5 text-blue-500" />
                             <span className="text-sm sm:text-base">Transparency: What We Know vs Assumed</span>
                         </div>
                     }>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Stated */}
-                            <div className="bg-green-50 p-4 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
+                            <div className="bg-green-50 p-5 rounded-lg border border-green-100">
+                                <div className="flex items-center gap-2 mb-4">
                                     <CheckCircle className="w-4 h-4 text-green-600" />
                                     <Text strong className="text-green-700">You Told Us</Text>
                                 </div>
                                 {result.transparency.whatYouToldUs.length > 0 ? (
-                                    <ul className="list-disc list-inside text-sm text-green-800">
-                                        {result.transparency.whatYouToldUs.map((item, i) => (
-                                            <li key={i}>{item}</li>
-                                        ))}
-                                    </ul>
+                                    <div className="space-y-3">
+                                        {result.transparency.whatYouToldUs.map((item, i) => {
+                                            const { key, value, reasoning } = formatTransparencyItem(item);
+                                            return (
+                                                <div key={i} className="text-sm">
+                                                    {key ? (
+                                                        <>
+                                                            <span className="font-semibold text-green-800">{key}:</span>{' '}
+                                                            <span className="text-green-700">{value}</span>
+                                                            {reasoning && (
+                                                                <p className="text-green-600 text-xs mt-1 italic">
+                                                                    {reasoning}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-green-700">{value}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 ) : (
                                     <Text type="secondary" className="text-sm">No specific attributes stated</Text>
                                 )}
                             </div>
 
                             {/* Inferred */}
-                            <div className="bg-blue-50 p-4 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
+                            <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                                <div className="flex items-center gap-2 mb-4">
                                     <Brain className="w-4 h-4 text-blue-600" />
                                     <Text strong className="text-blue-700">We Inferred</Text>
                                 </div>
                                 {result.transparency.whatWeInferred.length > 0 ? (
-                                    <ul className="list-disc list-inside text-sm text-blue-800">
-                                        {result.transparency.whatWeInferred.map((item, i) => (
-                                            <li key={i}>{item}</li>
-                                        ))}
-                                    </ul>
+                                    <div className="space-y-3">
+                                        {result.transparency.whatWeInferred.map((item, i) => {
+                                            const { key, value, reasoning } = formatTransparencyItem(item);
+                                            return (
+                                                <div key={i} className="text-sm">
+                                                    {key ? (
+                                                        <>
+                                                            <span className="font-semibold text-blue-800">{key}:</span>{' '}
+                                                            <span className="text-blue-700">{value}</span>
+                                                            {reasoning && (
+                                                                <p className="text-blue-600 text-xs mt-1 italic">
+                                                                    {reasoning}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-blue-700">{value}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 ) : (
                                     <Text type="secondary" className="text-sm">Nothing inferred</Text>
                                 )}
                             </div>
 
                             {/* Assumed */}
-                            <div className="bg-orange-50 p-4 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
+                            <div className="bg-orange-50 p-5 rounded-lg border border-orange-100">
+                                <div className="flex items-center gap-2 mb-4">
                                     <AlertTriangle className="w-4 h-4 text-orange-600" />
                                     <Text strong className="text-orange-700">We Assumed</Text>
                                 </div>
                                 {result.transparency.whatWeAssumed.length > 0 ? (
-                                    <ul className="list-disc list-inside text-sm text-orange-800">
-                                        {result.transparency.whatWeAssumed.map((item, i) => (
-                                            <li key={i}>{item}</li>
-                                        ))}
-                                    </ul>
+                                    <div className="space-y-3">
+                                        {result.transparency.whatWeAssumed.map((item, i) => {
+                                            const { key, value, reasoning } = formatTransparencyItem(item);
+                                            return (
+                                                <div key={i} className="text-sm">
+                                                    {key ? (
+                                                        <>
+                                                            <span className="font-semibold text-orange-800">{key}:</span>{' '}
+                                                            <span className="text-orange-700">{value}</span>
+                                                            {reasoning && (
+                                                                <p className="text-orange-600 text-xs mt-1 italic">
+                                                                    {reasoning}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-orange-700">{value}</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 ) : (
                                     <Text type="secondary" className="text-sm">No assumptions made</Text>
                                 )}
@@ -539,57 +705,109 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
 
                     {/* Optional Questions Card */}
                     {result.questions && result.questions.items.length > 0 && (
-                        <Card className="mb-6 shadow-sm border-l-4 border-l-purple-400 w-full" title={
-                            <div className="flex items-center gap-2">
-                                <HelpCircleIcon className="w-5 h-5 text-purple-500" />
-                                <span>Optional: Refine Your Classification</span>
-                                <Tag color="purple">Not Required</Tag>
-                            </div>
-                        }>
+                        <Card 
+                            className={`shadow-sm border-l-4 border-l-purple-400 w-full transition-opacity ${refining ? 'opacity-70' : ''}`}
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <HelpCircleIcon className="w-5 h-5 text-purple-500" />
+                                    <span>Optional: Refine Your Classification</span>
+                                    <Tag color="purple">Not Required</Tag>
+                                    {refining && (
+                                        <Tag color="processing" icon={<Loader2 className="w-3 h-3 animate-spin" />}>
+                                            Refining...
+                                        </Tag>
+                                    )}
+                                </div>
+                            }
+                        >
                             <Text type="secondary" className="block mb-4">
                                 {result.questions.note}
                             </Text>
                             
                             <div className="space-y-4">
-                                {result.questions.items.map((q) => (
-                                    <div key={q.id} className="bg-gray-50 p-4 rounded-lg">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Tag color={q.impact === 'high' ? 'red' : q.impact === 'medium' ? 'orange' : 'blue'}>
-                                                {q.impact} impact
-                                            </Tag>
-                                            <Text strong>{q.question}</Text>
-                                        </div>
-                                        
-                                        {q.currentAssumption && (
-                                            <Text type="secondary" className="text-sm block mb-2">
-                                                Currently assuming: {q.currentAssumption}
-                                            </Text>
-                                        )}
-                                        
-                                        {q.dutyImpact && (
-                                            <Text type="warning" className="text-sm block mb-2">
-                                                ⚠️ {q.dutyImpact}
-                                            </Text>
-                                        )}
-                                        
-                                        <Radio.Group 
-                                            onChange={(e) => handleAnswerQuestion(q.id, e.target.value)}
-                                            value={userAnswers[q.id]}
+                                {result.questions.items.map((q) => {
+                                    const currentValue = pendingAnswers[q.id] ?? userAnswers[q.id];
+                                    const hasChanged = pendingAnswers[q.id] && pendingAnswers[q.id] !== userAnswers[q.id];
+                                    
+                                    return (
+                                        <div 
+                                            key={q.id} 
+                                            className={`p-4 rounded-lg transition-all ${
+                                                hasChanged 
+                                                    ? 'bg-purple-50 border-2 border-purple-200' 
+                                                    : 'bg-gray-50 border-2 border-transparent'
+                                            }`}
                                         >
-                                            <Space direction="vertical">
-                                                {q.options.map((opt) => (
-                                                    <Radio key={opt} value={opt}>{opt}</Radio>
-                                                ))}
-                                            </Space>
-                                        </Radio.Group>
-                                    </div>
-                                ))}
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Tag color={q.impact === 'high' ? 'red' : q.impact === 'medium' ? 'orange' : 'blue'}>
+                                                    {q.impact} impact
+                                                </Tag>
+                                                <Text strong>{q.question}</Text>
+                                                {hasChanged && (
+                                                    <Tag color="purple" className="ml-auto">Changed</Tag>
+                                                )}
+                                            </div>
+                                            
+                                            {q.currentAssumption && !currentValue && (
+                                                <Text type="secondary" className="text-sm block mb-2">
+                                                    Currently assuming: {q.currentAssumption}
+                                                </Text>
+                                            )}
+                                            
+                                            {q.dutyImpact && (
+                                                <Text type="warning" className="text-sm block mb-2">
+                                                    ⚠️ {q.dutyImpact}
+                                                </Text>
+                                            )}
+                                            
+                                            <Radio.Group 
+                                                onChange={(e) => handleSelectAnswer(q.id, e.target.value)}
+                                                value={currentValue}
+                                                disabled={refining}
+                                            >
+                                                <Space direction="vertical">
+                                                    {q.options.map((opt) => (
+                                                        <Radio key={opt} value={opt}>{opt}</Radio>
+                                                    ))}
+                                                </Space>
+                                            </Radio.Group>
+                                        </div>
+                                    );
+                                })}
                             </div>
+
+                            {/* Apply Button - Only show when there are unapplied changes */}
+                            {hasUnappliedAnswers && (
+                                <div className="mt-6 pt-4 border-t border-gray-200">
+                                    <div className="flex items-center justify-between">
+                                        <Text type="secondary" className="text-sm">
+                                            {Object.keys(pendingAnswers).filter(k => pendingAnswers[k] !== userAnswers[k]).length} answer(s) ready to apply
+                                        </Text>
+                                        <Space>
+                                            <Button 
+                                                size="small"
+                                                onClick={() => setPendingAnswers(userAnswers)}
+                                            >
+                                                Reset
+                                            </Button>
+                                            <Button 
+                                                type="primary"
+                                                onClick={handleApplyRefinements}
+                                                loading={refining}
+                                                icon={<Sparkles className="w-4 h-4" />}
+                                                style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed' }}
+                                            >
+                                                Apply & Reclassify
+                                            </Button>
+                                        </Space>
+                                    </div>
+                                </div>
+                            )}
                         </Card>
                     )}
 
                     {/* HTS Hierarchy with inline grouping context */}
-                    <Card className="mb-6 shadow-sm w-full" title="HTS Hierarchy">
+                    <Card className="shadow-sm w-full" title="HTS Hierarchy">
                         <div className="space-y-3">
                             {result.hierarchy.chapter && (
                                 <div className="flex items-start gap-2 p-2 rounded hover:bg-gray-50">
@@ -648,10 +866,10 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                                         <Text strong className="text-green-700">{result.hierarchy.statistical.code}</Text>
                                         {result.hierarchy.statistical.description && (
                                             <Text className="block text-sm text-green-600">
-                                                {/* Inline grouping context prepended to description (only if available) */}
-                                                {result.contextPath?.groupings?.[0] && (
+                                                {/* Inline grouping context - show the IMMEDIATE parent (last in array) */}
+                                                {result.contextPath?.groupings && result.contextPath.groupings.length > 0 && (
                                                     <span className="text-amber-600 font-medium">
-                                                        [{result.contextPath.groupings[0]}]{' '}
+                                                        [{result.contextPath.groupings[result.contextPath.groupings.length - 1]}]{' '}
                                                     </span>
                                                 )}
                                                 {result.hierarchy.statistical.description}
@@ -665,7 +883,7 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
 
                     {/* Alternatives */}
                     {result.alternatives.length > 0 && (
-                        <Collapse className="mb-6">
+                        <Collapse>
                             <Panel 
                                 header={`Alternative Classifications (${result.alternatives.length})`} 
                                 key="alternatives"
@@ -688,10 +906,10 @@ export default function ClassificationV5({ onSaveSuccess }: ClassificationV5Prop
                     )}
 
                     {/* Meta */}
-                    <div className="text-center text-sm text-gray-400">
+                    <div className="text-center text-sm text-gray-400 pt-2">
                         Classified in {result.processingTimeMs}ms using local HTS database + AI inference
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

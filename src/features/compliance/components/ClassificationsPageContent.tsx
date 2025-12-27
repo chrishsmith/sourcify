@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { Tabs, Button, Typography, Modal, Upload, message, Progress } from 'antd';
-import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles } from 'lucide-react';
+import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles, TreeDeciduous, Zap } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
+import ClassificationV8 from '@/features/compliance/components/ClassificationV8';
+import ClassificationV6 from '@/features/compliance/components/ClassificationV6';
 import ClassificationV5 from '@/features/compliance/components/ClassificationV5';
 import { ClassificationResultDisplay } from '@/features/compliance/components/ClassificationResult';
 import { SearchHistoryPanel } from '@/features/compliance/components/SearchHistoryPanel';
@@ -99,11 +101,11 @@ export const ClassificationsPageContent = () => {
             key: '1',
             label: (
                 <span className="flex items-center gap-2">
-                    <Sparkles size={16} />
-                    New Classification
+                    <Zap size={16} />
+                    New Classification (V8)
                 </span>
             ),
-            children: <ClassificationV5 />,
+            children: <ClassificationV8 />,
         },
         {
             key: '2',
@@ -114,6 +116,26 @@ export const ClassificationsPageContent = () => {
                 </span>
             ),
             children: <SearchHistoryPanel />,
+        },
+        {
+            key: '5',
+            label: (
+                <span className="flex items-center gap-2">
+                    <TreeDeciduous size={16} />
+                    V6 (Tree Nav)
+                </span>
+            ),
+            children: <ClassificationV6 />,
+        },
+        {
+            key: '4',
+            label: (
+                <span className="flex items-center gap-2">
+                    <Sparkles size={16} />
+                    V5 (Legacy)
+                </span>
+            ),
+            children: <ClassificationV5 />,
         },
         {
             key: '3',
