@@ -151,15 +151,22 @@ const TEXTILE_HOME_PATTERNS = [
   'cushion cover', 'pillow sham',
 ];
 
+// NOTE: These patterns are kept minimal - AI handles most electronics detection
+// Only list patterns where we need to ensure detection even if AI misses
 const ELECTRONICS_PATTERNS = [
   'phone', 'smartphone', 'tablet', 'laptop', 'computer',
-  'tv', 'television', 'monitor', 'display',
+  'tv', 'television', 'monitor', 'display', 'screen',
   'speaker', 'headphone', 'earphone', 'earbud',
   'camera', 'webcam', 'camcorder',
   'charger', 'power adapter', 'power supply',
   'battery', 'power bank',
   'router', 'modem', 'switch',
   'keyboard', 'mouse', 'controller',
+  'projector', 'printer', 'scanner',
+  'microwave', 'refrigerator', 'washer', 'dryer',
+  'air conditioner', 'heater', 'fan',
+  'radio', 'receiver', 'amplifier',
+  'drone', 'robot', 'smart',
 ];
 
 const CABLE_PATTERNS = [
@@ -280,6 +287,13 @@ CRITICAL BOOLEAN DEFINITIONS:
 5. isLighting: Is this a LIGHT SOURCE or LAMP?
    TRUE: light bulbs, LED bulbs, desk lamps, flashlights, light strips
    FALSE: lamp shades (without bulb), decorative items that happen to glow
+
+6. isElectronic: Does this REQUIRE ELECTRICITY to function?
+   TRUE: monitors, TVs, computers, phones, tablets, appliances, speakers, cameras, printers, 
+         any device that plugs in or uses batteries to operate its primary function
+   FALSE: items that are merely packaged with batteries (like battery-powered toys which are TOYS first),
+         passive items like cables by themselves, non-electric versions of products
+   KEY: If the PRIMARY FUNCTION requires electricity, it's electronic - classify under Chapter 84-85
 
 Return ONLY valid JSON:
 {
@@ -462,6 +476,36 @@ export function determineRoute(
       forcedChapter: '85',
       forcedHeading: '8544',
       routeReason: 'Function: Insulated wire and cables classified under 8544',
+      decisionPoints: [],
+      readyToClassify: true,
+    };
+  }
+  
+  // Monitors, displays, TVs → Chapter 85, heading 8528
+  const productLowerForElectronics = understanding.productType.toLowerCase();
+  const isMonitorOrDisplay = ['monitor', 'display', 'television', 'tv', 'screen'].some(term => 
+    productLowerForElectronics.includes(term)
+  );
+  
+  if (understanding.isElectronic && isMonitorOrDisplay) {
+    return {
+      routeType: 'function-driven',
+      functionRule: 'electronics',
+      forcedChapter: '85',
+      forcedHeading: '8528',
+      routeReason: 'Function: Monitors, displays, and television receivers classified under 8528',
+      decisionPoints: [],
+      readyToClassify: true,
+    };
+  }
+  
+  // Other electronic equipment → Chapter 85 (catch-all for electronics)
+  if (understanding.isElectronic) {
+    return {
+      routeType: 'function-driven',
+      functionRule: 'electronics',
+      forcedChapter: '85',
+      routeReason: 'Function: Electronic equipment classified under Chapter 85',
       decisionPoints: [],
       readyToClassify: true,
     };

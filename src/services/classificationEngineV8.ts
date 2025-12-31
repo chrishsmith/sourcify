@@ -38,6 +38,7 @@ import {
   NavigationStep,
 } from './htsTreeNavigator';
 import { CHAPTER_DESCRIPTIONS } from './htsHierarchy';
+import { selectChapterAndHeading } from './aiChapterSelector';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HIERARCHY TYPES
@@ -210,50 +211,31 @@ export async function classifyProductV8(
   });
   
   // ─────────────────────────────────────────────────────────────────────────────
-  // PHASE 2: Route Determination
+  // PHASE 2: GRI Override Check (ONLY legally mandated rules)
   // ─────────────────────────────────────────────────────────────────────────────
-  console.log('[V8] Phase 2: Determining classification route...');
+  console.log('[V8] Phase 2: Checking GRI overrides...');
   
-  const route = determineRoute(understanding, input.answers);
-  
-  console.log('[V8] Route type:', route.routeType);
-  console.log('[V8] Route reason:', route.routeReason);
-  console.log('[V8] Decision points:', route.decisionPoints.length);
-  console.log('[V8] Ready to classify:', route.readyToClassify);
-  
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PHASE 3: Check if Questions Needed
-  // ─────────────────────────────────────────────────────────────────────────────
-  
-  if (!route.readyToClassify && !allDecisionPointsAnswered(route.decisionPoints, input.answers)) {
-    console.log('[V8] Questions needed before classification');
-    
-    return {
-      needsInput: true,
-      questions: route.decisionPoints,
-      productUnderstanding: understanding,
-      processingTimeMs: Date.now() - startTime,
-    };
-  }
-  
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PHASE 4: Classification
-  // ─────────────────────────────────────────────────────────────────────────────
-  console.log('[V8] Phase 4: Classifying product...');
+  // Check for the 3 legally-mandated function-over-material cases
+  const griOverride = checkGRIOverrides(understanding);
   
   let result: ClassificationV8Result;
   
-  if (route.routeType === 'function-driven') {
-    result = await classifyFunctionDriven(understanding, route, input.answers);
+  if (griOverride) {
+    console.log('[V8] GRI Override:', griOverride.rule, '→ Chapter', griOverride.chapter);
+    result = await classifyWithGRIOverride(understanding, griOverride, input.answers);
   } else {
-    result = await classifyMaterialDriven(understanding, route, input.answers);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // PHASE 3: AI-Driven Classification (THE ROBUST SOLUTION)
+    // ─────────────────────────────────────────────────────────────────────────────
+    console.log('[V8] Phase 3: AI-driven chapter/heading selection...');
+    result = await classifyWithAI(understanding, input);
   }
   
   // Build transparency info
   const transparency = buildTransparency(understanding, input.answers);
   
   // ─────────────────────────────────────────────────────────────────────────────
-  // PHASE 5: Final Result with Hierarchy
+  // PHASE 4: Final Result with Hierarchy
   // ─────────────────────────────────────────────────────────────────────────────
   
   // Build hierarchy for display
@@ -263,11 +245,16 @@ export async function classifyProductV8(
     hierarchy = buildHierarchy(result.treePath, chapter);
   }
   
+  // Determine route description
+  const routeApplied = griOverride 
+    ? `${griOverride.rule}: ${griOverride.reason}`
+    : `AI-driven: AI selected chapter and heading based on HTS descriptions`;
+  
   const finalResult: ClassificationV8Result = {
     ...result,
     needsInput: false,
     hierarchy,
-    routeApplied: `${route.routeType}: ${route.routeReason}`,
+    routeApplied,
     transparency,
     processingTimeMs: Date.now() - startTime,
   };
@@ -282,22 +269,170 @@ export async function classifyProductV8(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FUNCTION-DRIVEN CLASSIFICATION
+// GRI OVERRIDE CHECK - Only 3 legally mandated cases
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface GRIOverride {
+  rule: string;
+  chapter: string;
+  heading: string;
+  reason: string;
+}
+
+/**
+ * Check for GRI-mandated function-over-material cases.
+ * ONLY these 3 cases are hardcoded - everything else uses AI.
+ */
+function checkGRIOverrides(understanding: ProductUnderstanding): GRIOverride | null {
+  // GRI 3(a): Cases designed to contain specific articles → Chapter 42
+  if (understanding.isForCarrying) {
+    return {
+      rule: 'GRI 3(a) - Cases',
+      chapter: '42',
+      heading: '4202',
+      reason: 'Cases and containers for carrying items classified under 4202 regardless of material',
+    };
+  }
+  
+  // GRI 3(a): Toys for children's amusement → Chapter 95
+  if (understanding.isToy) {
+    return {
+      rule: 'GRI 3(a) - Toys',
+      chapter: '95',
+      heading: '9503',
+      reason: 'Toys designed for children classified under Chapter 95 regardless of material',
+    };
+  }
+  
+  // GRI 3(a): Imitation jewelry → Chapter 71
+  if (understanding.isJewelry) {
+    return {
+      rule: 'GRI 3(a) - Jewelry',
+      chapter: '71',
+      heading: '7117',
+      reason: 'Imitation jewelry classified under 7117 regardless of material',
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Classify with GRI override (the 3 hardcoded cases)
+ */
+async function classifyWithGRIOverride(
+  understanding: ProductUnderstanding,
+  override: GRIOverride,
+  answers?: Record<string, string>
+): Promise<ClassificationV8Result> {
+  console.log('[V8] GRI Override classification:', override.rule);
+  
+  const effectiveMaterial = getEffectiveMaterial(understanding, answers);
+  
+  const context: ProductContext = {
+    essentialCharacter: override.rule,
+    productType: understanding.productType,
+    material: effectiveMaterial,
+    useContext: understanding.useContext,
+    keywords: understanding.keywords,
+  };
+  
+  const treePath = await navigateTree(override.chapter, override.heading, context);
+  
+  const finalCode = await prisma.htsCode.findFirst({
+    where: { code: treePath.finalCode },
+  });
+  
+  const confidence = Math.min(0.95, treePath.confidence + 0.05);
+  
+  return {
+    needsInput: false,
+    htsCode: treePath.finalCode,
+    htsCodeFormatted: treePath.finalCodeFormatted,
+    description: finalCode?.description || 'Unknown',
+    generalRate: finalCode?.generalRate || null,
+    confidence,
+    confidenceLabel: confidence >= 0.85 ? 'high' : confidence >= 0.7 ? 'medium' : 'low',
+    treePath,
+    processingTimeMs: 0,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI-DRIVEN CLASSIFICATION - The Robust Solution
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Classify products where FUNCTION determines the chapter (not material)
- * - Cases for carrying → 4202
- * - Toys → 9503
- * - Jewelry → 7117
- * - etc.
+ * AI-driven classification - no hardcoded patterns.
+ * AI reads actual HTS chapter/heading descriptions and selects the best match.
+ */
+async function classifyWithAI(
+  understanding: ProductUnderstanding,
+  input: ClassificationV8Input
+): Promise<ClassificationV8Result> {
+  console.log('[V8] AI-driven classification for:', understanding.productType);
+  
+  // Step 1: AI selects chapter and heading by reading actual HTS data
+  const { chapter, heading } = await selectChapterAndHeading({
+    description: input.description,
+    material: input.material || understanding.material,
+    use: input.use || understanding.useContext,
+    productType: understanding.productType,
+  });
+  
+  console.log('[V8] AI selected Chapter:', chapter.chapter, '-', chapter.chapterName);
+  console.log('[V8] AI selected Heading:', heading.heading, '-', heading.headingName);
+  
+  // Step 2: Navigate tree from the AI-selected heading
+  const effectiveMaterial = input.material || understanding.material || 'unknown';
+  console.log('[V8] Effective material for tree navigation:', effectiveMaterial);
+  
+  const context: ProductContext = {
+    essentialCharacter: 'article',
+    productType: understanding.productType,
+    material: effectiveMaterial,
+    useContext: understanding.useContext,
+    keywords: understanding.keywords,
+  };
+  
+  console.log('[V8] Product context:', JSON.stringify(context, null, 2));
+  
+  const treePath = await navigateTree(chapter.chapter, heading.heading, context);
+  
+  // Step 3: Get final code details
+  const finalCode = await prisma.htsCode.findFirst({
+    where: { code: treePath.finalCode },
+  });
+  
+  // Confidence is combination of AI selection confidence and tree navigation
+  const confidence = (chapter.confidence + heading.confidence + treePath.confidence) / 3;
+  
+  return {
+    needsInput: false,
+    htsCode: treePath.finalCode,
+    htsCodeFormatted: treePath.finalCodeFormatted,
+    description: finalCode?.description || 'Unknown',
+    generalRate: finalCode?.generalRate || null,
+    confidence,
+    confidenceLabel: confidence >= 0.85 ? 'high' : confidence >= 0.7 ? 'medium' : 'low',
+    treePath,
+    processingTimeMs: 0,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY FUNCTION-DRIVEN CLASSIFICATION (kept for reference, not used)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * @deprecated Use classifyWithGRIOverride or classifyWithAI instead
  */
 async function classifyFunctionDriven(
   understanding: ProductUnderstanding,
   route: ClassificationRoute,
   answers?: Record<string, string>
 ): Promise<ClassificationV8Result> {
-  console.log('[V8] Function-driven classification');
+  console.log('[V8] Legacy function-driven classification');
   console.log('[V8] Forced chapter:', route.forcedChapter);
   console.log('[V8] Forced heading:', route.forcedHeading);
   
@@ -326,7 +461,7 @@ async function classifyFunctionDriven(
     treePath = await navigateTree(chapter, heading, context);
   } else {
     // Need to find the heading within the chapter
-    const headingResult = await selectHeadingWithAI(chapter, understanding);
+    const headingResult = await selectHeadingWithAILegacy(chapter, understanding);
     treePath = await navigateTree(chapter, headingResult.heading, context);
   }
   
@@ -559,9 +694,9 @@ Return JSON:
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Select the best heading within a chapter using AI
+ * @deprecated Use selectHeadingWithAI from aiChapterSelector instead
  */
-async function selectHeadingWithAI(
+async function selectHeadingWithAILegacy(
   chapter: string,
   understanding: ProductUnderstanding
 ): Promise<{ heading: string; reasoning: string }> {

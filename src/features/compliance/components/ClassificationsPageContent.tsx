@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { Tabs, Button, Typography, Modal, Upload, message, Progress } from 'antd';
-import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles, TreeDeciduous, Zap } from 'lucide-react';
+import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles, TreeDeciduous, Zap, Search, Bolt } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
+import ClassificationV10 from '@/features/compliance/components/ClassificationV10';
+import ClassificationV9 from '@/features/compliance/components/ClassificationV9';
 import ClassificationV8 from '@/features/compliance/components/ClassificationV8';
 import ClassificationV6 from '@/features/compliance/components/ClassificationV6';
 import ClassificationV5 from '@/features/compliance/components/ClassificationV5';
@@ -16,7 +18,7 @@ const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
 export const ClassificationsPageContent = () => {
-    const [activeTab, setActiveTab] = useState('1');
+    const [activeTab, setActiveTab] = useState('10');
     const [viewingResult, setViewingResult] = useState<ClassificationResult | null>(null);
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
     const [bulkProcessing, setBulkProcessing] = useState(false);
@@ -98,11 +100,31 @@ export const ClassificationsPageContent = () => {
 
     const items = [
         {
+            key: '10',
+            label: (
+                <span className="flex items-center gap-2">
+                    <Bolt size={16} className="text-amber-500" />
+                    V10 Semantic ⚡
+                </span>
+            ),
+            children: <ClassificationV10 />,
+        },
+        {
             key: '1',
             label: (
                 <span className="flex items-center gap-2">
+                    <Search size={16} />
+                    V9 (Wide Net)
+                </span>
+            ),
+            children: <ClassificationV9 />,
+        },
+        {
+            key: '8',
+            label: (
+                <span className="flex items-center gap-2">
                     <Zap size={16} />
-                    New Classification (V8)
+                    V8 (Arbiter)
                 </span>
             ),
             children: <ClassificationV8 />,

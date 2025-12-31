@@ -436,6 +436,17 @@ export const CHAPTER_71_HEADINGS: HeadingRule[] = [
  */
 export const CHAPTER_85_HEADINGS: HeadingRule[] = [
   {
+    heading: '8528',
+    description: 'Monitors and projectors; reception apparatus for television',
+    condition: (u) => {
+      const pType = u.productType.toLowerCase();
+      return pType.includes('monitor') || pType.includes('display') || 
+             pType.includes('television') || pType.includes(' tv') || pType.includes('tv ') ||
+             pType.includes('projector') || pType.includes('screen');
+    },
+    priority: 16,
+  },
+  {
     heading: '8539',
     description: 'Electric lamps and tubes',
     condition: (u) => {

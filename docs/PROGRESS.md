@@ -1,6 +1,6 @@
 # Sourcify Development Progress
 
-> **Last Updated:** December 27, 2025  
+> **Last Updated:** December 30, 2025  
 > **Current Phase:** Phase 2.5 - HTS Classification System  
 > **Current Sprint:** Sprint 4
 
@@ -59,6 +59,44 @@
 | 4.29 Question UI | ✅ Complete | Material options with chapter/duty hints |
 
 > **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION_V8.md`](./ARCHITECTURE_HTS_CLASSIFICATION_V8.md) for full architecture.
+
+### Completed This Sprint (Dec 30, 2025 - V10 "Velocity" Semantic Search Engine)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 4.30 pgvector Extension | ✅ Complete | Enabled on Neon database |
+| 4.31 Embedding Schema | ✅ Complete | `vector(1536)` column + HNSW index |
+| 4.32 Hierarchical Embeddings | ✅ Complete | Full context: chapter + heading + keywords |
+| 4.33 Embedding Generation | ✅ Complete | **27,061 HTS codes** embedded (~$0.40 cost) |
+| 4.34 Semantic Search | ✅ Complete | `searchHtsBySemantic()` with cosine similarity |
+| 4.35 V10 Classification Engine | ✅ Complete | `classificationEngineV10.ts` uses semantic search |
+| 4.36 V10 API Endpoint | ✅ Complete | `POST /api/classify-v10` |
+| 4.37 V10 UI Component | ✅ Complete | `ClassificationV10.tsx` - default tab |
+| 4.38 Frontend Integration | ✅ Complete | V10 is primary tab on Classifications page |
+| 4.39 Duty Calculation | ✅ Complete | Shows base MFN + Section 301 + effective rate |
+| 4.40 Alternative Rankings | ✅ Complete | Up to 10 alternatives with confidence scores |
+| 4.41 Query Enrichment | ✅ Complete | Adds product type context to semantic queries |
+| 4.42 Preferred Headings | ✅ Complete | Restricts search to relevant chapters |
+| 4.43 Low Confidence Handling | ✅ Complete | Asks for material when confidence < 40% |
+
+**Performance Results:**
+| Query | HTS Code | Time | Previous (V8) |
+|-------|----------|------|---------------|
+| "ceramic coffee mug" | 6912.00.44.00 | ~4s | 20-30s |
+| "plastic indoor planter" | 3924.90.56.50 | ~4s | 20-30s |
+| "mens cotton t-shirt" | 6109.10.00.40 | ~4s | 20-30s |
+
+**Improvement: 5-7x faster, ~$0.02 per 1000 queries (vs $30,000 for AI-per-query)**
+
+**Query Enrichment Example:**
+```
+Input: "indoor planter"
+Detected Product Type: "planter"
+Enriched Query: "indoor planter household article container pot"
+Preferred Chapters: [39, 69, 73, 44]
+```
+
+> **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION_V10.md`](./ARCHITECTURE_HTS_CLASSIFICATION_V10.md) for full architecture.
 
 ---
 
@@ -194,7 +232,7 @@
 
 | Task | Status | Completion |
 |------|--------|------------|
-| Local HTS Database | ✅ | 100% - 30,115 codes imported |
+| Local HTS Database | ✅ | 100% - 30,573 codes imported |
 | HTS Query APIs | ✅ | 100% - search, hierarchy, siblings |
 | Smart Revision Checking | ✅ | 100% - Only sync when USITC updates |
 | Dynamic Search Variations | ✅ | 100% - Handles hyphen/space variants |
@@ -203,6 +241,22 @@
 | Justification Generator | ✅ | 100% - Zonos-style explanations |
 
 **Phase 2.5 Overall: 100% ✅**
+
+### Phase 2.6: V10 Semantic Search Engine ✅ 100%
+
+| Task | Status | Completion |
+|------|--------|------------|
+| pgvector Extension | ✅ | 100% - Enabled on Neon database |
+| Embedding Schema | ✅ | 100% - vector(1536) + HNSW index |
+| Hierarchical Embeddings | ✅ | 100% - 27,061 codes embedded |
+| Semantic Search Function | ✅ | 100% - `searchHtsBySemantic()` |
+| V10 Classification Engine | ✅ | 100% - Semantic-first with fallback |
+| V10 API Endpoint | ✅ | 100% - `/api/classify-v10` |
+| V10 Frontend Component | ✅ | 100% - Default tab on Classifications |
+| Duty Calculation | ✅ | 100% - Base MFN + Section 301 |
+| Alternative Rankings | ✅ | 100% - Up to 10 with confidence |
+
+**Phase 2.6 Overall: 100% ✅**
 
 ---
 
@@ -214,6 +268,26 @@
 | No automated daily sync | High | Must run sync manually |
 | Email notifications not set up | Medium | No Resend/SendGrid integration |
 | Pre-existing `classify-db.ts` error | Medium | Uses `prisma.product` which doesn't exist |
+| V10 cache layer missing | Medium | Redis cache would cut response to <1s |
+
+---
+
+## 🎯 Next Up
+
+### Priority 1: Redis Cache Layer for V10
+- Cache common product queries for instant results
+- Target: 40%+ cache hit rate, <1s response time
+- Estimated: 2-4 hours
+
+### Priority 2: Scoring Refinement
+- Improve classification accuracy for edge cases
+- Better handling of multi-material products
+- User correction learning loop
+
+### Priority 3: API Rate Limits & Auth
+- Add proper rate limiting for API endpoints
+- API key management for external consumers
+- Usage tracking and billing
 
 ---
 
@@ -238,7 +312,14 @@
 - [x] **Dec 27, 2025** - **V8 "Arbiter" Engine** - Ask Upfront, Classify with Confidence 🎯
 - [x] **Dec 27, 2025** - **AI-Driven Tree Navigation** - Grok-3-mini selects best HTS match at each level 🤖
 - [x] **Dec 27, 2025** - **Full Hierarchy Display** - Chapter → Statistical with concatenated descriptions 🌳
+- [x] **Dec 30, 2025** - **V10 "Velocity" Engine LIVE** - Semantic search with pgvector embeddings ⚡
+- [x] **Dec 30, 2025** - **27,061 HTS Embeddings Generated** - Full hierarchical context for each code 🧠
+- [x] **Dec 30, 2025** - **5-7x Faster Classification** - ~4 seconds (down from 20-30s) 🚀
+- [x] **Dec 30, 2025** - **V10 Frontend Deployed** - Primary tab on Classifications page 🎨
+- [x] **Dec 30, 2025** - **Query Enrichment** - Prevents "planter" → "cucumber" mismatches 🎯
+- [x] **Dec 30, 2025** - **Low Confidence Handling** - Asks for material clarification when unsure ❓
 - [ ] Automated daily sync configured
+- [ ] Redis cache layer for <1s responses
 - [ ] First paying customer
 
 ---
@@ -277,11 +358,12 @@ As of April 2025:
 
 ## 🗃️ Data Sources Status
 
-### Active (8)
+### Active (9)
 
 | Source | Status | Last Sync | Records |
 |--------|--------|-----------|---------|
-| **USITC HTS Excel** | ✅ | Dec 23, 2025 | **30,115 codes** |
+| **USITC HTS Excel** | ✅ | Dec 23, 2025 | **30,573 codes** |
+| **HTS Embeddings (pgvector)** | ✅ | Dec 30, 2025 | **27,061 embeddings** |
 | ISO 3166-1 Countries | ✅ | Dec 20, 2025 | 199 countries |
 | USITC HTS API | ✅ | Dec 20, 2025 | Chapter 99 rates |
 | USITC DataWeb | ✅ | Dec 20, 2025 | Import statistics |

@@ -997,6 +997,11 @@ model HtsCode {
   lastSynced      DateTime @default(now())
   sourceRevision  String?            // "2025 HTSA Rev 1"
   
+  // Semantic search (pgvector - managed via raw SQL, not Prisma)
+  // embedding       vector(1536)     -- Added via migration
+  // embeddingContext String?         -- The text used to generate the embedding
+  // embeddingGeneratedAt DateTime?   -- When embedding was generated
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1006,6 +1011,7 @@ model HtsCode {
   @@index([parentCode])
   @@index([level])
   @@index([keywords], type: Gin)
+  // @@index([embedding], type: Hnsw)  -- Added via migration (pgvector HNSW index)
   @@map("hts_code")
 }
 

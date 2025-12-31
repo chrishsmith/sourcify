@@ -288,6 +288,8 @@ Features:
 | LED light bulb | 8539.5X.XX | Function: lighting |
 | USB-C charging cable | 8544.42.XX | Function: cable with connectors |
 | Stainless steel water bottle | 7323.93.XX | Material: steel household |
+| Computer monitor | 8528.52.XX | Function: display/monitor |
+| Television | 8528.72.XX | Function: TV receiver |
 
 ---
 

@@ -505,26 +505,98 @@ async function selectChildWithAI(
   reasoning: string;
   alternatives: { code: string; description: string; whyNot: string }[];
 }> {
-  // Skip AI for simple cases
-  if (children.length <= 2) {
-    // Just find the best match based on keywords
+  const materialLower = (productContext.material || '').toLowerCase();
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 1: Check for DIRECT material match FIRST (before AI)
+  // This is critical for textiles, ceramics, metals, etc.
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  if (materialLower && materialLower !== 'unknown') {
+    console.log(`[TreeNavigator] Checking material "${materialLower}" against ${children.length} children`);
+    
+    // Log all children for debugging
     for (const child of children) {
-      if (!child.isOtherCatchAll) {
-        const descLower = child.description.toLowerCase();
-        const materialLower = (productContext.material || '').toLowerCase();
+      console.log(`[TreeNavigator]   - ${child.codeFormatted}: "${child.description}" (isOther: ${child.isOtherCatchAll})`);
+    }
+    
+    // Handle material synonyms - define these FIRST
+    const materialSynonyms: Record<string, string[]> = {
+      'cotton': ['cotton'],
+      'polyester': ['synthetic', 'man-made', 'polyester', 'manmade'],
+      'synthetic': ['synthetic', 'man-made', 'polyester', 'nylon', 'manmade'],
+      'nylon': ['synthetic', 'man-made', 'nylon', 'manmade'],
+      'wool': ['wool', 'fine animal hair'],
+      'silk': ['silk'],
+      'plastic': ['plastic', 'plastics'],
+      'steel': ['steel', 'iron or steel', 'stainless', 'iron'],
+      'stainless': ['stainless', 'steel'],
+      'ceramic': ['ceramic', 'porcelain', 'china'],
+      'glass': ['glass'],
+      'aluminum': ['aluminum', 'aluminium'],
+      'wood': ['wood', 'wooden'],
+      'fleece': ['synthetic', 'man-made', 'polyester'],
+    };
+    
+    const synonyms = materialSynonyms[materialLower] || [materialLower];
+    
+    // Look for material match in HTS descriptions - check ALL patterns
+    for (const child of children) {
+      const descLower = child.description.toLowerCase();
+      console.log(`[TreeNavigator] Checking child "${child.codeFormatted}": desc="${descLower}", isOther=${child.isOtherCatchAll}`);
+      
+      if (child.isOtherCatchAll) {
+        console.log(`[TreeNavigator]   Skipping - is other catch-all`);
+        continue;
+      }
+      
+      // Check each synonym
+      for (const synonym of synonyms) {
+        console.log(`[TreeNavigator]   Checking synonym "${synonym}" in "${descLower}"`);
         
-        // Check if material matches HTS description
-        if (materialLower && descLower.includes(materialLower)) {
+        // Simple check - does the description contain the material word?
+        if (descLower.includes(synonym)) {
+          console.log(`[TreeNavigator] ✓ MATCH FOUND: "${synonym}" in "${child.description}"`);
           return {
             selected: child,
-            reasoning: `Material "${productContext.material}" matches HTS description`,
+            reasoning: `Material "${productContext.material}" matches HTS description "${child.description}"`,
             alternatives: [],
           };
         }
       }
     }
+    
+    console.log(`[TreeNavigator] ✗ No material match found for "${materialLower}" in any child`);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 2: Skip AI for simple cases with 2 or fewer options
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  if (children.length <= 2) {
+    // Just find the best match based on keywords
+    for (const child of children) {
+      if (!child.isOtherCatchAll) {
+        const descLower = child.description.toLowerCase();
+        
+        // Check if any keyword matches
+        for (const keyword of productContext.keywords) {
+          if (descLower.includes(keyword.toLowerCase())) {
+            return {
+              selected: child,
+              reasoning: `Keyword "${keyword}" matches HTS description`,
+              alternatives: [],
+            };
+          }
+        }
+      }
+    }
     return { selected: null, reasoning: 'No simple match', alternatives: [] };
   }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 3: Use AI for complex selections
+  // ═══════════════════════════════════════════════════════════════════════════
   
   // Build options list for AI
   const optionsList = children.map((c, i) => 
@@ -541,17 +613,24 @@ PRODUCT: ${productContext.productType}
 HTS OPTIONS:
 ${optionsList}
 
-CRITICAL RULES:
-1. Match the product's MATERIAL to HTS descriptions (e.g., "of cotton", "of synthetic fibers", "of plastic")
+CRITICAL RULES (in order of priority):
+
+1. **MATERIAL IS #1 PRIORITY**: If the product has a known material, you MUST select the option that matches that material.
+   - "Of cotton" → for cotton products
+   - "Of synthetic fibers" or "Of man-made fibers" → for polyester, nylon, etc.
+   - "Of wool" → for wool products
+   - DO NOT select "Other" if there is a material-specific option that matches!
+
 2. Match the product's USE to HTS descriptions (e.g., "household", "industrial", "tableware")
-3. AVOID specific carve-outs unless the product IS that specific item (e.g., "nursing nipples" only for actual nursing nipples)
-4. If no specific match, select "Other" or the most general option
-5. "Other" codes are catch-alls for products that don't fit specific categories
+
+3. AVOID specific carve-outs unless the product IS that specific item
+
+4. ONLY select "Other" if NO material-specific or use-specific option matches
 
 Return ONLY a JSON object:
 {
   "selectedIndex": <1-based index>,
-  "reasoning": "Brief explanation of why this matches"
+  "reasoning": "Brief explanation - mention the material match if applicable"
 }`;
 
   try {

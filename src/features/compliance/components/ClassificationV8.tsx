@@ -310,7 +310,7 @@ export default function ClassificationV8({ onSaveSuccess }: ClassificationV8Prop
 
             {/* Classification Result */}
             {result && !result.needsInput && result.htsCode && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {/* Main Result Card */}
                     <Card className="border-green-200 bg-green-50">
                         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
