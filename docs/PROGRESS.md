@@ -60,7 +60,7 @@
 
 > **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION_V8.md`](./ARCHITECTURE_HTS_CLASSIFICATION_V8.md) for full architecture.
 
-### Completed This Sprint (Dec 30, 2025 - V10 "Velocity" Semantic Search Engine)
+### Completed This Sprint (Dec 30, 2025 - Semantic Search Engine)
 
 | Task | Status | Notes |
 |------|--------|-------|
@@ -69,19 +69,22 @@
 | 4.32 Hierarchical Embeddings | ✅ Complete | Full context: chapter + heading + keywords |
 | 4.33 Embedding Generation | ✅ Complete | **27,061 HTS codes** embedded (~$0.40 cost) |
 | 4.34 Semantic Search | ✅ Complete | `searchHtsBySemantic()` with cosine similarity |
-| 4.35 V10 Classification Engine | ✅ Complete | `classificationEngineV10.ts` uses semantic search |
-| 4.36 V10 API Endpoint | ✅ Complete | `POST /api/classify-v10` |
-| 4.37 V10 UI Component | ✅ Complete | `ClassificationV10.tsx` - default tab |
-| 4.38 Frontend Integration | ✅ Complete | V10 is primary tab on Classifications page |
+| 4.35 Classification Engine | ✅ Complete | `classificationEngineV10.ts` uses semantic search |
+| 4.36 API Endpoint | ✅ Complete | `POST /api/classify-v10` |
+| 4.37 UI Component | ✅ Complete | `ClassificationV10.tsx` - default tab |
+| 4.38 Frontend Integration | ✅ Complete | Primary tab on Classifications page |
 | 4.39 Duty Calculation | ✅ Complete | Shows base MFN + Section 301 + effective rate |
 | 4.40 Alternative Rankings | ✅ Complete | Up to 10 alternatives with confidence scores |
 | 4.41 Query Enrichment | ✅ Complete | Adds product type context to semantic queries |
 | 4.42 Preferred Headings | ✅ Complete | Restricts search to relevant chapters |
 | 4.43 Low Confidence Handling | ✅ Complete | Asks for material when confidence < 40% |
+| 4.44 Conditional Classification | ✅ Complete | Detects value/size dependent HTS codes |
+| 4.45 Decision Flow UI | ✅ Complete | Simple yes/no questions for conditionals |
+| 4.46 Conservative Question Filtering | ✅ Complete | Only shows relevant questions |
 
 **Performance Results:**
-| Query | HTS Code | Time | Previous (V8) |
-|-------|----------|------|---------------|
+| Query | HTS Code | Time | Previous |
+|-------|----------|------|----------|
 | "ceramic coffee mug" | 6912.00.44.00 | ~4s | 20-30s |
 | "plastic indoor planter" | 3924.90.56.50 | ~4s | 20-30s |
 | "mens cotton t-shirt" | 6109.10.00.40 | ~4s | 20-30s |
@@ -96,7 +99,18 @@ Enriched Query: "indoor planter household article container pot"
 Preferred Chapters: [39, 69, 73, 44]
 ```
 
-> **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION_V10.md`](./ARCHITECTURE_HTS_CLASSIFICATION_V10.md) for full architecture.
+**Conditional Classification Example:**
+```
+Query: "ceramic coffee mug"
+Result: 6912.00.44.00 (mugs valued >$38)
+        
+Conditional Question: "What is the value of your item?"
+Options:
+  - "$38 or less" → 6912.00.35.10 (4.5% duty)
+  - "More than $38" → 6912.00.44.00 (9.8% duty)
+```
+
+> **📐 Design Doc:** See [`ARCHITECTURE_HTS_CLASSIFICATION.md`](./ARCHITECTURE_HTS_CLASSIFICATION.md) for full architecture.
 
 ---
 
@@ -242,7 +256,7 @@ Preferred Chapters: [39, 69, 73, 44]
 
 **Phase 2.5 Overall: 100% ✅**
 
-### Phase 2.6: V10 Semantic Search Engine ✅ 100%
+### Phase 2.6: Semantic Search Engine ✅ 100%
 
 | Task | Status | Completion |
 |------|--------|------------|
@@ -250,13 +264,17 @@ Preferred Chapters: [39, 69, 73, 44]
 | Embedding Schema | ✅ | 100% - vector(1536) + HNSW index |
 | Hierarchical Embeddings | ✅ | 100% - 27,061 codes embedded |
 | Semantic Search Function | ✅ | 100% - `searchHtsBySemantic()` |
-| V10 Classification Engine | ✅ | 100% - Semantic-first with fallback |
-| V10 API Endpoint | ✅ | 100% - `/api/classify-v10` |
-| V10 Frontend Component | ✅ | 100% - Default tab on Classifications |
+| Classification Engine | ✅ | 100% - Semantic-first with fallback |
+| API Endpoint | ✅ | 100% - `/api/classify-v10` |
+| Frontend Component | ✅ | 100% - Default tab on Classifications |
 | Duty Calculation | ✅ | 100% - Base MFN + Section 301 |
 | Alternative Rankings | ✅ | 100% - Up to 10 with confidence |
+| Conditional Classification | ✅ | 100% - Value/size dependent codes |
+| Decision Flow UI | ✅ | 100% - Simple questions for conditionals |
 
 **Phase 2.6 Overall: 100% ✅**
+
+> **📐 Architecture:** See [`ARCHITECTURE_HTS_CLASSIFICATION.md`](./ARCHITECTURE_HTS_CLASSIFICATION.md)
 
 ---
 
@@ -274,20 +292,21 @@ Preferred Chapters: [39, 69, 73, 44]
 
 ## 🎯 Next Up
 
-### Priority 1: Redis Cache Layer for V10
+### Priority 1: Upsell Teasers
+- Add "Lower rate available" badge when alternatives have lower duties
+- Add "Save with different sourcing" hint for country optimization
+- Wire up CTAs to sign-up / paid service pages
+- **Goal:** Convert free classifications to paid service sign-ups
+
+### Priority 2: Redis Cache Layer
 - Cache common product queries for instant results
 - Target: 40%+ cache hit rate, <1s response time
 - Estimated: 2-4 hours
 
-### Priority 2: Scoring Refinement
+### Priority 3: Scoring Refinement
 - Improve classification accuracy for edge cases
 - Better handling of multi-material products
 - User correction learning loop
-
-### Priority 3: API Rate Limits & Auth
-- Add proper rate limiting for API endpoints
-- API key management for external consumers
-- Usage tracking and billing
 
 ---
 
@@ -312,12 +331,16 @@ Preferred Chapters: [39, 69, 73, 44]
 - [x] **Dec 27, 2025** - **V8 "Arbiter" Engine** - Ask Upfront, Classify with Confidence 🎯
 - [x] **Dec 27, 2025** - **AI-Driven Tree Navigation** - Grok-3-mini selects best HTS match at each level 🤖
 - [x] **Dec 27, 2025** - **Full Hierarchy Display** - Chapter → Statistical with concatenated descriptions 🌳
-- [x] **Dec 30, 2025** - **V10 "Velocity" Engine LIVE** - Semantic search with pgvector embeddings ⚡
-- [x] **Dec 30, 2025** - **27,061 HTS Embeddings Generated** - Full hierarchical context for each code 🧠
+- [x] **Dec 30, 2025** - **Semantic Search Engine LIVE** - pgvector embeddings ⚡
+- [x] **Dec 30, 2025** - **27,061 HTS Embeddings Generated** - Full hierarchical context 🧠
 - [x] **Dec 30, 2025** - **5-7x Faster Classification** - ~4 seconds (down from 20-30s) 🚀
-- [x] **Dec 30, 2025** - **V10 Frontend Deployed** - Primary tab on Classifications page 🎨
+- [x] **Dec 30, 2025** - **Frontend Deployed** - Primary tab on Classifications page 🎨
 - [x] **Dec 30, 2025** - **Query Enrichment** - Prevents "planter" → "cucumber" mismatches 🎯
-- [x] **Dec 30, 2025** - **Low Confidence Handling** - Asks for material clarification when unsure ❓
+- [x] **Dec 30, 2025** - **Low Confidence Handling** - Asks for material when unsure ❓
+- [x] **Dec 30, 2025** - **Conditional Classification** - Detects value/size dependent codes 🔀
+- [x] **Dec 30, 2025** - **Decision Flow UI** - Simple questions for conditional codes 📝
+- [x] **Dec 30, 2025** - **Docs Cleanup** - Archived V5-V9, consolidated to single architecture doc 📚
+- [ ] Upsell teasers on classification results
 - [ ] Automated daily sync configured
 - [ ] Redis cache layer for <1s responses
 - [ ] First paying customer

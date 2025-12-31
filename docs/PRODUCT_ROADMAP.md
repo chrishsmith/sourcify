@@ -1,8 +1,8 @@
 # Sourcify Product Roadmap
 
-> **Version:** 1.1.0  
+> **Version:** 1.2.0  
 > **Created:** December 19, 2024  
-> **Last Updated:** December 20, 2025  
+> **Last Updated:** December 30, 2025  
 > **Status:** Active Development
 
 ---
@@ -11,6 +11,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.2.0 | Dec 30, 2025 | Team | Added funnel strategy (classification = hook, optimization = upsell) |
 | 1.1.0 | Dec 20, 2025 | Team | Added Country Tariff Registry (centralized data service) |
 | 1.0.0 | Dec 19, 2024 | Team | Initial roadmap - Sourcing Intelligence + Monitoring |
 
@@ -20,10 +21,10 @@
 
 **Sourcify** is the affordable, intuitive alternative to enterprise trade intelligence platforms like Datamyne. We help importers:
 
-1. **Classify** products accurately with AI
-2. **Optimize** sourcing to minimize landed costs
-3. **Monitor** tariffs, competitors, and market shifts
-4. **Act** on intelligence before competitors do
+1. **Classify** products accurately with AI (free)
+2. **Optimize** sourcing to minimize landed costs (paid)
+3. **Monitor** tariffs, competitors, and market shifts (paid)
+4. **Act** on intelligence before competitors do (paid)
 
 ### Competitive Positioning
 
@@ -37,6 +38,58 @@
 
 ---
 
+## 🎣 Funnel Strategy
+
+**Classification is the hook, not the product.**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           SOURCIFY FUNNEL                                        │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  TOP OF FUNNEL: FREE CLASSIFICATION                                              │
+│  ════════════════════════════════════                                            │
+│  • Fast (<6 sec) HTS code classification                                         │
+│  • Base tariff rate display                                                      │
+│  • Alternative codes with confidence                                             │
+│  • Conditional classification (size/value)                                       │
+│                                                                                  │
+│  CONVERSION TEASERS (shown in results):                                          │
+│  ════════════════════════════════════════                                        │
+│  💡 "We found an alternative code that could save 5% on duties"                  │
+│     → [Unlock Savings Analysis]                                                  │
+│                                                                                  │
+│  🌍 "Sourcing from Vietnam instead of China could save ~25%"                     │
+│     → [Explore Sourcing Intelligence]                                            │
+│                                                                                  │
+│  📋 "3 CBP rulings support this classification"                                  │
+│     → [View Detailed Analysis]                                                   │
+│                                                                                  │
+│  🔔 "Alert me when tariffs change" (free - captures email)                       │
+│     → [Set Up Alerts]                                                            │
+│                                                                                  │
+│  PAID SERVICES (the revenue):                                                    │
+│  ═════════════════════════════                                                   │
+│  • Same-Country Optimization: Find alternative HTS codes with lower rates        │
+│  • Country Sourcing Intelligence: Compare landed costs across countries          │
+│  • Tariff Monitoring: Alerts when rates change                                   │
+│  • Portfolio Analysis: Bulk optimization across product catalog                  │
+│  • CBP Ruling Research: Detailed classification support                          │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Pricing Model
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Free** | $0 | 5 classifications/day, basic tariff display |
+| **Pro** | $99/mo | Unlimited classifications, sourcing intelligence, tariff alerts |
+| **Business** | $299/mo | API access, bulk classification, team features |
+| **Enterprise** | Custom | White-label, dedicated support, custom integrations |
+
+---
+
 ## 🗺️ Roadmap Overview
 
 ```
@@ -44,27 +97,33 @@
 │                              SOURCIFY ROADMAP 2024-2025                         │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
-│  PHASE 1: SOURCING INTELLIGENCE (Current)                    Target: Jan 2025   │
-│  ════════════════════════════════════════                                       │
-│  ✅ Classification Engine (Complete)                                            │
-│  ✅ Tariff Calculation (Complete)                                               │
-│  ✅ Basic Sourcing Analysis (Complete)                                          │
-│  🔲 Classification → Sourcing Flow                                              │
-│  🔲 Enhanced Sourcing Input                                                     │
-│  🔲 Supplier Directory Polish                                                   │
+│  PHASE 0: CLASSIFICATION ENGINE (✅ COMPLETE)                Dec 30, 2025       │
+│  ═══════════════════════════════════════════                                    │
+│  ✅ Semantic Search Engine (~4s classification)                                 │
+│  ✅ 27,061 HTS codes with embeddings                                            │
+│  ✅ Conditional classification (size/value)                                     │
+│  ✅ Query enrichment (prevents mismatches)                                      │
+│  ✅ Frontend UI with alternatives + duty display                                │
+│                                                                                  │
+│  PHASE 1: UPSELL TEASERS (Current)                           Target: Jan 2025   │
+│  ═══════════════════════════════════                                            │
+│  🔲 "Lower rate available" badge on results                                     │
+│  🔲 "Save with different sourcing" hint                                         │
+│  🔲 Classification → Sourcing flow with pricing                                 │
+│  🔲 Email capture via tariff alerts (free)                                      │
 │                                                                                  │
 │  PHASE 2: TRADE INTELLIGENCE                                 Target: Feb 2025   │
 │  ═══════════════════════════════                                                │
-│  🔲 Tariff Alert System                                                         │
-│  🔲 Saved Products Monitoring                                                   │
-│  🔲 Intelligence Dashboard                                                      │
+│  ✅ Tariff Alert System (backend done)                                          │
+│  ✅ Saved Products Monitoring (UI done)                                         │
+│  ✅ Intelligence Dashboard Card                                                 │
 │  🔲 Weekly Digest Emails                                                        │
 │                                                                                  │
-│  PHASE 3: COMPETITIVE INTELLIGENCE                           Target: Q2 2025    │
-│  ════════════════════════════════════                                           │
-│  🔲 Competitor Watchlist                                                        │
-│  🔲 Market Trends Dashboard                                                     │
-│  🔲 Supplier Activity Monitoring                                                │
+│  PHASE 3: PAID OPTIMIZATION SERVICES                         Target: Q2 2025    │
+│  ══════════════════════════════════════                                         │
+│  🔲 Same-Country Optimization (alternative HTS codes)                           │
+│  🔲 Country Sourcing Intelligence (full analysis)                               │
+│  🔲 CBP Ruling Research Integration                                             │
 │                                                                                  │
 │  PHASE 4: PORTFOLIO INTELLIGENCE                             Target: Q2 2025    │
 │  ═══════════════════════════════════                                            │
