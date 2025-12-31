@@ -62,6 +62,30 @@ interface V10Alternative {
     };
 }
 
+interface DecisionOption {
+    label: string;
+    value: string;
+    htsCode?: string;
+    htsCodeFormatted?: string;
+    dutyRate?: string;
+}
+
+interface DecisionQuestion {
+    id: string;
+    question: string;
+    type: 'value' | 'size' | 'weight' | 'yes_no';
+    options: DecisionOption[];
+}
+
+interface ConditionalAlternative {
+    code: string;
+    codeFormatted: string;
+    description: string;
+    keyCondition: string;
+    dutyRate: string | null;
+    dutyDifference?: string;
+}
+
 interface V10Response {
     success: boolean;
     timing: {
@@ -77,6 +101,12 @@ interface V10Response {
     detectedChapters: string[];
     searchTerms: string[];
     searchHistoryId?: string;
+    conditionalClassification?: {
+        hasConditions: boolean;
+        guidance?: string;
+        decisionQuestions: DecisionQuestion[];
+        alternatives: ConditionalAlternative[];
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -396,6 +426,110 @@ export default function ClassificationV10() {
                                 </div>
                             </div>
                         </Card>
+
+                        {/* Conditional Classification - Decision Questions */}
+                        {result.conditionalClassification?.hasConditions && (
+                            <Card 
+                                className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white"
+                                title={
+                                    <div className="flex items-center gap-3">
+                                        <AlertTriangle size={20} className="text-purple-600" />
+                                        <span>Need More Details</span>
+                                    </div>
+                                }
+                            >
+                                {result.conditionalClassification.guidance && (
+                                    <div className="p-3 bg-purple-100 rounded-lg mb-4">
+                                        <Text className="text-purple-800">
+                                            {result.conditionalClassification.guidance}
+                                        </Text>
+                                    </div>
+                                )}
+                                
+                                {/* Decision Questions */}
+                                {result.conditionalClassification.decisionQuestions.length > 0 && (
+                                    <div className="space-y-4 mb-4">
+                                        {result.conditionalClassification.decisionQuestions.map((q) => (
+                                            <div key={q.id} className="p-4 bg-white rounded-lg border border-purple-200">
+                                                <Text strong className="block mb-3 text-lg text-slate-800">
+                                                    {q.question}
+                                                </Text>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {q.options.map((opt) => (
+                                                        <button
+                                                            key={opt.value}
+                                                            onClick={() => opt.htsCode && copyToClipboard(opt.htsCode)}
+                                                            className="p-3 text-left rounded-lg border-2 border-purple-100 hover:border-purple-400 hover:bg-purple-50 transition-all"
+                                                        >
+                                                            <div className="font-medium text-slate-800">{opt.label}</div>
+                                                            {opt.htsCodeFormatted && (
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <span className="font-mono text-sm text-purple-600">
+                                                                        {opt.htsCodeFormatted}
+                                                                    </span>
+                                                                    {opt.dutyRate && (
+                                                                        <span className="text-xs text-slate-500">
+                                                                            ({opt.dutyRate})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Alternative Codes Reference */}
+                                {result.conditionalClassification.alternatives.length > 0 && (
+                                    <Collapse ghost className="mt-4">
+                                        <Panel 
+                                            header={
+                                                <span className="text-slate-600">
+                                                    View All Conditional Codes ({result.conditionalClassification.alternatives.length})
+                                                </span>
+                                            } 
+                                            key="1"
+                                        >
+                                            <div className="space-y-2">
+                                                {result.conditionalClassification.alternatives.map((alt) => (
+                                                    <div 
+                                                        key={alt.code}
+                                                        className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between"
+                                                    >
+                                                        <div>
+                                                            <span className="font-mono text-purple-700 mr-2">
+                                                                {alt.codeFormatted}
+                                                            </span>
+                                                            <span className="text-sm text-slate-600">
+                                                                {alt.keyCondition}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {alt.dutyRate && (
+                                                                <Tag color="default">{alt.dutyRate}</Tag>
+                                                            )}
+                                                            {alt.dutyDifference && (
+                                                                <Tag color={alt.dutyDifference.includes('lower') ? 'green' : 'orange'}>
+                                                                    {alt.dutyDifference}
+                                                                </Tag>
+                                                            )}
+                                                            <Button 
+                                                                size="small"
+                                                                icon={<Copy size={12} />} 
+                                                                onClick={() => copyToClipboard(alt.code)}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </Panel>
+                                    </Collapse>
+                                )}
+                            </Card>
+                        )}
 
                         {/* Alternative Classifications */}
                         {result.alternatives.length > 0 && (

@@ -25,6 +25,10 @@ import {
 } from './htsDatabase';
 import { getEffectiveTariff, convertToLegacyFormat } from './tariffRegistry';
 import { searchHtsBySemantic, dualPathSearch, getEmbeddingStats } from './htsEmbeddings';
+import { 
+  detectConditionalSiblings,
+  ConditionalClassificationResult,
+} from './conditionalClassification';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -88,6 +92,9 @@ export interface ClassifyV10Result {
     question: string;
     options: { value: string; label: string; hint?: string }[];
   };
+  
+  // Conditional classification (when siblings have value/size/weight conditions)
+  conditionalClassification?: ConditionalClassificationResult;
   
   justification?: string | null;
 }
@@ -1144,6 +1151,27 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     };
   }
   
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CONDITIONAL CLASSIFICATION: Detect value/size/weight dependent siblings
+  // This helps users find more specific codes when conditions apply
+  // ─────────────────────────────────────────────────────────────────────────────
+  
+  let conditionalClassification: ClassifyV10Result['conditionalClassification'] = undefined;
+  
+  try {
+    const conditionalResult = await detectConditionalSiblings(
+      primary.code,
+      dutyInfo?.baseMfn || null
+    );
+    
+    if (conditionalResult.hasConditions) {
+      console.log(`[V10] Found ${conditionalResult.decisionQuestions.length} decision questions, ${conditionalResult.alternatives.length} alternatives`);
+      conditionalClassification = conditionalResult;
+    }
+  } catch (err) {
+    console.log('[V10] Error detecting conditional siblings:', err);
+  }
+  
   return {
     success: true,
     timing: {
@@ -1170,6 +1198,7 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     detectedChapters: materialChapters,
     searchTerms,
     needsClarification,
+    conditionalClassification,
   };
 }
 

@@ -134,6 +134,12 @@ export async function POST(request: NextRequest) {
       detectedChapters: result.detectedChapters,
       searchTerms: result.searchTerms,
       
+      // Clarification needed (low confidence)
+      needsClarification: result.needsClarification,
+      
+      // Conditional classification (value/size/weight dependent)
+      conditionalClassification: result.conditionalClassification,
+      
       // Justification (if requested)
       justification,
     });
