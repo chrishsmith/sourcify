@@ -284,15 +284,37 @@ Returns embedding coverage stats.
     "htsCode": "6912004400",
     "htsCodeFormatted": "6912.00.44.00",
     "confidence": 80,
+    "shortDescription": "Mugs and other steins",
     "fullDescription": "Ceramic tableware, kitchenware... Mugs and other steins",
+    "path": {
+      "codes": ["69", "6912", "6912.00", "6912.00.44.00"],
+      "descriptions": ["Ceramic tableware...", "Mugs and other steins"],
+      "groupings": [],
+      "chapterDescription": "Ceramic products"
+    },
     "duty": {
       "baseMfn": "10%",
       "additional": "+25% (Section 301)",
-      "effective": "55.0%"
+      "effective": "55.0%",
+      "breakdown": [
+        { "program": "IEEPA Baseline", "rate": 10.0 },
+        { "program": "Fentanyl Tariff", "rate": 10.0 },
+        { "program": "Section 301", "rate": 25.0 }
+      ]
     }
   },
   "alternatives": [
-    { "rank": 2, "htsCode": "6911104500", ... },
+    { 
+      "rank": 2, 
+      "htsCode": "6911104500",
+      "htsCodeFormatted": "6911.10.45.00",
+      "confidence": 60,
+      "description": "Mugs and other steins",
+      "fullDescription": "Tableware... of porcelain or china: Mugs and other steins",
+      "chapter": "69",
+      "chapterDescription": "Ceramic products",
+      "headingDescription": "Tableware, kitchenware, other household articles..."
+    },
     { "rank": 3, "htsCode": "6912001000", ... }
   ]
 }
@@ -311,11 +333,26 @@ The classifier is available at `/dashboard/classifications`:
 
 ### UI Features
 
-**Classification Result:**
-- Primary result card with HTS code, confidence, full description
-- Duty breakdown showing base MFN, additional duties, effective rate
-- Alternative classifications (up to 10) with expandable list
-- HTS path showing chapter → heading → subheading → tariff line
+**Classification Result (Layout B - Dashboard Grid):**
+- Primary result card with HTS code, confidence badge (High/Medium/Low), description
+- Classification path showing chapter → heading → subheading → tariff line with labels
+- Parent groupings displayed (e.g., "Men's or boys':") when applicable
+- Duty breakdown in receipt-style: Base MFN + IEEPA + Fentanyl + Section 301 = Effective Total
+
+**Zonos-Style Clickable Alternatives:**
+- ORIGINAL section always visible at top (click to return)
+- ALTERNATES section with clickable options
+- Clicking an alternative updates the main result display
+- Selected item highlighted (green for Original, blue for Alternate)
+- Copy icon only on main HTS code, not alternatives
+
+**Rate Inheritance:**
+- 10-digit statistical codes inherit generalRate from 8-digit parent if not set
+- Ensures Base MFN Rate is never "N/A"
+
+**Data Cleaning:**
+- HTML tags (`<il>`, `</il>`) stripped from all descriptions
+- Quota category codes (`(338)`, `(445)`) removed from display
 
 **Conditional Classification (when applicable):**
 - Decision questions for value/size dependent codes
