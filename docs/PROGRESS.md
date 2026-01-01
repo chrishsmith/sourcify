@@ -1,16 +1,70 @@
 # Sourcify Development Progress
 
 > **Last Updated:** January 1, 2026  
-> **Current Phase:** Phase 2.8 - Dev Infrastructure & Bug Fixes  
+> **Current Phase:** Phase 2.9 - Classification Accuracy Improvements  
 > **Current Sprint:** Sprint 5
 
 ---
 
 ## 🎯 Current Sprint: Sprint 5
 
-**Theme:** Classification UI/UX Refinement + Dev Infrastructure  
+**Theme:** Classification UI/UX Refinement + Accuracy Improvements  
 **Dates:** Jan 1 - Jan 3, 2026  
-**Goal:** Professional, Zonos-quality classification results UI + development tooling
+**Goal:** Professional, Zonos-quality classification results UI + robust accuracy
+
+### Completed This Sprint (Jan 1, 2026 - Classification Accuracy)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 5.19 Product Type Priority | ✅ Complete | Product type is now the primary discriminator |
+| 5.20 Subheading Material Check | ✅ Complete | Check subheading (6-digit) for material conflicts |
+| 5.21 Fix Product Type Detection | ✅ Complete | Sort by length to check "tshirt" before "shirt" |
+| 5.22 Hierarchical Scoring | ✅ Complete | Heading match: +30 boost, mismatch: -50 penalty |
+| 5.23 User Segment Matching | ✅ Complete | "boys" now boosts 10-digit codes with Boys' in description |
+| 5.24 10-Digit Code Selection | ✅ Complete | Was returning 8-digit, now returns full 10-digit statistical |
+| 5.25 Parent Groupings Display | ✅ Complete | "Men's or boys'" and "Other T-shirts" now shown in path |
+| 5.26 Chapter Descriptions | ✅ Complete | Added all 99 HTS chapter descriptions lookup table |
+| 5.27 Quota Code Cleanup | ✅ Complete | Removed (338), (445) etc. from all displayed descriptions |
+| 5.28 Base Rate Inheritance | ✅ Complete | 10-digit codes now inherit generalRate from parent (8-digit) |
+| 5.29 Zonos-Style Alternatives | ✅ Complete | Click alternates to update main result (no more copy-only) |
+| 5.30 Strip HTML Tags | ✅ Complete | Remove `<il>`, `</il>` etc. from HTS descriptions |
+| 5.31 Alt Heading Descriptions | ✅ Complete | Alternatives now show accurate chapter/heading descriptions |
+
+**Key Insight: HTS is Hierarchical**
+```
+HEADING (4-digit)     = WHAT IS IT?     (most important)
+SUBHEADING (6-digit)  = WHAT MATERIAL?  (second important)
+STATISTICAL (8-10)    = FOR WHOM?       (least important)
+```
+
+**Product Type Priority Scoring:**
+- If product type detected (e.g., "tshirt"):
+  - Code in correct heading (6109) → +30 points
+  - Code in wrong heading (6205) → -50 points (SEVERE penalty)
+- This ensures "cotton tshirt for boys" → 6109.10.00 (T-shirts), NOT 6205.xx (Shirts)
+
+**Material Conflict Check:**
+- Now checks ALL levels: leaf description, parent, AND subheading
+- "cotton" + "Of man-made fibers" in subheading → -50 penalty
+- Prevents codes like 6205.30 (man-made fiber shirts) for cotton products
+
+**Test Results:**
+| Query | Before | After |
+|-------|--------|-------|
+| cotton tshirt for boys | 6205.30.20.40 (8-digit, wrong heading) | 6109.10.00.14 (10-digit, Boys' ✓) 99% |
+| cotton t-shirt for men | 6105.10.00 (wrong heading) | 6109.10.00 (T-shirts ✓) 96% |
+| ceramic coffee mug | 6912.00.44.00 | 6912.00.44.00 (100% ✓) |
+| confetti | 9505.90.40.00 | 9505.90.40.00 (70% ✓) |
+
+**Classification Path Example:**
+```
+61        Chapter    Chapter 61
+6109      Heading    T-shirts, singlets, tank tops...
+6109.10   Subheading T-shirts, singlets, tank tops...
+↳         Category   Men's or boys'          ← NEW: Parent groupings
+↳         Category   Other T-shirts          ← NEW: Parent groupings  
+6109.10.00.14 Tariff Boys' (338)             ← NEW: 10-digit code
+```
 
 ### Completed This Sprint (Jan 1, 2026 - Late Session)
 

@@ -24,6 +24,8 @@ interface V10Primary {
     path: {
         codes: string[];
         descriptions: string[];
+        groupings?: string[]; // Parent groupings like "Men's or boys':"
+        chapterDescription?: string; // Chapter-level description (e.g., "Articles of apparel...")
     };
     fullDescription: string;
     shortDescription: string;
@@ -54,6 +56,7 @@ interface V10Alternative {
     fullDescription: string;
     chapter: string;
     chapterDescription: string;
+    headingDescription?: string;
     materialNote?: string;
     duty?: {
         baseMfn: string;
@@ -171,6 +174,7 @@ export default function ClassificationV10LayoutB() {
     const [material, setMaterial] = useState<string | undefined>(undefined);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<V10Response | null>(null);
+    const [selectedAltIndex, setSelectedAltIndex] = useState<number | null>(null); // null = original primary
     const [messageApi, contextHolder] = message.useMessage();
 
     const handleClassify = async () => {
@@ -181,6 +185,7 @@ export default function ClassificationV10LayoutB() {
 
         setLoading(true);
         setResult(null);
+        setSelectedAltIndex(null);
 
         try {
             const response = await fetch('/api/classify-v10', {
@@ -218,10 +223,75 @@ export default function ClassificationV10LayoutB() {
         messageApi.success('Copied!');
     };
 
+    // Helper to strip HTML/XML tags like <il>, </il> from HTS descriptions
+    const stripHtmlTags = (text: string) => {
+        return text.replace(/<[^>]*>/g, '').trim();
+    };
+
     const handleReset = () => {
         setResult(null);
         setDescription('');
+        setSelectedAltIndex(null);
     };
+
+    // Get the currently displayed result (original or selected alternative)
+    const getDisplayedResult = () => {
+        if (!result || !result.primary) return null;
+        
+        if (selectedAltIndex === null) {
+            // Show original primary
+            return {
+                isOriginal: true,
+                htsCode: result.primary.htsCode,
+                htsCodeFormatted: result.primary.htsCodeFormatted,
+                confidence: result.primary.confidence,
+                shortDescription: stripHtmlTags(result.primary.shortDescription),
+                fullDescription: stripHtmlTags(result.primary.fullDescription),
+                path: {
+                    ...result.primary.path,
+                    descriptions: result.primary.path.descriptions.map(d => stripHtmlTags(d)),
+                    chapterDescription: result.primary.path.chapterDescription ? stripHtmlTags(result.primary.path.chapterDescription) : undefined,
+                },
+                duty: result.primary.duty,
+            };
+        }
+        
+        // Show selected alternative
+        const alt = result.alternatives[selectedAltIndex];
+        if (!alt) return null;
+        
+        // Build a simplified path from alternative data
+        const chapter = alt.chapter;
+        const heading = alt.htsCode.substring(0, 4);
+        const subheading = alt.htsCode.substring(0, 6);
+        
+        // Use the heading description from the API, or fall back to parsing fullDescription
+        const headingDesc = alt.headingDescription 
+            ? stripHtmlTags(alt.headingDescription)
+            : stripHtmlTags(alt.fullDescription.split(':')[1]?.trim() || alt.description);
+        
+        return {
+            isOriginal: false,
+            htsCode: alt.htsCode,
+            htsCodeFormatted: alt.htsCodeFormatted,
+            confidence: alt.confidence,
+            shortDescription: stripHtmlTags(alt.description),
+            fullDescription: stripHtmlTags(alt.fullDescription),
+            path: {
+                codes: [chapter, heading, subheading, alt.htsCode],
+                descriptions: [headingDesc, stripHtmlTags(alt.description)],
+                groupings: [], // Alternatives don't have groupings data
+                chapterDescription: alt.chapterDescription ? stripHtmlTags(alt.chapterDescription) : undefined,
+            },
+            duty: alt.duty ? {
+                baseMfn: alt.duty.baseMfn,
+                additional: 'N/A',
+                effective: alt.duty.effective,
+            } : null,
+        };
+    };
+
+    const displayedResult = result?.primary ? getDisplayedResult() : null;
 
     const countryOptions = [
         { value: 'CN', label: '🇨🇳 China' },
@@ -331,7 +401,7 @@ export default function ClassificationV10LayoutB() {
                 )}
 
                 {/* Results - Dashboard Grid Style */}
-                {result && result.success && result.primary && (
+                {result && result.success && result.primary && displayedResult && (
                     <div className="space-y-5">
                         <div className="grid grid-cols-12 gap-5">
                             {/* Main Result - Left Column (8 cols) */}
@@ -356,27 +426,27 @@ export default function ClassificationV10LayoutB() {
                                     {/* HTS Code + Confidence Badge */}
                                     <div className="flex items-center gap-3 mb-3">
                                         <span className="text-2xl font-mono font-bold text-slate-900 tracking-wide">
-                                            {result.primary.htsCodeFormatted}
+                                            {displayedResult.htsCodeFormatted}
                                         </span>
-                                        <Tooltip title="Copy">
+                                        <Tooltip title="Copy HTS code to clipboard">
                                             <Button 
                                                 size="small"
                                                 type="text"
                                                 icon={<Copy size={14} />} 
-                                                onClick={() => copyToClipboard(result.primary!.htsCode)}
+                                                onClick={() => copyToClipboard(displayedResult.htsCode)}
                                                 className="text-slate-400 hover:text-slate-600"
                                             />
                                         </Tooltip>
                                         <Tooltip title="How confident we are in this classification based on how well your description matches the HTS code">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-xs text-slate-400 uppercase tracking-wide">Match</span>
-                                                <ConfidenceBadge confidence={result.primary.confidence} />
+                                                <ConfidenceBadge confidence={displayedResult.confidence} />
                                             </div>
                                         </Tooltip>
                                     </div>
 
                                     <Text className="text-slate-600 text-sm block mb-4">
-                                        {result.primary.shortDescription || result.primary.fullDescription}
+                                        {(displayedResult.shortDescription || displayedResult.fullDescription).replace(/\s*\(\d{3}\)\s*$/, '')}
                                     </Text>
 
                                 {/* HTS Path - Expanded with hierarchy labels */}
@@ -386,56 +456,101 @@ export default function ClassificationV10LayoutB() {
                                     </Text>
                                     <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-200">
                                         {(() => {
+                                            // Helper to remove quota category codes like (338), (352), etc. AND HTML tags like <il>
+                                            const cleanDescription = (desc: string) => 
+                                                desc.replace(/<[^>]*>/g, '').replace(/\s*\(\d{3}\)\s*$/, '').trim();
+                                            
                                             // Build full 4-level hierarchy from tariff code
-                                            const tariffCode = result.primary!.htsCodeFormatted.replace(/\./g, '');
-                                            const pathData = result.primary!.path;
+                                            const tariffCode = displayedResult.htsCodeFormatted.replace(/\./g, '');
+                                            const pathData = displayedResult.path;
+                                            const groupings = pathData.groupings || [];
                                             
                                             // Extract chapter, heading from the tariff code
                                             const chapter = tariffCode.substring(0, 2);
                                             const heading = tariffCode.substring(0, 4);
                                             const subheading = tariffCode.substring(0, 6);
                                             
+                                            // Get the heading description (index 0) - this is the main product category
+                                            const headingDesc = cleanDescription(pathData.descriptions[0] || '');
+                                            // Get the chapter description from the API response
+                                            const chapterDesc = pathData.chapterDescription || `Chapter ${chapter}`;
+                                            
                                             // Build full hierarchy with fallback descriptions
-                                            const levels = [
+                                            type PathLevel = { 
+                                                code: string; 
+                                                formatted: string; 
+                                                level: string; 
+                                                description: string;
+                                                isGrouping?: boolean;
+                                            };
+                                            
+                                            const levels: PathLevel[] = [
                                                 { 
                                                     code: chapter, 
                                                     formatted: chapter,
                                                     level: 'Chapter',
-                                                    description: pathData.codes.find(c => c.replace(/\./g, '').length === 2) 
-                                                        ? pathData.descriptions[pathData.codes.findIndex(c => c.replace(/\./g, '').length === 2)]
-                                                        : `Chapter ${chapter}`
+                                                    // Use the actual chapter description
+                                                    description: chapterDesc
                                                 },
                                                 { 
                                                     code: heading, 
                                                     formatted: heading,
                                                     level: 'Heading',
-                                                    description: pathData.codes.find(c => c.replace(/\./g, '').length === 4) 
-                                                        ? pathData.descriptions[pathData.codes.findIndex(c => c.replace(/\./g, '').length === 4)]
-                                                        : pathData.descriptions[0] || `Heading ${heading}`
+                                                    description: headingDesc
                                                 },
                                                 { 
                                                     code: subheading, 
                                                     formatted: `${subheading.substring(0, 4)}.${subheading.substring(4)}`,
                                                     level: 'Subheading',
-                                                    description: pathData.codes.find(c => c.replace(/\./g, '').length === 6) 
-                                                        ? pathData.descriptions[pathData.codes.findIndex(c => c.replace(/\./g, '').length === 6)]
-                                                        : pathData.descriptions[0] || `Subheading ${subheading}`
-                                                },
-                                                { 
-                                                    code: tariffCode, 
-                                                    formatted: result.primary!.htsCodeFormatted,
-                                                    level: 'Tariff',
-                                                    description: result.primary!.shortDescription
+                                                    // Get the subheading-specific description if available (index 1 = "Of cotton")
+                                                    description: cleanDescription(pathData.descriptions[1] || headingDesc)
                                                 },
                                             ];
                                             
-                                            return levels.map((item, idx) => (
-                                                <div key={item.code} className="flex items-start p-3 hover:bg-slate-50 transition-colors">
+                                            // Add parent groupings (e.g., "Men's or boys':")
+                                            // These go between Subheading and Tariff to show the indent structure
+                                            groupings.forEach((grouping, idx) => {
+                                                levels.push({
+                                                    code: `grouping-${idx}`,
+                                                    formatted: '↳',
+                                                    level: 'Category',
+                                                    description: cleanDescription(grouping),
+                                                    isGrouping: true,
+                                                });
+                                            });
+                                            
+                                            // Add final tariff code
+                                            levels.push({ 
+                                                code: tariffCode, 
+                                                formatted: displayedResult.htsCodeFormatted,
+                                                level: 'Tariff',
+                                                description: cleanDescription(displayedResult.shortDescription)
+                                            });
+                                            
+                                            return levels.map((item) => (
+                                                <div 
+                                                    key={item.code} 
+                                                    className={`flex items-start p-3 hover:bg-slate-50 transition-colors ${
+                                                        item.isGrouping ? 'bg-amber-50/50' : ''
+                                                    }`}
+                                                >
                                                     <div className="w-36 shrink-0">
-                                                        <span className="font-mono text-violet-600 font-medium">{item.formatted}</span>
-                                                        <span className="block text-xs text-slate-400 mt-0.5">{item.level}</span>
+                                                        <span className={`font-mono font-medium ${
+                                                            item.isGrouping ? 'text-amber-600' : 'text-violet-600'
+                                                        }`}>
+                                                            {item.formatted}
+                                                        </span>
+                                                        <span className={`block text-xs mt-0.5 ${
+                                                            item.isGrouping ? 'text-amber-500' : 'text-slate-400'
+                                                        }`}>
+                                                            {item.level}
+                                                        </span>
                                                     </div>
-                                                    <span className="text-slate-600 text-sm line-clamp-2">{item.description}</span>
+                                                    <span className={`text-sm line-clamp-2 ${
+                                                        item.isGrouping ? 'text-amber-700 font-medium' : 'text-slate-600'
+                                                    }`}>
+                                                        {item.description}
+                                                    </span>
                                                 </div>
                                             ));
                                         })()}
@@ -444,7 +559,7 @@ export default function ClassificationV10LayoutB() {
                             </Card>
 
                             {/* Duty Breakdown Card - Receipt Style */}
-                            {result.primary.duty && (
+                            {displayedResult.duty && (
                                 <Card className="border-slate-200 shadow-sm">
                                     <div className="flex items-center justify-between mb-4">
                                         <Text className="font-medium text-slate-500 uppercase text-xs tracking-wide">
@@ -459,11 +574,11 @@ export default function ClassificationV10LayoutB() {
                                         {/* Base MFN */}
                                         <div className="flex justify-between items-center py-1.5">
                                             <span className="text-slate-600">Base MFN Rate</span>
-                                            <span className="font-semibold text-slate-900">{result.primary.duty.baseMfn}</span>
+                                            <span className="font-semibold text-slate-900">{displayedResult.duty.baseMfn}</span>
                                         </div>
                                         
-                                        {/* Additional Tariffs from breakdown */}
-                                        {result.primary.duty.breakdown && result.primary.duty.breakdown
+                                        {/* Additional Tariffs from breakdown - only for original result */}
+                                        {displayedResult.isOriginal && result.primary?.duty?.breakdown && result.primary.duty.breakdown
                                             .filter((item: { program: string; rate: number }) => item.program !== 'Base MFN' && item.rate > 0)
                                             .map((item: { program: string; rate: number; description?: string }, idx: number) => (
                                                 <div key={idx} className="flex justify-between items-center py-1.5 text-slate-600">
@@ -479,7 +594,7 @@ export default function ClassificationV10LayoutB() {
                                         {/* Effective Total */}
                                         <div className="flex justify-between items-center py-1.5">
                                             <span className="font-bold text-slate-900">EFFECTIVE TOTAL</span>
-                                            <span className="font-bold text-lg text-amber-600">{result.primary.duty.effective}</span>
+                                            <span className="font-bold text-lg text-amber-600">{displayedResult.duty.effective}</span>
                                         </div>
                                     </div>
                                 </Card>
@@ -532,39 +647,68 @@ export default function ClassificationV10LayoutB() {
 
                         {/* Sidebar - Right Column (4 cols) */}
                         <div className="col-span-4 flex flex-col gap-5">
-                            {/* Alternatives Card */}
+                            {/* Alternatives Card - Zonos Style */}
                             <Card className="border-slate-200 shadow-sm">
-                                <Text className="font-medium text-slate-500 uppercase text-xs tracking-wide block mb-3">
-                                    Alternatives
+                                {/* Original Result - Always shown at top */}
+                                <Text className="font-medium text-slate-500 uppercase text-xs tracking-wide block mb-2">
+                                    Original
                                 </Text>
-                                
-                                <div className="space-y-2">
-                                    {result.alternatives.slice(0, 6).map((alt) => (
-                                        <div 
-                                            key={alt.htsCode}
-                                            className="p-2 rounded border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer group"
-                                            onClick={() => copyToClipboard(alt.htsCode)}
-                                        >
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="font-mono text-sm text-slate-800">{alt.htsCodeFormatted}</span>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-xs text-slate-400">{Math.round(alt.confidence)}%</span>
-                                                    <Copy size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                </div>
-                                            </div>
-                                            <div className="text-xs text-slate-500 truncate">{alt.description}</div>
-                                            {alt.duty && (
-                                                <div className="text-xs text-amber-600 mt-1">{alt.duty.effective}</div>
-                                            )}
-                                        </div>
-                                    ))}
+                                <div 
+                                    className={`p-2.5 rounded-lg border-2 transition-all cursor-pointer mb-4 ${
+                                        selectedAltIndex === null 
+                                            ? 'border-emerald-400 bg-emerald-50' 
+                                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                    onClick={() => setSelectedAltIndex(null)}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-mono text-sm font-medium text-slate-900">
+                                            {result.primary!.htsCodeFormatted}
+                                        </span>
+                                        <span className="text-xs text-slate-400">{Math.round(result.primary!.confidence)}%</span>
+                                    </div>
+                                    <div className="text-xs text-slate-600 line-clamp-1">
+                                        {result.primary!.shortDescription.replace(/<[^>]*>/g, '').replace(/\s*\(\d{3}\)\s*$/, '')}
+                                    </div>
                                 </div>
 
-                                {result.alternatives.length > 6 && (
-                                    <Button type="link" size="small" className="mt-2 p-0 text-xs">
-                                        + {result.alternatives.length - 6} more
-                                        <ArrowRight size={12} className="ml-1" />
-                                    </Button>
+                                {/* Alternatives */}
+                                {result.alternatives.length > 0 && (
+                                    <>
+                                        <Text className="font-medium text-slate-500 uppercase text-xs tracking-wide block mb-2">
+                                            Alternates
+                                        </Text>
+                                        <div className="space-y-2">
+                                            {result.alternatives.slice(0, 6).map((alt, idx) => (
+                                                <div 
+                                                    key={alt.htsCode}
+                                                    className={`p-2.5 rounded-lg border-2 transition-all cursor-pointer ${
+                                                        selectedAltIndex === idx 
+                                                            ? 'border-blue-400 bg-blue-50' 
+                                                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
+                                                    onClick={() => setSelectedAltIndex(idx)}
+                                                >
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="font-mono text-sm font-medium text-slate-900">
+                                                            {alt.htsCodeFormatted}
+                                                        </span>
+                                                        <span className="text-xs text-slate-400">{Math.round(alt.confidence)}%</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-600 line-clamp-1">
+                                                        {alt.description.replace(/<[^>]*>/g, '').replace(/\s*\(\d{3}\)\s*$/, '')}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {result.alternatives.length > 6 && (
+                                            <Button type="link" size="small" className="mt-2 p-0 text-xs">
+                                                + {result.alternatives.length - 6} more
+                                                <ArrowRight size={12} className="ml-1" />
+                                            </Button>
+                                        )}
+                                    </>
                                 )}
                             </Card>
 

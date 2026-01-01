@@ -31,6 +31,111 @@ import {
 } from './conditionalClassification';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// HTS CHAPTER DESCRIPTIONS (Not in database, stored here for reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CHAPTER_DESCRIPTIONS: Record<string, string> = {
+  '01': 'Live animals',
+  '02': 'Meat and edible meat offal',
+  '03': 'Fish and crustaceans, molluscs and other aquatic invertebrates',
+  '04': 'Dairy produce; birds\' eggs; natural honey; edible products of animal origin',
+  '05': 'Products of animal origin, not elsewhere specified or included',
+  '06': 'Live trees and other plants; bulbs, roots and the like; cut flowers and ornamental foliage',
+  '07': 'Edible vegetables and certain roots and tubers',
+  '08': 'Edible fruit and nuts; peel of citrus fruit or melons',
+  '09': 'Coffee, tea, maté and spices',
+  '10': 'Cereals',
+  '11': 'Products of the milling industry; malt; starches; inulin; wheat gluten',
+  '12': 'Oil seeds and oleaginous fruits; miscellaneous grains, seeds and fruit',
+  '13': 'Lac; gums, resins and other vegetable saps and extracts',
+  '14': 'Vegetable plaiting materials; vegetable products not elsewhere specified',
+  '15': 'Animal or vegetable fats and oils and their cleavage products',
+  '16': 'Preparations of meat, of fish or of crustaceans, molluscs or other aquatic invertebrates',
+  '17': 'Sugars and sugar confectionery',
+  '18': 'Cocoa and cocoa preparations',
+  '19': 'Preparations of cereals, flour, starch or milk; pastrycooks\' products',
+  '20': 'Preparations of vegetables, fruit, nuts or other parts of plants',
+  '21': 'Miscellaneous edible preparations',
+  '22': 'Beverages, spirits and vinegar',
+  '23': 'Residues and waste from the food industries; prepared animal fodder',
+  '24': 'Tobacco and manufactured tobacco substitutes',
+  '25': 'Salt; sulfur; earths and stone; plastering materials, lime and cement',
+  '26': 'Ores, slag and ash',
+  '27': 'Mineral fuels, mineral oils and products of their distillation',
+  '28': 'Inorganic chemicals; organic or inorganic compounds of precious metals',
+  '29': 'Organic chemicals',
+  '30': 'Pharmaceutical products',
+  '31': 'Fertilizers',
+  '32': 'Tanning or dyeing extracts; tannins and their derivatives; dyes, pigments',
+  '33': 'Essential oils and resinoids; perfumery, cosmetic or toilet preparations',
+  '34': 'Soap, organic surface-active agents, washing preparations, lubricating preparations',
+  '35': 'Albuminoidal substances; modified starches; glues; enzymes',
+  '36': 'Explosives; pyrotechnic products; matches; pyrophoric alloys',
+  '37': 'Photographic or cinematographic goods',
+  '38': 'Miscellaneous chemical products',
+  '39': 'Plastics and articles thereof',
+  '40': 'Rubber and articles thereof',
+  '41': 'Raw hides and skins (other than furskins) and leather',
+  '42': 'Articles of leather; saddlery and harness; travel goods, handbags',
+  '43': 'Furskins and artificial fur; manufactures thereof',
+  '44': 'Wood and articles of wood; wood charcoal',
+  '45': 'Cork and articles of cork',
+  '46': 'Manufactures of straw, of esparto or of other plaiting materials',
+  '47': 'Pulp of wood or of other fibrous cellulosic material',
+  '48': 'Paper and paperboard; articles of paper pulp, of paper or of paperboard',
+  '49': 'Printed books, newspapers, pictures and other products of the printing industry',
+  '50': 'Silk',
+  '51': 'Wool, fine or coarse animal hair; horsehair yarn and woven fabric',
+  '52': 'Cotton',
+  '53': 'Other vegetable textile fibers; paper yarn and woven fabrics of paper yarn',
+  '54': 'Man-made filaments; strip and the like of man-made textile materials',
+  '55': 'Man-made staple fibers',
+  '56': 'Wadding, felt and nonwovens; special yarns; twine, cordage, ropes and cables',
+  '57': 'Carpets and other textile floor coverings',
+  '58': 'Special woven fabrics; tufted textile fabrics; lace; tapestries; trimmings',
+  '59': 'Impregnated, coated, covered or laminated textile fabrics',
+  '60': 'Knitted or crocheted fabrics',
+  '61': 'Articles of apparel and clothing accessories, knitted or crocheted',
+  '62': 'Articles of apparel and clothing accessories, not knitted or crocheted',
+  '63': 'Other made up textile articles; sets; worn clothing and worn textile articles',
+  '64': 'Footwear, gaiters and the like; parts of such articles',
+  '65': 'Headgear and parts thereof',
+  '66': 'Umbrellas, sun umbrellas, walking sticks, seat-sticks, whips, riding-crops',
+  '67': 'Prepared feathers and down and articles made of feathers or of down',
+  '68': 'Articles of stone, plaster, cement, asbestos, mica or similar materials',
+  '69': 'Ceramic products',
+  '70': 'Glass and glassware',
+  '71': 'Natural or cultured pearls, precious or semiprecious stones, precious metals',
+  '72': 'Iron and steel',
+  '73': 'Articles of iron or steel',
+  '74': 'Copper and articles thereof',
+  '75': 'Nickel and articles thereof',
+  '76': 'Aluminum and articles thereof',
+  '78': 'Lead and articles thereof',
+  '79': 'Zinc and articles thereof',
+  '80': 'Tin and articles thereof',
+  '81': 'Other base metals; cermets; articles thereof',
+  '82': 'Tools, implements, cutlery, spoons and forks, of base metal',
+  '83': 'Miscellaneous articles of base metal',
+  '84': 'Nuclear reactors, boilers, machinery and mechanical appliances',
+  '85': 'Electrical machinery and equipment and parts thereof',
+  '86': 'Railway or tramway locomotives, rolling stock, track fixtures and fittings',
+  '87': 'Vehicles other than railway or tramway rolling stock',
+  '88': 'Aircraft, spacecraft, and parts thereof',
+  '89': 'Ships, boats and floating structures',
+  '90': 'Optical, photographic, cinematographic, measuring, checking, precision instruments',
+  '91': 'Clocks and watches and parts thereof',
+  '92': 'Musical instruments; parts and accessories of such articles',
+  '93': 'Arms and ammunition; parts and accessories thereof',
+  '94': 'Furniture; bedding, mattresses, cushions and similar stuffed furnishings',
+  '95': 'Toys, games and sports requisites; parts and accessories thereof',
+  '96': 'Miscellaneous manufactured articles',
+  '97': 'Works of art, collectors\' pieces and antiques',
+  '98': 'Special classification provisions',
+  '99': 'Temporary legislation; temporary modifications; additional import restrictions',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -59,6 +164,7 @@ export interface ClassifyV10Result {
     path: {
       codes: string[];
       descriptions: string[];
+      groupings?: string[]; // Parent groupings like "Men's or boys':"
     };
     
     fullDescription: string;
@@ -108,6 +214,7 @@ export interface Alternative {
   fullDescription: string;
   chapter: string;
   chapterDescription: string;
+  headingDescription?: string;
   materialNote?: string;
   duty?: {
     baseMfn: string;
@@ -281,11 +388,21 @@ const PRODUCT_TYPE_HINTS: Record<string, { headings: string[]; keywords: string[
 
 /**
  * Detect product type and get search hints
+ * 
+ * IMPORTANT: We must check more specific terms BEFORE less specific terms!
+ * e.g., "tshirt" must be checked before "shirt" because "tshirt" contains "shirt"
+ * 
+ * Strategy: Sort product types by length (longest first) to ensure specificity
  */
 function detectProductType(description: string): { type: string | null; headings: string[]; keywords: string[] } {
   const descLower = description.toLowerCase();
   
-  for (const [productType, hints] of Object.entries(PRODUCT_TYPE_HINTS)) {
+  // Sort product types by length (longest first) to match most specific term
+  // This prevents "shirt" from matching when user said "tshirt"
+  const sortedTypes = Object.entries(PRODUCT_TYPE_HINTS)
+    .sort((a, b) => b[0].length - a[0].length);
+  
+  for (const [productType, hints] of sortedTypes) {
     if (descLower.includes(productType)) {
       return { type: productType, ...hints };
     }
@@ -440,6 +557,81 @@ function isSpecificCarveOut(description: string): boolean {
 }
 
 /**
+ * Calculate penalty for unmentioned specificity in HTS description
+ * 
+ * When the HTS code has specific requirements that weren't mentioned in the user's query,
+ * we reduce confidence. This prevents 100% confidence on overly-specific matches.
+ * 
+ * Examples:
+ * - User: "cotton tshirt for boys"
+ * - HTS: "T-shirts, all white, short hemmed sleeves, hemmed bottom, crew or round neckline..."
+ * - The user didn't mention: "all white", "short hemmed sleeves", "hemmed bottom", etc.
+ * - These are ASSUMPTIONS, not confirmations → reduce confidence
+ */
+function calculateUnmentionedSpecificityPenalty(
+  htsDescLower: string,
+  productTerms: string[],
+  userQueryLower: string
+): number {
+  let penalty = 0;
+  
+  // Specific qualifiers that indicate restrictive requirements
+  // These reduce confidence when present in HTS but not in user query
+  const specificQualifiers = [
+    // Color/appearance
+    { pattern: /\ball white\b/, term: 'white', penalty: 15 },
+    { pattern: /\bwhite\b/, term: 'white', penalty: 10 },
+    { pattern: /\bblack\b/, term: 'black', penalty: 10 },
+    { pattern: /\bprinted\b/, term: 'print', penalty: 8 },
+    { pattern: /\bdyed\b/, term: 'dye', penalty: 6 },
+    
+    // Garment features
+    { pattern: /\bshort hemmed sleeves?\b/, term: 'short sleeve', penalty: 10 },
+    { pattern: /\blong sleeves?\b/, term: 'long sleeve', penalty: 10 },
+    { pattern: /\bsleeveless\b/, term: 'sleeveless', penalty: 10 },
+    { pattern: /\bhemmed bottom\b/, term: 'hemmed', penalty: 8 },
+    { pattern: /\bcrew.{0,5}neckline\b/, term: 'crew neck', penalty: 8 },
+    { pattern: /\bv.?neck\b/, term: 'v-neck', penalty: 8 },
+    { pattern: /\bround neckline\b/, term: 'round neck', penalty: 8 },
+    { pattern: /\bwithout pockets\b/, term: 'pocket', penalty: 10 },
+    { pattern: /\bwith pockets\b/, term: 'pocket', penalty: 8 },
+    { pattern: /\bwithout.{0,10}trim\b/, term: 'trim', penalty: 8 },
+    { pattern: /\bwithout.{0,10}embroidery\b/, term: 'embroider', penalty: 8 },
+    { pattern: /\bthermal\b/, term: 'thermal', penalty: 12 },
+    { pattern: /\bknitted\b/, term: 'knit', penalty: 5 },
+    { pattern: /\bcrocheted\b/, term: 'crochet', penalty: 8 },
+    
+    // Size/dimensions
+    { pattern: /\bover \d+/, term: 'over', penalty: 12 },
+    { pattern: /\bnot over \d+/, term: 'not over', penalty: 12 },
+    { pattern: /\bvalued over\b/, term: 'value', penalty: 10 },
+    { pattern: /\bvalued not over\b/, term: 'value', penalty: 10 },
+    
+    // Material specifics (when not in query)
+    { pattern: /\b100.?percent\b/, term: '100%', penalty: 8 },
+    { pattern: /\bchiefly of\b/, term: 'chiefly', penalty: 6 },
+  ];
+  
+  for (const qualifier of specificQualifiers) {
+    // Check if HTS has this qualifier
+    if (!qualifier.pattern.test(htsDescLower)) continue;
+    
+    // Check if user mentioned anything related to this qualifier
+    const userMentioned = 
+      userQueryLower.includes(qualifier.term) ||
+      productTerms.some(term => term.includes(qualifier.term) || qualifier.term.includes(term));
+    
+    // If HTS has it but user didn't mention it, add penalty
+    if (!userMentioned) {
+      penalty += qualifier.penalty;
+    }
+  }
+  
+  // Cap penalty at 40 to avoid completely zeroing out good matches
+  return Math.min(40, penalty);
+}
+
+/**
  * Validate "Other" selection by checking siblings at multiple levels
  * High confidence when product doesn't match ANY specific sibling
  * 
@@ -545,22 +737,39 @@ async function validateOtherSelection(
 
 /**
  * Build full legal description from hierarchy + parentGroupings
+ * 
+ * HTS codes have two types of hierarchy:
+ * 1. Code hierarchy: Chapter (61) → Heading (6109) → Subheading (6109.10) → Tariff (6109.10.00.04)
+ * 2. Parent groupings: Indent text like "Men's or boys':" that groups statistical codes
+ * 
+ * Both should be visible in the classification path for accuracy.
  */
-async function buildFullDescription(code: string): Promise<{ full: string; short: string; path: { codes: string[]; descriptions: string[] } }> {
+async function buildFullDescription(code: string): Promise<{ 
+  full: string; 
+  short: string; 
+  path: { codes: string[]; descriptions: string[]; groupings?: string[]; chapterDescription?: string } 
+}> {
   const hierarchy = await getHtsHierarchy(code);
+  
+  // Get chapter description from our lookup table
+  const chapter = code.slice(0, 2);
+  const chapterDescription = CHAPTER_DESCRIPTIONS[chapter] || `Chapter ${chapter}`;
   
   const codes: string[] = [];
   const descriptions: string[] = [];
+  const groupings: string[] = []; // Separate array for groupings like "Men's or boys':"
   const segments: string[] = [];
   
   for (const node of hierarchy) {
     codes.push(node.codeFormatted);
     
-    // Add parent groupings first (the "Other:", "Men's or boys':" rows)
+    // Capture parent groupings (the "Other:", "Men's or boys':" rows)
+    // These are critical for accurate classification display
     if (node.parentGroupings && node.parentGroupings.length > 0) {
       for (const grouping of node.parentGroupings) {
         const cleaned = grouping.replace(/:$/, '').trim();
-        if (cleaned && !segments.includes(cleaned) && cleaned.toLowerCase() !== 'other') {
+        if (cleaned && !groupings.includes(cleaned) && cleaned.toLowerCase() !== 'other') {
+          groupings.push(cleaned);
           segments.push(cleaned);
         }
       }
@@ -585,7 +794,7 @@ async function buildFullDescription(code: string): Promise<{ full: string; short
   return {
     full: segments.join(': '),
     short: shortDesc,
-    path: { codes, descriptions },
+    path: { codes, descriptions, groupings, chapterDescription },
   };
 }
 
@@ -597,6 +806,7 @@ async function buildFullDescription(code: string): Promise<{ full: string; short
  * Calculate score for a candidate HTS code
  */
 function calculateScore(
+  userQueryLower: string,  // Original user query (lowercase)
   productTerms: string[],
   productMaterial: string | null,
   productTypeHints: { type: string | null; headings: string[]; keywords: string[] },
@@ -607,6 +817,9 @@ function calculateScore(
     chapter: string;
     heading: string | null;
     parentDescription?: string | null;
+    headingDescription?: string | null; // Full heading description (e.g., "T-shirts, singlets, tank tops...")
+    subheadingDescription?: string | null; // 6-digit subheading description (e.g., "Of man-made fibers")
+    parentGroupings?: string[]; // Intermediate groupings (e.g., "Men's or boys'", "Other T-shirts")
     isOtherCode: boolean;
     isSpecificCarveOut: boolean;
     otherValidation?: OtherValidation;
@@ -670,18 +883,92 @@ function calculateScore(
       // Material mismatch - penalize
       factors.penalties -= 20;
     }
+    
+    // 2a. DESCRIPTION MATERIAL MISMATCH
+    // When user specifies a material (e.g., "cotton") but the HTS description 
+    // specifies a DIFFERENT material (e.g., "Of man-made fibers"), that's a major red flag
+    // 
+    // CRITICAL: Check not just the leaf description, but also:
+    // - Parent description (immediate parent)
+    // - Subheading description (6-digit level, often contains material)
+    // e.g., code 6205.30.20.40 has "Of man-made fibers" at the 6205.30 level
+    const conflictingMaterials = [
+      { pattern: /man-made fibers?|synthetic|polyester|nylon|acrylic/i, conflicts: ['cotton', 'wool', 'silk', 'linen'] },
+      { pattern: /\bcotton\b/i, conflicts: ['polyester', 'nylon', 'synthetic', 'man-made'] },
+      { pattern: /\bwool\b/i, conflicts: ['cotton', 'polyester', 'synthetic', 'man-made'] },
+      { pattern: /\bsilk\b/i, conflicts: ['cotton', 'polyester', 'synthetic', 'man-made'] },
+    ];
+    
+    // Combine all relevant descriptions for material checking
+    const allDescriptions = [
+      descLower,
+      candidate.parentDescription?.toLowerCase() || '',
+      candidate.subheadingDescription?.toLowerCase() || '',
+    ].join(' ');
+    
+    const materialLower = productMaterial.toLowerCase();
+    for (const check of conflictingMaterials) {
+      // If ANY level of HTS hierarchy mentions this material category
+      if (check.pattern.test(allDescriptions)) {
+        // And user's material conflicts with it
+        if (check.conflicts.some(c => materialLower.includes(c))) {
+          factors.penalties -= 50; // HEAVY penalty for material mismatch anywhere in hierarchy
+          console.log(`[V10 Scoring] Material conflict for ${candidate.code}: user="${productMaterial}" vs HTS="${allDescriptions.match(check.pattern)?.[0]}"`);
+          break;
+        }
+      }
+    }
   }
   
-  // 2b. PRODUCT TYPE HEADING HINT
-  // This is DOMAIN KNOWLEDGE (planters are household items), not HTS-specific hardcoding
-  // It helps guide us to the right area of the tariff schedule
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PRODUCT TYPE PRIORITY SCORING - THE MOST IMPORTANT FACTOR
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 
+  // The HTS hierarchy is structured as:
+  //   HEADING (4-digit) = WHAT IS THE PRODUCT?  (e.g., 6109 = T-shirts, 6205 = Shirts)
+  //   SUBHEADING (6-digit) = WHAT MATERIAL?     (e.g., 6109.10 = Of cotton)
+  //   STATISTICAL (8-10 digit) = WHO/SPECIFICS  (e.g., 6109.10.00.14 = Boys')
+  //
+  // Getting the heading wrong means the ENTIRE classification is wrong.
+  // A cotton t-shirt classified under "shirts" (6205) instead of "t-shirts" (6109)
+  // is fundamentally incorrect, regardless of material or demographic match.
+  //
+  // Therefore: PRODUCT TYPE (heading) must be a GATING function, not just a factor.
+  // If product type is detected AND the candidate is in the WRONG heading,
+  // apply a SEVERE penalty that cannot be overcome by other factors.
+  //
+  // This is NOT hardcoding - it's using domain knowledge about how HTS works.
+  // The PRODUCT_TYPE_HINTS map is general knowledge (t-shirts → heading 6109),
+  // not specific product rules.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
   if (productTypeHints.type && productTypeHints.headings.length > 0 && candidate.heading) {
-    if (productTypeHints.headings.includes(candidate.heading)) {
-      factors.hierarchyCoherence += 15; // Boost for being in a heading commonly used for this product type
-    } else if (productTypeHints.headings.length > 0) {
-      // Slight penalty for being in a different heading than expected
-      // (e.g., polymers 3901-3914 instead of articles 3923-3926)
-      factors.penalties -= 10;
+    // Check if candidate is in one of the expected headings for this product type
+    const isInExpectedHeading = productTypeHints.headings.includes(candidate.heading);
+    
+    // Also check heading description directly - more robust for edge cases
+    // e.g., "tshirt" should match "T-shirts, singlets, tank tops..."
+    let headingDescriptionMatches = false;
+    if (candidate.headingDescription) {
+      const headingLower = candidate.headingDescription.toLowerCase();
+      const typeVariants = [
+        productTypeHints.type,
+        productTypeHints.type.replace('-', ''),
+        productTypeHints.type + 's',
+        productTypeHints.type.replace('s', ''),
+      ];
+      headingDescriptionMatches = typeVariants.some(v => headingLower.includes(v));
+    }
+    
+    if (isInExpectedHeading || headingDescriptionMatches) {
+      // CORRECT product type - significant boost
+      factors.hierarchyCoherence += 30;
+      console.log(`[V10 Scoring] Product type MATCH for ${candidate.code}: "${productTypeHints.type}" → heading ${candidate.heading}`);
+    } else {
+      // WRONG product type - this is a fundamental misclassification
+      // Apply a severe penalty that effectively caps confidence at ~50-60%
+      factors.penalties -= 50;
+      console.log(`[V10 Scoring] Product type MISMATCH for ${candidate.code}: "${productTypeHints.type}" expects headings [${productTypeHints.headings.join(', ')}], got ${candidate.heading}`);
     }
   }
   
@@ -709,11 +996,75 @@ function calculateScore(
     factors.specificity = 10; // General category
   }
   
-  // 4. HIERARCHY COHERENCE (0-10 points)
+  // 4. HIERARCHY COHERENCE (0-25 points)
+  // Check both parent description and heading description
   if (candidate.parentDescription) {
     const parentLower = candidate.parentDescription.toLowerCase();
     const parentHits = productTerms.filter(term => parentLower.includes(term));
     factors.hierarchyCoherence = Math.min(10, parentHits.length * 4);
+  }
+  
+  // 4b. ADDITIONAL HEADING DESCRIPTION MATCHING
+  // This provides a secondary boost when product terms appear directly in the heading description.
+  // This works alongside the product type priority scoring (above) to handle cases
+  // where the product type wasn't detected but terms still match the heading.
+  // e.g., if user says "singlet" (not in PRODUCT_TYPE_HINTS), we still want to boost 6109.
+  if (candidate.headingDescription && !productTypeHints.type) {
+    // Only apply this if product type wasn't detected (avoids double-counting)
+    const headingLower = candidate.headingDescription.toLowerCase();
+    
+    for (const term of productTerms) {
+      const termVariants = [
+        term,
+        term.replace('-', ''),
+        term.replace('s', ''),
+        term + 's',
+      ];
+      
+      for (const variant of termVariants) {
+        if (headingLower.includes(variant)) {
+          factors.hierarchyCoherence += 15;
+          break;
+        }
+      }
+    }
+    
+    factors.hierarchyCoherence = Math.min(45, factors.hierarchyCoherence);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // USER SEGMENT MATCHING - Prefer 10-digit codes when user specifies demographics
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 
+  // HTS 10-digit statistical codes often specify demographics: boys, men, women, girls
+  // If user says "cotton tshirt for boys", we should prefer:
+  //   6109.10.00.14 "Boys' (338)" over 6109.10.00 "Of cotton"
+  // 
+  // Check both the description AND parentGroupings for segment matches
+  const userSegments = ['boys', 'boy', 'girls', 'girl', 'men', 'mens', 'women', 'womens'];
+  const detectedSegment = productTerms.find(term => userSegments.includes(term.toLowerCase()));
+  
+  if (detectedSegment) {
+    const segmentLower = detectedSegment.toLowerCase();
+    const allDescText = [
+      descLower,
+      ...(candidate.parentGroupings || []).map(g => g.toLowerCase())
+    ].join(' ');
+    
+    // Check if this code matches the user's demographic
+    const segmentVariants = [segmentLower, segmentLower + "'s", segmentLower.replace('s', '') + "'s"];
+    const matchesSegment = segmentVariants.some(v => allDescText.includes(v));
+    
+    if (matchesSegment) {
+      // This code specifically matches the user's demographic - big boost!
+      factors.keywordMatch += 25;
+      console.log(`[V10 Scoring] Segment match for ${candidate.code}: "${detectedSegment}" found in "${allDescText.slice(0, 50)}..."`);
+    } else if (candidate.code.length === 8) {
+      // This is an 8-digit code and user specified a segment
+      // They likely want a more specific 10-digit code, so penalize
+      factors.penalties -= 15;
+      console.log(`[V10 Scoring] Segment preference penalty for ${candidate.code}: user wants "${detectedSegment}" but code is 8-digit general`);
+    }
   }
   
   // 5. DYNAMIC MISMATCH DETECTION (No hardcoding!)
@@ -735,6 +1086,20 @@ function calculateScore(
       factors.penalties -= 40;
     }
   }
+  
+  // 5b. UNMENTIONED SPECIFICITY PENALTY
+  // When HTS description has specific qualifiers that the user didn't mention,
+  // we should reduce confidence. The more unmentioned specifics, the lower the confidence.
+  // 
+  // Examples: "all white", "without pockets", "short hemmed sleeves", "thermal"
+  // If user just says "cotton tshirt for boys" but HTS says "all white, without pockets",
+  // that's a lot of assumptions we're making!
+  const specificityPenalty = calculateUnmentionedSpecificityPenalty(
+    descLower,
+    productTerms,
+    userQueryLower
+  );
+  factors.penalties -= specificityPenalty;
   
   // 6. "OTHER" CODE VALIDATION (The KEY logic-based insight!)
   // This is where we USE THE HTS STRUCTURE ITSELF as the rules
@@ -995,6 +1360,38 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     }
   }
   
+  // Also get heading descriptions (4-digit) for proper hierarchy matching
+  // This is critical for differentiating 6105 (shirts) from 6109 (t-shirts)
+  const headingCodes = [...new Set(allResults.map(r => r.heading).filter(Boolean) as string[])];
+  const headingMap = new Map<string, string>();
+  
+  if (headingCodes.length > 0) {
+    const headings = await prisma.htsCode.findMany({
+      where: { code: { in: headingCodes } },
+      select: { code: true, description: true },
+    });
+    for (const h of headings) {
+      headingMap.set(h.code, h.description);
+    }
+  }
+  
+  // Get subheading descriptions (6-digit) for material verification
+  // This is CRITICAL: material specifications like "Of man-made fibers" often appear at the subheading level
+  // e.g., 6205.30 = "Of man-made fibers" vs 6205.20 = "Of cotton"
+  const subheadingCodes = [...new Set(allResults.map(r => r.code.slice(0, 6)).filter(sh => sh.length === 6))];
+  const subheadingMap = new Map<string, string>();
+  
+  if (subheadingCodes.length > 0) {
+    const subheadings = await prisma.htsCode.findMany({
+      where: { code: { in: subheadingCodes } },
+      select: { code: true, description: true },
+    });
+    for (const sh of subheadings) {
+      subheadingMap.set(sh.code, sh.description);
+    }
+    console.log(`[V10] Loaded ${subheadings.length} subheading descriptions for material verification`);
+  }
+  
   // Score each candidate
   const candidates: HtsCandidate[] = [];
   
@@ -1008,13 +1405,19 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
       otherValidation = await validateOtherSelection(searchTerms, result.code, result.parentCode);
     }
     
-    const factors = calculateScore(searchTerms, detectedMaterial, productTypeHints, {
+    // Get subheading code (first 6 digits)
+    const subheadingCode = result.code.slice(0, 6);
+    
+    const factors = calculateScore(description.toLowerCase(), searchTerms, detectedMaterial, productTypeHints, {
       code: result.code,
       description: result.description,
       keywords: result.keywords,
       chapter: result.chapter,
       heading: result.heading,
       parentDescription: result.parentCode ? parentMap.get(result.parentCode) : null,
+      headingDescription: result.heading ? headingMap.get(result.heading) : null,
+      subheadingDescription: subheadingMap.get(subheadingCode) || null,
+      parentGroupings: result.parentGroupings,
       isOtherCode: isOther,
       isSpecificCarveOut: isSpecific,
       otherValidation,
@@ -1096,8 +1499,27 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
   
   if (origin) {
     try {
+      // IMPORTANT: Statistical codes (10-digit) often don't have their own generalRate
+      // They inherit from their parent tariff_line (8-digit) code
+      let effectiveGeneralRate = primary.generalRate;
+      let effectiveSpecialRates = primary.specialRates;
+      
+      if (!effectiveGeneralRate && primary.parentCode) {
+        // Look up parent code to inherit rate
+        const parentCode = await prisma.htsCode.findFirst({
+          where: { code: primary.parentCode },
+          select: { generalRate: true, specialRates: true },
+        });
+        
+        if (parentCode?.generalRate) {
+          effectiveGeneralRate = parentCode.generalRate;
+          effectiveSpecialRates = parentCode.specialRates || effectiveSpecialRates;
+          console.log(`[V10] Inherited rate from parent ${primary.parentCode}: ${effectiveGeneralRate}`);
+        }
+      }
+      
       const tariff = await getEffectiveTariff(origin, primary.code, {
-        baseMfnRate: primary.generalRate ? parseFloat(primary.generalRate) || 0 : 0,
+        baseMfnRate: effectiveGeneralRate ? parseFloat(effectiveGeneralRate) || 0 : 0,
       });
       
       // Build detailed additional duties breakdown
@@ -1148,10 +1570,10 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
       }
       
       dutyInfo = {
-        baseMfn: primary.generalRate || 'N/A',
+        baseMfn: effectiveGeneralRate || 'N/A',
         additional: additionalParts.length > 0 ? additionalParts.join(', ') : 'None',
         effective: `${tariff.effectiveRate.toFixed(1)}%`,
-        special: primary.specialRates || undefined,
+        special: effectiveSpecialRates || undefined,
         breakdown: breakdown.length > 0 ? breakdown : undefined,
       };
     } catch (err) {
@@ -1176,6 +1598,10 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
       }
     }
     
+    // Get heading description from the map we already built
+    const heading = c.code.substring(0, 4);
+    const headingDesc = headingMap.get(heading) || '';
+    
     return {
       rank: i + 2,
       htsCode: c.code,
@@ -1184,7 +1610,8 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
       description: c.description,
       fullDescription: c.fullDescription,
       chapter: c.chapter,
-      chapterDescription: `Chapter ${c.chapter}`,
+      chapterDescription: CHAPTER_DESCRIPTIONS[c.chapter] || `Chapter ${c.chapter}`,
+      headingDescription: headingDesc,
       materialNote,
     };
   });
