@@ -1,16 +1,43 @@
 # Sourcify Development Progress
 
 > **Last Updated:** January 1, 2026  
-> **Current Phase:** Phase 2.7 - UI/UX Refinement  
+> **Current Phase:** Phase 2.8 - Dev Infrastructure & Bug Fixes  
 > **Current Sprint:** Sprint 5
 
 ---
 
 ## 🎯 Current Sprint: Sprint 5
 
-**Theme:** Classification UI/UX Refinement  
+**Theme:** Classification UI/UX Refinement + Dev Infrastructure  
 **Dates:** Jan 1 - Jan 3, 2026  
-**Goal:** Professional, Zonos-quality classification results UI
+**Goal:** Professional, Zonos-quality classification results UI + development tooling
+
+### Completed This Sprint (Jan 1, 2026 - Late Session)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 5.11 Remove Timing Display | ✅ Complete | Removed "X.Xs" tag from results (internal metric) |
+| 5.12 Confidence Scoring Fix | ✅ Complete | Exact matches now score higher (confetti: 25% → 70%) |
+| 5.13 Confidence Label | ✅ Complete | Added "MATCH" label + tooltip explaining the score |
+| 5.14 Demo User Setup | ✅ Complete | `prisma/seed-demo-user.ts` - demo@sourcify.dev |
+| 5.15 Dev Auto-Login | ✅ Complete | `/api/auth/dev-login` - auto-login for development |
+| 5.16 Search History Fix | ✅ Complete | Now saves searches for authenticated users |
+| 5.17 View Details Fix | ✅ Complete | Fixed V10-to-ClassificationResult transform error |
+| 5.18 Drawer Deprecation Fix | ✅ Complete | Fixed `width` → `styles.wrapper.width` |
+
+**Scoring Improvements:**
+- Exact match boost: Product term appears at START of HTS description → +50 points
+- Primary term match: Product term is first word in HTS clause → +35 points
+- Example: "confetti" → "Confetti, paper spirals..." now scores 70% (was 25%)
+
+**Demo User:**
+```bash
+# Seed the demo user
+npx tsx prisma/seed-demo-user.ts
+
+# Auto-login in development
+http://localhost:3000/api/auth/dev-login?redirect=/dashboard/classifications
+```
 
 ### Completed This Sprint (Jan 1, 2026 - UI/UX Refinement)
 
@@ -25,10 +52,19 @@
 | 5.7 Clear Row Separation | ✅ Complete | Bordered table with dividers between rows |
 | 5.8 Proper Card Spacing | ✅ Complete | `flex flex-col gap-5` instead of `space-y-*` |
 | 5.9 Input Form Hiding | ✅ Complete | Form hidden on results, "Start over" shows it |
+| 5.10 Page Cleanup | ✅ Complete | Simplified to 3 tabs: Classify, Search History, Saved Products |
 
-**Key UI Components Created:**
-- `ClassificationV10LayoutA.tsx` - Hero + Accordion style
-- `ClassificationV10LayoutB.tsx` - Dashboard Grid style (primary)
+**Key UI Components:**
+- `ClassificationV10LayoutB.tsx` - Dashboard Grid style (now default "Classify" tab)
+- `SearchHistoryPanel.tsx` - Search history tab
+- `ClassificationsTable.tsx` - Saved products tab
+
+**Tabs:**
+| Tab | Icon | Component |
+|-----|------|-----------|
+| Classify | ⚡ (cyan) | `ClassificationV10LayoutB` |
+| Search History | 🕐 (slate) | `SearchHistoryPanel` |
+| Saved Products | 🔖 (amber) | `ClassificationsTable` |
 
 **Duty Breakdown Display:**
 ```
@@ -346,6 +382,8 @@ Options:
 | Issue | Priority | Notes |
 |-------|----------|-------|
 | ~~Classification engine not using registry~~ | ✅ Fixed | Now uses `tariffRegistry.ts` |
+| ~~V10 View Details crash~~ | ✅ Fixed | Transform V10 to ClassificationResult format |
+| ~~Drawer width deprecation~~ | ✅ Fixed | Use `styles.wrapper.width` instead |
 | No automated daily sync | High | Must run sync manually |
 | Email notifications not set up | Medium | No Resend/SendGrid integration |
 | Pre-existing `classify-db.ts` error | Medium | Uses `prisma.product` which doesn't exist |
@@ -410,6 +448,10 @@ Options:
 - [x] **Jan 1, 2026** - **4-Level Classification Path** - Chapter → Heading → Subheading → Tariff 🌳
 - [x] **Jan 1, 2026** - **Zonos-Style Hierarchy Labels** - Each code shows level type 🏷️
 - [x] **Jan 1, 2026** - **UI Polish** - Proper spacing, consolidated headers, pill badges ✨
+- [x] **Jan 1, 2026** - **Page Cleanup** - Simplified to 3 tabs (Classify, History, Saved) 🧹
+- [x] **Jan 1, 2026** - **Confidence Scoring Fix** - Exact matches score higher (25% → 70%) 🎯
+- [x] **Jan 1, 2026** - **Demo User + Auto-Login** - Development infrastructure 🔧
+- [x] **Jan 1, 2026** - **Search History Working** - Full flow with authenticated users 📜
 - [ ] Upsell teasers on classification results
 - [ ] Automated daily sync configured
 - [ ] Redis cache layer for <1s responses

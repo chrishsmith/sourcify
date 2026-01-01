@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
+import { prisma } from '@/lib/db';
 
 // Dynamically import to avoid module load errors
 async function getServices() {
@@ -14,14 +15,37 @@ async function getServices() {
     return { getSearchHistory, getSearchStats, clearSearchHistory };
 }
 
-export async function GET(request: NextRequest) {
+// Helper to get user ID from Better Auth or direct session lookup
+async function getUserId(request: NextRequest): Promise<string | null> {
     try {
-        // Get authenticated user
         const session = await auth.api.getSession({
             headers: await headers(),
         });
+        if (session?.user?.id) return session.user.id;
+    } catch {
+        // Continue to fallback
+    }
+    
+    // Fallback: check for dev session cookie directly
+    const cookieHeader = request.headers.get('cookie') || '';
+    const sessionTokenMatch = cookieHeader.match(/better-auth\.session_token=([^;]+)/);
+    if (sessionTokenMatch) {
+        const dbSession = await prisma.session.findUnique({
+            where: { token: sessionTokenMatch[1] },
+        });
+        if (dbSession && dbSession.expiresAt > new Date()) {
+            return dbSession.userId;
+        }
+    }
+    return null;
+}
 
-        if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+    try {
+        // Get authenticated user
+        const userId = await getUserId(request);
+
+        if (!userId) {
             // Return empty state for unauthenticated users instead of 401
             return NextResponse.json({
                 items: [],
@@ -43,7 +67,7 @@ export async function GET(request: NextRequest) {
         try {
             const { getSearchHistory, getSearchStats } = await getServices();
             
-            const { items, total } = await getSearchHistory(session.user.id, {
+            const { items, total } = await getSearchHistory(userId, {
                 limit,
                 offset,
                 htsCode,
@@ -51,7 +75,7 @@ export async function GET(request: NextRequest) {
 
             let stats = null;
             if (includeStats) {
-                stats = await getSearchStats(session.user.id);
+                stats = await getSearchStats(userId);
             }
 
             return NextResponse.json({
@@ -90,11 +114,9 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+        const userId = await getUserId(request);
 
-        if (!session?.user?.id) {
+        if (!userId) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
@@ -103,7 +125,7 @@ export async function DELETE(request: NextRequest) {
 
         try {
             const { clearSearchHistory } = await getServices();
-            const deletedCount = await clearSearchHistory(session.user.id);
+            const deletedCount = await clearSearchHistory(userId);
 
             return NextResponse.json({
                 success: true,
@@ -124,6 +146,7 @@ export async function DELETE(request: NextRequest) {
         );
     }
 }
+
 
 
 

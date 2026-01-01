@@ -46,6 +46,22 @@ export async function POST(request: NextRequest) {
         headers: await headers(),
       });
       userId = session?.user?.id;
+      
+      // Fallback: check for dev session cookie directly
+      if (!userId) {
+        const cookieHeader = request.headers.get('cookie') || '';
+        const sessionTokenMatch = cookieHeader.match(/better-auth\.session_token=([^;]+)/);
+        if (sessionTokenMatch) {
+          const dbSession = await prisma.session.findUnique({
+            where: { token: sessionTokenMatch[1] },
+            include: { user: true },
+          });
+          if (dbSession && dbSession.expiresAt > new Date()) {
+            userId = dbSession.userId;
+            console.log('[API V10] Using direct session lookup for user:', dbSession.user?.email);
+          }
+        }
+      }
     } catch {
       // Session not available - that's okay
     }

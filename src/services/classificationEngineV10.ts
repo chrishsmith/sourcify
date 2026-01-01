@@ -621,21 +621,45 @@ function calculateScore(
     total: 0,
   };
   
-  // 1. KEYWORD MATCH (0-40 points)
+  // 1. KEYWORD MATCH (0-60 points)
   const descLower = candidate.description.toLowerCase();
   const keywordsLower = candidate.keywords.map(k => k.toLowerCase());
+  
+  // EXACT MATCH DETECTION: When the HTS description literally names the product
+  // e.g., "confetti" → "Confetti, paper spirals..." = NEAR-PERFECT MATCH
+  // This is the strongest possible signal and should result in HIGH confidence
+  
+  // Check if description STARTS with the product term (strongest signal)
+  const descFirstWord = descLower.split(/[\s,;:]+/)[0] || '';
+  const startsWithProduct = productTerms.some(term => 
+    descFirstWord === term || descFirstWord === term + 's' || term === descFirstWord + 's'
+  );
+  
+  if (startsWithProduct) {
+    factors.keywordMatch += 50; // Very high boost - description starts with product name
+  } else {
+    // Check if product term appears as a primary item in a comma-separated list
+    const descPrimaryTerms = descLower.split(/[,;:]/).map(s => s.trim().split(/\s+/)[0] || '').filter(Boolean);
+    const hasExactPrimaryMatch = productTerms.some(term => 
+      descPrimaryTerms.some(primary => primary === term || primary === term + 's')
+    );
+    
+    if (hasExactPrimaryMatch) {
+      factors.keywordMatch += 35; // Major boost for exact primary match
+    }
+  }
   
   // Check keyword array matches
   const keywordHits = productTerms.filter(term => 
     keywordsLower.some(kw => kw.includes(term) || term.includes(kw))
   );
-  factors.keywordMatch += Math.min(25, keywordHits.length * 10);
+  factors.keywordMatch += Math.min(15, keywordHits.length * 6);
   
-  // Check description matches
+  // Check description matches (general)
   const descHits = productTerms.filter(term => descLower.includes(term));
-  factors.keywordMatch += Math.min(15, descHits.length * 5);
+  factors.keywordMatch += Math.min(10, descHits.length * 4);
   
-  factors.keywordMatch = Math.min(40, factors.keywordMatch);
+  factors.keywordMatch = Math.min(60, factors.keywordMatch);
   
   // 2. MATERIAL MATCH (0-30 points)
   if (productMaterial) {

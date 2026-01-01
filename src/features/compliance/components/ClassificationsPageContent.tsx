@@ -2,15 +2,9 @@
 
 import React, { useState } from 'react';
 import { Tabs, Button, Typography, Modal, Upload, message, Progress } from 'antd';
-import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles, TreeDeciduous, Zap, Search, Bolt, LayoutGrid, LayoutList } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Bookmark, Zap } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
-import ClassificationV10 from '@/features/compliance/components/ClassificationV10';
-import ClassificationV10LayoutA from '@/features/compliance/components/ClassificationV10LayoutA';
 import ClassificationV10LayoutB from '@/features/compliance/components/ClassificationV10LayoutB';
-import ClassificationV9 from '@/features/compliance/components/ClassificationV9';
-import ClassificationV8 from '@/features/compliance/components/ClassificationV8';
-import ClassificationV6 from '@/features/compliance/components/ClassificationV6';
-import ClassificationV5 from '@/features/compliance/components/ClassificationV5';
 import { ClassificationResultDisplay } from '@/features/compliance/components/ClassificationResult';
 import { SearchHistoryPanel } from '@/features/compliance/components/SearchHistoryPanel';
 import { getClassificationById } from '@/services/classificationHistory';
@@ -20,7 +14,7 @@ const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
 export const ClassificationsPageContent = () => {
-    const [activeTab, setActiveTab] = useState('layout-a');
+    const [activeTab, setActiveTab] = useState('classify');
     const [viewingResult, setViewingResult] = useState<ClassificationResult | null>(null);
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
     const [bulkProcessing, setBulkProcessing] = useState(false);
@@ -102,88 +96,33 @@ export const ClassificationsPageContent = () => {
 
     const items = [
         {
-            key: 'layout-a',
+            key: 'classify',
             label: (
                 <span className="flex items-center gap-2">
-                    <LayoutList size={16} className="text-violet-500" />
-                    Layout A (Accordion)
-                </span>
-            ),
-            children: <ClassificationV10LayoutA />,
-        },
-        {
-            key: 'layout-b',
-            label: (
-                <span className="flex items-center gap-2">
-                    <LayoutGrid size={16} className="text-cyan-500" />
-                    Layout B (Grid)
+                    <Zap size={16} className="text-cyan-500" />
+                    Classify
                 </span>
             ),
             children: <ClassificationV10LayoutB />,
         },
         {
-            key: '10',
+            key: 'history',
             label: (
                 <span className="flex items-center gap-2">
-                    <Bolt size={16} className="text-amber-500" />
-                    V10 Original
-                </span>
-            ),
-            children: <ClassificationV10 />,
-        },
-        {
-            key: '1',
-            label: (
-                <span className="flex items-center gap-2">
-                    <Search size={16} />
-                    V9 (Wide Net)
-                </span>
-            ),
-            children: <ClassificationV9 />,
-        },
-        {
-            key: '8',
-            label: (
-                <span className="flex items-center gap-2">
-                    <Zap size={16} />
-                    V8 (Arbiter)
-                </span>
-            ),
-            children: <ClassificationV8 />,
-        },
-        {
-            key: '2',
-            label: (
-                <span className="flex items-center gap-2">
-                    <History size={16} />
+                    <History size={16} className="text-slate-500" />
                     Search History
                 </span>
             ),
             children: <SearchHistoryPanel />,
         },
         {
-            key: '5',
+            key: 'saved',
             label: (
                 <span className="flex items-center gap-2">
-                    <TreeDeciduous size={16} />
-                    V6 (Tree Nav)
+                    <Bookmark size={16} className="text-amber-500" />
+                    Saved Products
                 </span>
             ),
-            children: <ClassificationV6 />,
-        },
-        {
-            key: '4',
-            label: (
-                <span className="flex items-center gap-2">
-                    <Sparkles size={16} />
-                    V5 (Legacy)
-                </span>
-            ),
-            children: <ClassificationV5 />,
-        },
-        {
-            key: '3',
-            label: 'Saved Products',
             children: viewingResult ? (
                 <div>
                     <Button
@@ -198,7 +137,7 @@ export const ClassificationsPageContent = () => {
                         result={viewingResult}
                         onNewClassification={() => {
                             setViewingResult(null);
-                            setActiveTab('1');
+                            setActiveTab('classify');
                         }}
                     />
                 </div>
@@ -255,7 +194,7 @@ export const ClassificationsPageContent = () => {
                     <Button type="primary" onClick={() => {
                         setBulkModalOpen(false);
                         setBulkResults(null);
-                        setActiveTab('2'); // Switch to history tab
+                        setActiveTab('history'); // Switch to history tab
                     }}>
                         View Results
                     </Button>

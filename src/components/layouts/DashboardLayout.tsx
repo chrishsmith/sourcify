@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Drawer } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Drawer, Spin } from 'antd';
 import type { MenuProps } from 'antd';
 import {
     LayoutDashboard,
@@ -18,6 +18,7 @@ import {
     X,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from '@/lib/auth-client';
 
 const { Header, Sider, Content } = Layout;
 
@@ -31,6 +32,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     const [isMobile, setIsMobile] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
+    
+    // Get session from Better Auth
+    const { data: session, isPending: isSessionLoading } = useSession();
 
     // Handle responsive breakpoint
     useEffect(() => {
@@ -45,6 +49,24 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
+    
+    // Auto-login for development mode - only if DEV_AUTO_LOGIN is set in URL or localStorage
+    const [attemptedAutoLogin, setAttemptedAutoLogin] = useState(false);
+    
+    useEffect(() => {
+        if (isSessionLoading || session?.user || attemptedAutoLogin) return;
+        
+        // Check if we should auto-login (only in dev mode via URL param or localStorage flag)
+        const params = new URLSearchParams(window.location.search);
+        const shouldAutoLogin = params.get('dev') === '1' || localStorage.getItem('devAutoLogin') === 'true';
+        
+        if (shouldAutoLogin) {
+            setAttemptedAutoLogin(true);
+            localStorage.setItem('devAutoLogin', 'true'); // Remember for future visits
+            const currentPath = window.location.pathname;
+            window.location.href = `/api/auth/dev-login?redirect=${encodeURIComponent(currentPath)}`;
+        }
+    }, [session, isSessionLoading, attemptedAutoLogin]);
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -140,6 +162,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         </div>
     );
 
+    // Get user initials from name
+    const getUserInitials = (name: string | null | undefined) => {
+        if (!name) return '?';
+        const parts = name.split(' ').filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name.slice(0, 2).toUpperCase();
+    };
+    
+    const userName = session?.user?.name || 'User';
+    const userEmail = session?.user?.email || '';
+    const userInitials = getUserInitials(session?.user?.name);
+
     const UserMenu = () => (
         <Dropdown
             menu={{
@@ -159,10 +195,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             placement="bottomRight"
         >
             <div className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 py-1.5 px-2 rounded-lg transition-colors">
-                <Avatar size={32} style={{ backgroundColor: '#0D9488' }}>JD</Avatar>
+                <Avatar size={32} style={{ backgroundColor: '#0D9488' }}>{userInitials}</Avatar>
                 <div className="hidden sm:block text-sm leading-tight">
-                    <div className="font-medium text-slate-900">John Doe</div>
-                    <div className="text-slate-500 text-xs">Acme Corp</div>
+                    <div className="font-medium text-slate-900">{userName}</div>
+                    <div className="text-slate-500 text-xs">{userEmail}</div>
                 </div>
             </div>
         </Dropdown>
@@ -181,6 +217,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         };
         return titles[segment] || segment.replace('-', ' ');
     };
+
+    // Show loading while checking session
+    if (isSessionLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="text-center">
+                    <Spin size="large" />
+                    <p className="mt-4 text-slate-500">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <Layout className="min-h-screen">
@@ -208,7 +256,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 open={mobileOpen}
                 onClose={() => setMobileOpen(false)}
                 placement="left"
-                width={280}
+                styles={{ wrapper: { width: 280 } }}
                 closable={false}
                 styles={{ 
                     body: { padding: 0 },

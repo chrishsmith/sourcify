@@ -201,7 +201,7 @@ export default function ClassificationV10LayoutB() {
             setResult(data);
 
             if (data.success && data.primary) {
-                messageApi.success(`Classified in ${(data.timing.total / 1000).toFixed(1)}s`);
+                messageApi.success('Classification complete');
             } else {
                 messageApi.warning('No classification found');
             }
@@ -340,12 +340,9 @@ export default function ClassificationV10LayoutB() {
                                 <Card className="border-slate-200 shadow-sm">
                                     {/* Query Header */}
                                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-slate-600">
-                                                &ldquo;<strong className="text-slate-900">{description}</strong>&rdquo;
-                                            </span>
-                                            <Tag className="ml-1">{(result.timing.total / 1000).toFixed(1)}s</Tag>
-                                        </div>
+                                        <span className="text-slate-600">
+                                            &ldquo;<strong className="text-slate-900">{description}</strong>&rdquo;
+                                        </span>
                                         <Button 
                                             type="link" 
                                             size="small"
@@ -370,7 +367,12 @@ export default function ClassificationV10LayoutB() {
                                                 className="text-slate-400 hover:text-slate-600"
                                             />
                                         </Tooltip>
-                                        <ConfidenceBadge confidence={result.primary.confidence} />
+                                        <Tooltip title="How confident we are in this classification based on how well your description matches the HTS code">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs text-slate-400 uppercase tracking-wide">Match</span>
+                                                <ConfidenceBadge confidence={result.primary.confidence} />
+                                            </div>
+                                        </Tooltip>
                                     </div>
 
                                     <Text className="text-slate-600 text-sm block mb-4">

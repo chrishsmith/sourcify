@@ -45,6 +45,53 @@ import { generateProductNameWithContext } from '@/utils/productNameGenerator';
 
 const { Title, Text, Paragraph } = Typography;
 
+// Transform V10 fullResult to ClassificationResult format for display
+// Returns null if the data can't be properly transformed (to skip ClassificationResultDisplay)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformV10ToClassificationResult(fullResult: any, searchItem: SearchHistoryItem): ClassificationResult | null {
+    if (!fullResult) return null;
+    
+    // If it's already in ClassificationResult format (has htsCode.code), return as-is
+    if (fullResult.htsCode?.code) {
+        return fullResult as ClassificationResult;
+    }
+    
+    // V10 format has primary.htsCode instead of htsCode.code
+    const primary = fullResult.primary;
+    if (!primary) return null;
+    
+    // Transform V10 to ClassificationResult format
+    // Note: We intentionally skip effectiveTariff since V10 stores it differently
+    // and TariffBreakdown requires specific properties (dataFreshness, etc.)
+    return {
+        id: searchItem.id,
+        input: {
+            productDescription: searchItem.productDescription,
+            classificationType: 'import',
+            countryOfOrigin: searchItem.countryOfOrigin || undefined,
+            materialComposition: searchItem.materialComposition || undefined,
+        },
+        htsCode: {
+            code: primary.htsCode || primary.htsCodeFormatted?.replace(/\./g, '') || '',
+            description: primary.shortDescription || primary.fullDescription || searchItem.htsDescription,
+            chapter: primary.htsCode?.slice(0, 2) || '',
+            heading: primary.htsCode?.slice(0, 4) || '',
+            subheading: primary.htsCode?.slice(0, 6) || '',
+        },
+        confidence: primary.confidence || searchItem.confidence,
+        dutyRate: {
+            generalRate: primary.duty?.baseMfn || searchItem.baseDutyRate || 'Unknown',
+            specialPrograms: [],
+        },
+        rulings: [],
+        rationale: fullResult.justification || '',
+        createdAt: new Date(searchItem.createdAt),
+        // Skip effectiveTariff - V10 format doesn't have all required fields
+        // This prevents TariffBreakdown from crashing on missing dataFreshness
+        effectiveTariff: undefined,
+    } as ClassificationResult;
+}
+
 interface SearchHistoryItem {
     id: string;
     productName: string | null;
@@ -618,9 +665,9 @@ export const SearchHistoryPanel: React.FC = () => {
                         </Card>
 
                         {/* Full Result */}
-                        {selectedSearch.fullResult && (
+                        {selectedSearch.fullResult && transformV10ToClassificationResult(selectedSearch.fullResult, selectedSearch) && (
                             <ClassificationResultDisplay 
-                                result={selectedSearch.fullResult}
+                                result={transformV10ToClassificationResult(selectedSearch.fullResult, selectedSearch)!}
                                 onNewClassification={() => setShowDetailModal(false)}
                             />
                         )}
