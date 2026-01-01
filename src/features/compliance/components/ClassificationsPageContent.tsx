@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react';
 import { Tabs, Button, Typography, Modal, Upload, message, Progress } from 'antd';
-import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles, TreeDeciduous, Zap, Search, Bolt } from 'lucide-react';
+import { Plus, ArrowLeft, Upload as UploadIcon, FileSpreadsheet, History, Sparkles, TreeDeciduous, Zap, Search, Bolt, LayoutGrid, LayoutList } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
 import ClassificationV10 from '@/features/compliance/components/ClassificationV10';
+import ClassificationV10LayoutA from '@/features/compliance/components/ClassificationV10LayoutA';
+import ClassificationV10LayoutB from '@/features/compliance/components/ClassificationV10LayoutB';
 import ClassificationV9 from '@/features/compliance/components/ClassificationV9';
 import ClassificationV8 from '@/features/compliance/components/ClassificationV8';
 import ClassificationV6 from '@/features/compliance/components/ClassificationV6';
@@ -18,7 +20,7 @@ const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
 export const ClassificationsPageContent = () => {
-    const [activeTab, setActiveTab] = useState('10');
+    const [activeTab, setActiveTab] = useState('layout-a');
     const [viewingResult, setViewingResult] = useState<ClassificationResult | null>(null);
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
     const [bulkProcessing, setBulkProcessing] = useState(false);
@@ -100,11 +102,31 @@ export const ClassificationsPageContent = () => {
 
     const items = [
         {
+            key: 'layout-a',
+            label: (
+                <span className="flex items-center gap-2">
+                    <LayoutList size={16} className="text-violet-500" />
+                    Layout A (Accordion)
+                </span>
+            ),
+            children: <ClassificationV10LayoutA />,
+        },
+        {
+            key: 'layout-b',
+            label: (
+                <span className="flex items-center gap-2">
+                    <LayoutGrid size={16} className="text-cyan-500" />
+                    Layout B (Grid)
+                </span>
+            ),
+            children: <ClassificationV10LayoutB />,
+        },
+        {
             key: '10',
             label: (
                 <span className="flex items-center gap-2">
                     <Bolt size={16} className="text-amber-500" />
-                    V10 Semantic ⚡
+                    V10 Original
                 </span>
             ),
             children: <ClassificationV10 />,

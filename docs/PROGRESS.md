@@ -1,12 +1,58 @@
 # Sourcify Development Progress
 
-> **Last Updated:** December 30, 2025  
-> **Current Phase:** Phase 2.5 - HTS Classification System  
-> **Current Sprint:** Sprint 4
+> **Last Updated:** January 1, 2026  
+> **Current Phase:** Phase 2.7 - UI/UX Refinement  
+> **Current Sprint:** Sprint 5
 
 ---
 
-## 🎯 Current Sprint: Sprint 4
+## 🎯 Current Sprint: Sprint 5
+
+**Theme:** Classification UI/UX Refinement  
+**Dates:** Jan 1 - Jan 3, 2026  
+**Goal:** Professional, Zonos-quality classification results UI
+
+### Completed This Sprint (Jan 1, 2026 - UI/UX Refinement)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 5.1 New Layout Options | ✅ Complete | Layout A (Accordion), Layout B (Grid) |
+| 5.2 Receipt-Style Duty Breakdown | ✅ Complete | All tariff layers visible (IEEPA, Fentanyl, Section 301) |
+| 5.3 Consolidated Header | ✅ Complete | Query in card header, "← New search" link |
+| 5.4 Confidence Pill Badge | ✅ Complete | Replaces progress bar with colored pill |
+| 5.5 Full Hierarchy Path | ✅ Complete | 4 levels: Chapter → Heading → Subheading → Tariff |
+| 5.6 Zonos-Style Hierarchy Labels | ✅ Complete | Each code shows level label (Chapter, Heading, etc.) |
+| 5.7 Clear Row Separation | ✅ Complete | Bordered table with dividers between rows |
+| 5.8 Proper Card Spacing | ✅ Complete | `flex flex-col gap-5` instead of `space-y-*` |
+| 5.9 Input Form Hiding | ✅ Complete | Form hidden on results, "Start over" shows it |
+
+**Key UI Components Created:**
+- `ClassificationV10LayoutA.tsx` - Hero + Accordion style
+- `ClassificationV10LayoutB.tsx` - Dashboard Grid style (primary)
+
+**Duty Breakdown Display:**
+```
+Base MFN Rate                    10%
++ IEEPA Baseline              10.0%
++ Fentanyl Tariff             10.0%
++ Section 301                 25.0%
+─────────────────────────────────────
+EFFECTIVE TOTAL               55.0%
+```
+
+**Classification Path Display:**
+| Code | Level | Description |
+|------|-------|-------------|
+| 69 | Chapter | Chapter 69 |
+| 6912 | Heading | Ceramic tableware, kitchenware... |
+| 6912.00 | Subheading | Ceramic tableware, kitchenware... |
+| 6912.00.44.00 | Tariff | Mugs and other steins |
+
+> **Design Reference:** Zonos "Classify Ultra" UI for inspiration (not copied)
+
+---
+
+## 📋 Previous Sprint: Sprint 4 (Complete ✅)
 
 **Theme:** HTS Classification System - Local Database  
 **Dates:** Dec 23 - Dec 30, 2025  
@@ -276,6 +322,23 @@ Options:
 
 > **📐 Architecture:** See [`ARCHITECTURE_HTS_CLASSIFICATION.md`](./ARCHITECTURE_HTS_CLASSIFICATION.md)
 
+### Phase 2.7: UI/UX Refinement ✅ 100%
+
+| Task | Status | Completion |
+|------|--------|------------|
+| Layout A (Accordion) | ✅ | 100% - Hero + expandable sections |
+| Layout B (Grid) | ✅ | 100% - Two-column dashboard style |
+| Receipt-Style Duty Breakdown | ✅ | 100% - All tariff layers visible |
+| Full Tariff Breakdown | ✅ | 100% - IEEPA, Fentanyl, Section 301, etc. |
+| Consolidated Header | ✅ | 100% - Query in card, "New search" link |
+| Confidence Pill Badge | ✅ | 100% - Color-coded pill (High/Medium/Low) |
+| 4-Level Classification Path | ✅ | 100% - Chapter → Heading → Subheading → Tariff |
+| Zonos-Style Labels | ✅ | 100% - Level labels under each code |
+| Clear Row Separation | ✅ | 100% - Bordered rows with dividers |
+| Proper Card Spacing | ✅ | 100% - Flexbox gap instead of margin |
+
+**Phase 2.7 Overall: 100% ✅**
+
 ---
 
 ## 🔧 Technical Debt / Known Issues
@@ -340,6 +403,13 @@ Options:
 - [x] **Dec 30, 2025** - **Conditional Classification** - Detects value/size dependent codes 🔀
 - [x] **Dec 30, 2025** - **Decision Flow UI** - Simple questions for conditional codes 📝
 - [x] **Dec 30, 2025** - **Docs Cleanup** - Archived V5-V9, consolidated to single architecture doc 📚
+- [x] **Jan 1, 2026** - **Layout A (Accordion)** - Hero + expandable sections style 🎨
+- [x] **Jan 1, 2026** - **Layout B (Grid)** - Two-column dashboard style 📊
+- [x] **Jan 1, 2026** - **Receipt-Style Duty Breakdown** - All tariff layers visible 💰
+- [x] **Jan 1, 2026** - **Full Tariff Coverage** - IEEPA Baseline, Fentanyl, Reciprocal, Section 301 🇺🇸
+- [x] **Jan 1, 2026** - **4-Level Classification Path** - Chapter → Heading → Subheading → Tariff 🌳
+- [x] **Jan 1, 2026** - **Zonos-Style Hierarchy Labels** - Each code shows level type 🏷️
+- [x] **Jan 1, 2026** - **UI Polish** - Proper spacing, consolidated headers, pill badges ✨
 - [ ] Upsell teasers on classification results
 - [ ] Automated daily sync configured
 - [ ] Redis cache layer for <1s responses

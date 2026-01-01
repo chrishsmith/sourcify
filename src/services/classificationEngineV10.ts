@@ -1067,6 +1067,7 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     additional: string;
     effective: string;
     special?: string;
+    breakdown?: Array<{ program: string; rate: number; description?: string }>;
   } | null = null;
   
   if (origin) {
@@ -1075,11 +1076,59 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
         baseMfnRate: primary.generalRate ? parseFloat(primary.generalRate) || 0 : 0,
       });
       
+      // Build detailed additional duties breakdown
+      const additionalParts: string[] = [];
+      
+      // IEEPA Breakdown (baseline, fentanyl, reciprocal)
+      if (tariff.ieepaBreakdown.baseline > 0) {
+        additionalParts.push(`+${tariff.ieepaBreakdown.baseline}% (IEEPA Baseline)`);
+      }
+      if (tariff.ieepaBreakdown.fentanyl > 0) {
+        additionalParts.push(`+${tariff.ieepaBreakdown.fentanyl}% (Fentanyl)`);
+      }
+      if (tariff.ieepaBreakdown.reciprocal > 0) {
+        additionalParts.push(`+${tariff.ieepaBreakdown.reciprocal}% (Reciprocal)`);
+      }
+      
+      // Section 301 (China)
+      if (tariff.section301Rate > 0) {
+        const listInfo = tariff.section301Lists.length > 0 
+          ? ` (${tariff.section301Lists.join(', ')})`
+          : '';
+        additionalParts.push(`+${tariff.section301Rate}% (Section 301${listInfo})`);
+      }
+      
+      // Section 232 (Steel/Aluminum)
+      if (tariff.section232Rate > 0) {
+        additionalParts.push(`+${tariff.section232Rate}% (Section 232)`);
+      }
+      
+      // Build structured breakdown for UI display
+      const breakdown: Array<{ program: string; rate: number; description?: string }> = [];
+      
+      if (tariff.ieepaBreakdown.baseline > 0) {
+        breakdown.push({ program: 'IEEPA Baseline', rate: tariff.ieepaBreakdown.baseline, description: 'April 2025 universal tariff' });
+      }
+      if (tariff.ieepaBreakdown.fentanyl > 0) {
+        breakdown.push({ program: 'Fentanyl Tariff', rate: tariff.ieepaBreakdown.fentanyl, description: 'IEEPA fentanyl emergency tariff' });
+      }
+      if (tariff.ieepaBreakdown.reciprocal > 0) {
+        breakdown.push({ program: 'Reciprocal Tariff', rate: tariff.ieepaBreakdown.reciprocal, description: 'Country-specific reciprocal tariff' });
+      }
+      if (tariff.section301Rate > 0) {
+        const listInfo = tariff.section301Lists.length > 0 ? tariff.section301Lists.join(', ') : '';
+        breakdown.push({ program: 'Section 301', rate: tariff.section301Rate, description: listInfo ? `China ${listInfo}` : 'China trade action' });
+      }
+      if (tariff.section232Rate > 0) {
+        breakdown.push({ program: 'Section 232', rate: tariff.section232Rate, description: 'Steel/Aluminum national security tariff' });
+      }
+      
       dutyInfo = {
         baseMfn: primary.generalRate || 'N/A',
-        additional: tariff.section301Rate > 0 ? `+${tariff.section301Rate}% (Section 301)` : '',
+        additional: additionalParts.length > 0 ? additionalParts.join(', ') : 'None',
         effective: `${tariff.effectiveRate.toFixed(1)}%`,
         special: primary.specialRates || undefined,
+        breakdown: breakdown.length > 0 ? breakdown : undefined,
       };
     } catch (err) {
       console.error('[V10] Tariff lookup error:', err);
