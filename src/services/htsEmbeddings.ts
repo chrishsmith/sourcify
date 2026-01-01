@@ -403,15 +403,26 @@ export async function dualPathSearch(
     
     console.log(`[dualPathSearch] Searching in preferred chapters: ${preferredChapters.join(', ')}`);
     
-    // Search with chapter restriction
+    // Search with chapter restriction - use LOW threshold to get diverse results
+    // Scoring/filtering at the V10 level will handle quality control
     const headingResults = await searchHtsBySemantic(functionQuery, {
-      limit: limit * 2, // Get more candidates to filter
-      minSimilarity: 0.35,
+      limit: limit * 3, // Get many candidates for diversity
+      minSimilarity: 0.15, // Low threshold - we want at least one result per chapter
       chapters: preferredChapters,
     });
     
     // If we got good results from preferred headings, filter further
     if (headingResults.length > 0) {
+      // Ensure chapter diversity - get best result from EACH chapter
+      const bestPerChapter = new Map<string, typeof headingResults[0]>();
+      for (const r of headingResults) {
+        const chapter = r.code.slice(0, 2);
+        const existing = bestPerChapter.get(chapter);
+        if (!existing || r.similarity > existing.similarity) {
+          bestPerChapter.set(chapter, r);
+        }
+      }
+      
       // Boost results that are in the exact preferred headings
       const boostedResults = headingResults.map(r => {
         const heading = r.code.slice(0, 4);
@@ -425,8 +436,29 @@ export async function dualPathSearch(
       // Sort by boosted similarity
       boostedResults.sort((a, b) => b.similarity - a.similarity);
       
-      console.log(`[dualPathSearch] Found ${boostedResults.length} results in preferred chapters`);
-      return boostedResults.slice(0, limit);
+      // Ensure we have at least one from each chapter
+      const result: typeof boostedResults = [];
+      const includedChapters = new Set<string>();
+      
+      // First, add all boosted results
+      for (const r of boostedResults) {
+        result.push(r);
+        includedChapters.add(r.code.slice(0, 2));
+      }
+      
+      // Add best from missing chapters
+      for (const [chapter, r] of bestPerChapter) {
+        if (!includedChapters.has(chapter) && !result.some(x => x.code === r.code)) {
+          result.push(r);
+          includedChapters.add(chapter);
+        }
+      }
+      
+      // Re-sort and limit
+      result.sort((a, b) => b.similarity - a.similarity);
+      
+      console.log(`[dualPathSearch] Found ${result.length} results across ${includedChapters.size} chapters (from ${headingResults.length} raw)`);
+      return result.slice(0, limit);
     }
   }
   

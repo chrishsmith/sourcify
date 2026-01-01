@@ -1,8 +1,8 @@
 # Sourcify Product Roadmap
 
-> **Version:** 1.2.0  
+> **Version:** 1.3.0  
 > **Created:** December 19, 2024  
-> **Last Updated:** December 30, 2025  
+> **Last Updated:** January 1, 2026  
 > **Status:** Active Development
 
 ---
@@ -11,6 +11,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.3.0 | Jan 1, 2026 | Team | Comprehensive services catalog + new optimization services |
 | 1.2.0 | Dec 30, 2025 | Team | Added funnel strategy (classification = hook, optimization = upsell) |
 | 1.1.0 | Dec 20, 2025 | Team | Added Country Tariff Registry (centralized data service) |
 | 1.0.0 | Dec 19, 2024 | Team | Initial roadmap - Sourcing Intelligence + Monitoring |
@@ -90,46 +91,281 @@
 
 ---
 
+## 📦 Services Catalog
+
+### BUILT ✅ (Production Ready)
+
+#### 1. HTS Classification Engine
+| Status | ✅ LIVE |
+|--------|---------|
+| **What it does** | AI-powered semantic search classification (~4 seconds) |
+| **Key Features** | 27,061 HTS codes with embeddings, conditional classification, alternatives |
+| **Files** | `classificationEngineV10.ts`, `htsEmbeddings.ts` |
+| **API** | `POST /api/classify-v10` |
+| **Tier** | Free |
+
+#### 2. Country Tariff Registry
+| Status | ✅ LIVE |
+|--------|---------|
+| **What it does** | Single source of truth for all tariff data (199 countries) |
+| **Data Sources** | USITC HTS API, Federal Register, OFAC, FTA List, AD/CVD Orders |
+| **Key Features** | Complete tariff breakdown (MFN + 301 + IEEPA + Fentanyl + Reciprocal) |
+| **Files** | `tariffRegistry.ts`, `tariffRegistrySync.ts` |
+| **API** | `POST /api/tariff-registry/sync` |
+| **Tier** | Internal |
+
+#### 3. Landed Cost Calculator
+| Status | ✅ LIVE |
+|--------|---------|
+| **What it does** | Full landed cost comparison across countries |
+| **Data Sources** | **USITC DataWeb API** - REAL import volume/value by country |
+| **Key Features** | Product cost (from real import data), shipping estimates, tariff breakdown, MPF/HMF fees |
+| **Files** | `landedCost.ts`, `usitcDataWeb.ts` |
+| **API** | `GET /api/sourcing/landed-cost` |
+| **Tier** | Pro |
+
+#### 4. Tariff Monitoring System
+| Status | ✅ LIVE |
+|--------|---------|
+| **What it does** | Track tariff changes for saved products |
+| **Key Features** | Dashboard card, product drawer, rate history, bulk actions |
+| **Files** | `TariffMonitoringTab.tsx`, `ProductDetailDrawer.tsx`, `tariffAlerts.ts` |
+| **Missing** | Email notifications, automated daily sync |
+| **Tier** | Pro |
+
+#### 5. Sourcing Intelligence
+| Status | ✅ LIVE |
+|--------|---------|
+| **What it does** | Compare sourcing options across countries |
+| **Key Features** | Country comparison table, savings calculations, supplier explorer |
+| **Files** | `sourcingAdvisor.ts`, `SourcingRecommendations.tsx` |
+| **API** | `/api/sourcing/analyze`, `/api/sourcing/quick` |
+| **Tier** | Pro |
+
+---
+
+### SPEC'D 📐 (Designed, Not Built)
+
+#### 6. Same-Country Optimization
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | Find alternative HTS codes under same heading with lower duties |
+| **User Value** | "We found 3 alternative codes that could save 5% on duties" |
+| **Example** | `6912.00.44.00` (9.8%) → `6912.00.35.10` (4.5%) if value ≤$38 |
+| **Complexity** | Low - data exists, need UI/logic |
+| **Tier** | Pro |
+
+#### 7. CBP Ruling Research
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | Match products to CBP CROSS rulings for classification defensibility |
+| **User Value** | "3 CBP rulings support this classification" |
+| **Data Source** | CBP CROSS (scrapeable) |
+| **Complexity** | High - need scraper + matching logic |
+| **Tier** | Business |
+
+#### 8. Bulk Classification / Portfolio Analysis
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | CSV/Excel upload, batch classification, portfolio-wide optimization |
+| **User Value** | "These 5 products have the biggest savings opportunity" |
+| **Key Features** | AI enrichment, Savings Report Generator (PDF) |
+| **Complexity** | Medium |
+| **Tier** | Business |
+
+#### 9. What-If Simulator / Explore Mode
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | Interactive duty calculator for product development |
+| **User Value** | "Change material/value/country → see duty impact instantly" |
+| **Key Features** | Scenario comparison, annual cost projections |
+| **Wireframe** | `DESIGN_GUIDED_CLASSIFICATION.md` lines 565-641 |
+| **Complexity** | Medium |
+| **Tier** | Pro |
+
+#### 10. Weekly Digest Email
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | Automated weekly summary of tariff changes + opportunities |
+| **Key Features** | Personalized alerts, dollar impact estimates, action items |
+| **Complexity** | Medium - need email service (Resend) |
+| **Tier** | Free (engagement driver) |
+
+#### 11. Competitor Watchlist
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | Track competitor import activity |
+| **User Value** | "Your competitor started importing from Vietnam last month" |
+| **Data Source** | Bill of Lading data (expensive: $10k-50k/year) |
+| **Complexity** | High - expensive data |
+| **Tier** | Enterprise |
+
+#### 12. Market Trends Dashboard
+| Status | 📐 SPEC'D |
+|--------|---------|
+| **What it does** | Volume/value trends by HTS chapter, country origin shifts |
+| **Data Source** | USITC DataWeb (already integrated!) |
+| **Complexity** | Low-Medium - data exists |
+| **Tier** | Business |
+
+---
+
+### NOT SPEC'D 🆕 (New Opportunities)
+
+#### 13. FTA Qualification Analyzer
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Detailed rules of origin analysis, Certificate of Origin guidance |
+| **User Value** | "Is my product USMCA-qualified?" calculator |
+| **Use Case** | Importers want to know if they can claim FTA benefits |
+| **Complexity** | High - complex rules per FTA |
+| **Tier** | Business |
+
+#### 14. Tariff Engineering Advisor
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Suggest product modifications to qualify for lower tariffs |
+| **User Value** | "Change from >50% cotton to >50% synthetic, duty drops 15%" |
+| **Use Case** | Product designers optimizing for duty savings |
+| **Complexity** | High - need deep HTS knowledge |
+| **Tier** | Business |
+
+#### 15. Duty Drawback Identification
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Identify products eligible for duty drawback (refunds on re-exported goods) |
+| **User Value** | "You may be eligible for $X in duty refunds" |
+| **Use Case** | Manufacturers who import and re-export |
+| **Complexity** | Medium |
+| **Tier** | Business |
+
+#### 16. Section 301 Exclusion Tracker
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Track product exclusion requests, alert when exclusions expire |
+| **User Value** | "Your exclusion expires in 30 days - duty will increase 25%" |
+| **Data Source** | Federal Register (already integrated!) |
+| **Complexity** | Medium |
+| **Tier** | Pro |
+
+#### 17. De Minimis Calculator
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Calculate if shipments qualify for duty-free de minimis entry (<$800) |
+| **User Value** | "Split into 3 shipments to qualify for de minimis" |
+| **Use Case** | Small importers, DTC brands |
+| **Complexity** | Low |
+| **Tier** | Free |
+
+#### 18. Port/Entry Optimization
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Compare entry costs by port, FTZ benefit analysis |
+| **User Value** | "Entry via Port of Savannah saves $X vs LA" |
+| **Complexity** | Medium - need port data |
+| **Tier** | Business |
+
+#### 19. Supplier Verification & Due Diligence
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Verify supplier legitimacy, denied party screening |
+| **Key Features** | CTPAT/AEO status check, ESG scoring |
+| **Data Sources** | BIS Entity List, OFAC SDN List |
+| **Complexity** | Medium |
+| **Tier** | Business |
+
+#### 20. Product Safety Screening
+| Status | 🆕 NEW |
+|--------|---------|
+| **What it does** | Check products/suppliers against FDA alerts, CPSC recalls |
+| **User Value** | "Warning: This supplier has 3 active FDA import alerts" |
+| **Data Sources** | FDA API, CPSC API |
+| **Complexity** | Low - APIs are free |
+| **Tier** | Pro |
+
+---
+
+### Service Priority Matrix
+
+| Service | Revenue Impact | Build Effort | Data Available | Priority |
+|---------|----------------|--------------|----------------|----------|
+| Same-Country Optimization | High | Low | ✅ Yes | **P0** |
+| Weekly Digest Email | Medium | Medium | ✅ Yes | **P0** |
+| Section 301 Exclusion Tracker | High | Medium | ✅ Yes | **P1** |
+| De Minimis Calculator | Low | Low | ✅ Yes | **P1** |
+| Market Trends Dashboard | Medium | Low | ✅ Yes | **P1** |
+| What-If Simulator | Medium | Medium | ✅ Yes | **P2** |
+| Product Safety Screening | Medium | Low | ✅ Yes | **P2** |
+| Bulk Classification | High | Medium | ✅ Yes | **P2** |
+| CBP Ruling Research | High | High | 🔲 Scraper | **P3** |
+| FTA Qualification Analyzer | High | High | 🔲 Rules | **P3** |
+| Tariff Engineering Advisor | High | High | 🔲 Knowledge | **P3** |
+| Duty Drawback ID | Medium | Medium | 🔲 Rules | **P3** |
+| Supplier Verification | Medium | Medium | 🔲 APIs | **P3** |
+| Port Optimization | Medium | Medium | 🔲 Data | **P4** |
+| Competitor Watchlist | High | High | 💰 Expensive | **P4** |
+
+---
+
 ## 🗺️ Roadmap Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              SOURCIFY ROADMAP 2024-2025                         │
+│                              SOURCIFY ROADMAP 2025-2026                         │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
-│  PHASE 0: CLASSIFICATION ENGINE (✅ COMPLETE)                Dec 30, 2025       │
+│  PHASE 0: CORE CLASSIFICATION (✅ COMPLETE)                  Dec 30, 2025       │
 │  ═══════════════════════════════════════════                                    │
 │  ✅ Semantic Search Engine (~4s classification)                                 │
 │  ✅ 27,061 HTS codes with embeddings                                            │
 │  ✅ Conditional classification (size/value)                                     │
-│  ✅ Query enrichment (prevents mismatches)                                      │
-│  ✅ Frontend UI with alternatives + duty display                                │
+│  ✅ Country Tariff Registry (199 countries, 7 data sources)                     │
+│  ✅ Frontend UI with alternatives + duty breakdown                              │
 │                                                                                  │
-│  PHASE 1: UPSELL TEASERS (Current)                           Target: Jan 2025   │
-│  ═══════════════════════════════════                                            │
-│  🔲 "Lower rate available" badge on results                                     │
-│  🔲 "Save with different sourcing" hint                                         │
-│  🔲 Classification → Sourcing flow with pricing                                 │
-│  🔲 Email capture via tariff alerts (free)                                      │
+│  PHASE 1: SOURCING FOUNDATION (✅ COMPLETE)                  Dec 30, 2025       │
+│  ═══════════════════════════════════════════                                    │
+│  ✅ USITC DataWeb Integration (real import volume/value)                        │
+│  ✅ Landed Cost Calculator (full breakdown)                                     │
+│  ✅ Country Comparison Table                                                    │
+│  ✅ Supplier Explorer                                                           │
 │                                                                                  │
-│  PHASE 2: TRADE INTELLIGENCE                                 Target: Feb 2025   │
-│  ═══════════════════════════════                                                │
-│  ✅ Tariff Alert System (backend done)                                          │
-│  ✅ Saved Products Monitoring (UI done)                                         │
+│  PHASE 2: TARIFF MONITORING (✅ 95% COMPLETE)                Jan 1, 2026        │
+│  ═══════════════════════════════════════════                                    │
+│  ✅ Tariff Alert System (backend + UI)                                          │
+│  ✅ Saved Products Monitoring (full flow)                                       │
 │  ✅ Intelligence Dashboard Card                                                 │
-│  🔲 Weekly Digest Emails                                                        │
+│  ✅ Product Detail Drawer                                                       │
+│  🔲 Weekly Digest Email                                                         │
+│  🔲 Automated Daily Sync (cron)                                                 │
 │                                                                                  │
-│  PHASE 3: PAID OPTIMIZATION SERVICES                         Target: Q2 2025    │
+│  PHASE 3: UPSELL & CONVERSION (Current)                      Target: Jan 2026   │
 │  ══════════════════════════════════════                                         │
 │  🔲 Same-Country Optimization (alternative HTS codes)                           │
-│  🔲 Country Sourcing Intelligence (full analysis)                               │
-│  🔲 CBP Ruling Research Integration                                             │
+│  🔲 "Lower rate available" badge on classification results                      │
+│  🔲 Section 301 Exclusion Tracker                                               │
+│  🔲 De Minimis Calculator                                                       │
+│  🔲 Email capture via tariff alerts                                             │
 │                                                                                  │
-│  PHASE 4: PORTFOLIO INTELLIGENCE                             Target: Q2 2025    │
-│  ═══════════════════════════════════                                            │
-│  🔲 Bulk Product Upload                                                         │
+│  PHASE 4: ADVANCED OPTIMIZATION                              Target: Q1 2026    │
+│  ══════════════════════════════════════                                         │
+│  🔲 What-If Simulator / Explore Mode                                            │
+│  🔲 Market Trends Dashboard                                                     │
+│  🔲 Product Safety Screening (FDA/CPSC)                                         │
+│  🔲 FTA Qualification Analyzer                                                  │
+│                                                                                  │
+│  PHASE 5: ENTERPRISE / PORTFOLIO                             Target: Q2 2026    │
+│  ══════════════════════════════════                                             │
+│  🔲 Bulk Classification (CSV/Excel)                                             │
 │  🔲 Portfolio Optimizer                                                         │
-│  🔲 Savings Report Generator                                                    │
+│  🔲 Savings Report Generator (PDF)                                              │
+│  🔲 CBP Ruling Research                                                         │
+│                                                                                  │
+│  PHASE 6: COMPETITIVE INTELLIGENCE                           Target: Q3 2026    │
+│  ════════════════════════════════════                                           │
+│  🔲 Competitor Watchlist (requires BOL data)                                    │
+│  🔲 Supplier Activity Monitoring                                                │
+│  🔲 Supplier Verification & Due Diligence                                       │
+│  🔲 Tariff Engineering Advisor                                                  │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -612,17 +848,59 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 ### Current Stack
 - **Frontend:** Next.js 14, React, Ant Design, Tailwind
 - **Backend:** Next.js API Routes
-- **Database:** PostgreSQL (Prisma ORM)
+- **Database:** PostgreSQL (Prisma ORM) + pgvector
 - **AI:** Grok (xAI) for classification and insights
 - **Auth:** Better Auth
+- **Embeddings:** OpenAI text-embedding-3-small (1536 dimensions)
 
 ### Core Data Services
 
-| Service | Purpose | Doc |
-|---------|---------|-----|
-| **Country Tariff Registry** | Single source of truth for all tariff data | [Architecture Doc](./ARCHITECTURE_TARIFF_REGISTRY.md) |
-| Classification Engine | AI-powered HTS classification | - |
-| Sourcing Intelligence | Country comparison & landed cost | - |
+| Service | Purpose | File | Doc |
+|---------|---------|------|-----|
+| **Country Tariff Registry** | Single source of truth for all tariff data | `tariffRegistry.ts` | [Architecture Doc](./ARCHITECTURE_TARIFF_REGISTRY.md) |
+| **Classification Engine** | AI-powered HTS classification | `classificationEngineV10.ts` | [Architecture Doc](./ARCHITECTURE_HTS_CLASSIFICATION.md) |
+| **Landed Cost Calculator** | Country comparison & full cost breakdown | `landedCost.ts` | - |
+| **USITC DataWeb** | Real import volume/value statistics | `usitcDataWeb.ts` | - |
+| **Sourcing Advisor** | Recommendations & savings analysis | `sourcingAdvisor.ts` | - |
+| **Tariff Alerts** | Monitoring & change detection | `tariffAlerts.ts` | [Architecture Doc](./ARCHITECTURE_TARIFF_MONITORING.md) |
+
+### Data Sources (Already Integrated ✅)
+
+| Source | Service | Data Provided | Status |
+|--------|---------|---------------|--------|
+| **USITC HTS API** | `tariffRegistry.ts` | Chapter 99 rates, Section 301, IEEPA, 232 | ✅ Active |
+| **USITC DataWeb API** | `usitcDataWeb.ts` | **Import volume & value by country** | ✅ Active |
+| **Federal Register API** | `tariffRegistrySync.ts` | Executive orders, tariff announcements | ✅ Active |
+| **ISO 3166-1** | `tariffRegistrySync.ts` | 199 countries | ✅ Active |
+| **USTR FTA List** | `tariffRegistrySync.ts` | 20 FTA partners | ✅ Active |
+| **OFAC Sanctions** | `tariffRegistrySync.ts` | Sanctioned countries | ✅ Active |
+| **AD/CVD Orders** | `tariffRegistrySync.ts` | Antidumping risk warnings | ✅ Active |
+| **OpenAI Embeddings** | `htsEmbeddings.ts` | 27,061 HTS code vectors | ✅ Active |
+
+### Data Sources (Planned 🔲)
+
+| Source | Data | Use Case | Complexity |
+|--------|------|----------|------------|
+| **Census Bureau API** | Granular trade stats, port-level | Market trends | Medium |
+| **CBP CROSS** | Customs rulings | Ruling research | High (scraper) |
+| **UN Comtrade** | Global bilateral trade | Market intelligence | Medium |
+| **ImportYeti** | Importer/exporter names | Competitor tracking | Medium (scraper) |
+| **FDA API** | Import alerts | Supplier screening | Low |
+| **CPSC API** | Product recalls | Safety screening | Low |
+| **BIS Entity List** | Denied parties | Compliance screening | Low |
+
+### Key API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/classify-v10` | POST | HTS classification |
+| `/api/tariff-registry/sync` | POST | Sync all tariff data |
+| `/api/sourcing/analyze` | POST | Full sourcing analysis |
+| `/api/sourcing/quick` | GET | Quick country comparison |
+| `/api/sourcing/landed-cost` | GET | Landed cost calculation |
+| `/api/sourcing/sync-data` | POST | Sync USITC DataWeb |
+| `/api/saved-products` | GET/POST | Product library |
+| `/api/tariff-alerts` | GET/POST | Alert management |
 
 **Data Flow:**
 ```
@@ -668,65 +946,70 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 
 ## 📅 Sprint Planning
 
-### Sprint 1 (Current - Week of Dec 16)
-**Theme:** Classification → Sourcing Flow
+### ✅ Completed Sprints (Dec 2025)
 
-| Task | Owner | Status | Est. Hours |
-|------|-------|--------|------------|
-| 1.1 Dynamic Sourcing CTA | TBD | 🔲 | 4h |
-| 1.2 URL Parameter Support | TBD | 🔲 | 2h |
-| Testing & Polish | TBD | 🔲 | 2h |
-
-**Sprint Goal:** Users can click from classification result to sourcing analysis
-
----
-
-### Sprint 2 (Week of Dec 23)
-**Theme:** Enhanced Sourcing Input
-
-| Task | Owner | Status | Est. Hours |
-|------|-------|--------|------------|
-| 1.3 Natural Language Input | TBD | 🔲 | 6h |
-| 1.4 Results Enhancement | TBD | 🔲 | 3h |
-| Testing & Polish | TBD | 🔲 | 2h |
-
-**Sprint Goal:** Users can describe products in plain English for sourcing analysis
+| Sprint | Theme | Status |
+|--------|-------|--------|
+| Sprint 1 | Classification Engine | ✅ Complete |
+| Sprint 2 | Country Tariff Registry | ✅ Complete |
+| Sprint 3 | Tariff Monitoring UI | ✅ Complete |
+| Sprint 4 | HTS Database & Semantic Search | ✅ Complete |
+| Sprint 5 | Classification UI/UX Refinement | ✅ Complete |
 
 ---
 
-### Sprint 3 (Week of Dec 30)
-**Theme:** Tariff Alerts Foundation
+### Sprint 6 (Current - Week of Jan 1)
+**Theme:** Upsell & Conversion Foundation
 
-| Task | Owner | Status | Est. Hours |
-|------|-------|--------|------------|
-| 2.1 Tariff Alert System | TBD | 🔲 | 12h |
-| 2.5 Data Sources Setup | TBD | 🔲 | 8h |
+| Task | Priority | Est. Hours | Notes |
+|------|----------|------------|-------|
+| Same-Country Optimization - Backend | P0 | 4h | Find lower-duty alternatives under same heading |
+| Same-Country Optimization - UI | P0 | 4h | "Lower rate available" badge |
+| De Minimis Calculator | P1 | 3h | Simple rule: <$800 = duty free |
+| Section 301 Exclusion Tracker | P1 | 4h | Use existing Federal Register data |
+| Weekly Digest Email - Setup | P0 | 4h | Resend integration |
 
-**Sprint Goal:** Users can subscribe to tariff alerts
-
----
-
-### Sprint 4 (Week of Jan 6)
-**Theme:** Intelligence Dashboard
-
-| Task | Owner | Status | Est. Hours |
-|------|-------|--------|------------|
-| 2.2 Saved Products Monitoring | TBD | 🔲 | 6h |
-| 2.3 Intelligence Dashboard | TBD | 🔲 | 12h |
-
-**Sprint Goal:** Central intelligence hub live
+**Sprint Goal:** First paid conversion features live
 
 ---
 
-### Sprint 5 (Week of Jan 13)
-**Theme:** Email & Polish
+### Sprint 7 (Week of Jan 8)
+**Theme:** Market Intelligence
 
-| Task | Owner | Status | Est. Hours |
-|------|-------|--------|------------|
-| 2.4 Weekly Digest Email | TBD | 🔲 | 8h |
-| Bug fixes & polish | TBD | 🔲 | 8h |
+| Task | Priority | Est. Hours | Notes |
+|------|----------|------------|-------|
+| Market Trends Dashboard | P1 | 6h | Use existing USITC DataWeb data |
+| Product Safety Screening | P2 | 4h | FDA/CPSC API integration |
+| Weekly Digest Email - Templates | P1 | 4h | Email content |
+| Automated Daily Sync | P1 | 3h | Vercel Cron for tariff registry |
 
-**Sprint Goal:** Complete Phase 2, ready for beta users
+**Sprint Goal:** Proactive intelligence features
+
+---
+
+### Sprint 8 (Week of Jan 15)
+**Theme:** What-If & Exploration
+
+| Task | Priority | Est. Hours | Notes |
+|------|----------|------------|-------|
+| What-If Simulator | P2 | 8h | Interactive duty calculator |
+| FTA Qualification Check | P3 | 4h | USMCA focus first |
+| Upsell Teasers Polish | P1 | 3h | Conversion optimization |
+
+**Sprint Goal:** Product development use case supported
+
+---
+
+### Sprint 9 (Week of Jan 22)
+**Theme:** Portfolio Features
+
+| Task | Priority | Est. Hours | Notes |
+|------|----------|------------|-------|
+| Bulk Classification - Upload | P2 | 6h | CSV/Excel parsing |
+| Bulk Classification - Processing | P2 | 8h | Batch API calls |
+| Savings Report Generator | P2 | 6h | PDF export |
+
+**Sprint Goal:** Enterprise-ready bulk features
 
 ---
 
@@ -735,36 +1018,77 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 ### North Star Metric
 **Weekly Active Analyzers:** Users who run at least one classification or sourcing analysis per week
 
-### Phase 1 Goals
-- [ ] 100 classifications with sourcing CTA shown
-- [ ] 15%+ click-through to sourcing analysis
-- [ ] 60%+ completion rate on sourcing analysis
+### Funnel Metrics
 
-### Phase 2 Goals
-- [ ] 50 users with active tariff alerts
-- [ ] 40%+ email open rate on digests
-- [ ] 3+ dashboard visits/week for engaged users
+| Stage | Metric | Target |
+|-------|--------|--------|
+| **Acquisition** | Classifications/week | 500+ |
+| **Activation** | Upsell CTA click rate | 15%+ |
+| **Retention** | Weekly return rate | 30%+ |
+| **Revenue** | Free → Pro conversion | 5%+ |
+| **Referral** | NPS Score | 50+ |
 
-### Revenue Goals
-- **Free Tier:** 3 classifications/month, basic sourcing
-- **Pro ($99/mo):** Unlimited classifications, tariff alerts, intelligence dashboard
-- **Business ($299/mo):** API access, team features, priority support
+### Phase 3 Goals (Upsell & Conversion)
+- [ ] Same-Country Optimization live on all classification results
+- [ ] 10%+ click rate on "Lower rate available" badge
+- [ ] 50 users signed up for tariff alerts (email capture)
+- [ ] First $99/mo Pro subscriber
+
+### Phase 4 Goals (Advanced Optimization)
+- [ ] What-If Simulator used by 100+ users
+- [ ] 40%+ weekly digest email open rate
+- [ ] 5 users using Market Trends Dashboard weekly
+
+### Phase 5 Goals (Enterprise)
+- [ ] 10 bulk classification uploads/week
+- [ ] First Business ($299/mo) subscriber
+- [ ] 3 Savings Reports generated/week
+
+### Revenue Milestones
+
+| Milestone | Target Date | Status |
+|-----------|-------------|--------|
+| First paying user | Jan 15, 2026 | 🔲 |
+| $1,000 MRR | Feb 28, 2026 | 🔲 |
+| $5,000 MRR | Q2 2026 | 🔲 |
+| $10,000 MRR | Q3 2026 | 🔲 |
 
 ---
 
 ## 🚧 Parking Lot (Future Ideas)
 
-Ideas to consider for future phases:
+Ideas to evaluate after core services are profitable:
 
-- [ ] Mobile app
-- [ ] API for third-party integrations
+### Platform Features
+- [ ] Mobile app (scan barcode → classify)
+- [ ] API for third-party integrations (ERP, WMS, TMS)
+- [ ] Team collaboration & approval workflows
+- [ ] White-label for freight forwarders
+- [ ] SSO/SAML for enterprise
+
+### Marketplace & Network
 - [ ] Customs broker marketplace
 - [ ] Supplier RFQ system
-- [ ] Freight rate integration
+- [ ] Freight forwarder matching
+- [ ] Trade finance connections
+
+### Logistics & Operations
+- [ ] Freight rate integration (real-time quotes)
+- [ ] Container tracking
+- [ ] Port congestion monitoring
 - [ ] Currency hedging recommendations
-- [ ] Compliance document generation
-- [ ] Team collaboration features
-- [ ] White-label for freight forwarders
+
+### Compliance & Documentation
+- [ ] Compliance document generation (CO, ISF, etc.)
+- [ ] ACE filing integration
+- [ ] ISF bond management
+- [ ] PGA (Partner Government Agency) screening
+
+### Advanced Intelligence
+- [ ] AI news monitoring (tariff policy changes)
+- [ ] Predictive tariff alerts (ML on Federal Register patterns)
+- [ ] Trade war scenario modeling
+- [ ] Supply chain risk scoring
 
 ---
 

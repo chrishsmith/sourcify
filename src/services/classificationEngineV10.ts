@@ -1213,27 +1213,57 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
         );
         
         if (semanticResults.length > 0) {
-          // Filter out very low similarity results (garbage matches)
-          const minSimilarity = 0.4;
-          const filteredResults = semanticResults.filter(r => r.similarity >= minSimilarity);
+          // Two-tier filtering: strict threshold for primary, lenient for alternatives
+          // This ensures we show diverse options (different chapters/materials)
+          const PRIMARY_THRESHOLD = 0.4;    // High quality for main result
+          const ALTERNATIVE_THRESHOLD = 0.2; // Include diverse options even with lower match
           
-          if (filteredResults.length > 0) {
+          // Get all results above the lenient threshold
+          const allViable = semanticResults.filter(r => r.similarity >= ALTERNATIVE_THRESHOLD);
+          
+          // Ensure chapter diversity - keep at least one result per chapter if above alt threshold
+          const chapterBest = new Map<string, typeof semanticResults[0]>();
+          for (const r of allViable) {
+            const chapter = r.code.substring(0, 2);
+            const existing = chapterBest.get(chapter);
+            if (!existing || r.similarity > existing.similarity) {
+              chapterBest.set(chapter, r);
+            }
+          }
+          
+          // Start with high-quality results, then add diverse chapter results
+          const highQuality = semanticResults.filter(r => r.similarity >= PRIMARY_THRESHOLD);
+          const diverseResults = [...highQuality];
+          
+          // Add best result from each chapter not already represented
+          for (const [chapter, result] of chapterBest) {
+            if (!diverseResults.some(r => r.code.substring(0, 2) === chapter)) {
+              diverseResults.push(result);
+            }
+          }
+          
+          // Sort by similarity (best first)
+          diverseResults.sort((a, b) => b.similarity - a.similarity);
+          
+          console.log(`[V10] Similarity filtering: ${highQuality.length} high-quality (>=${PRIMARY_THRESHOLD}), ${chapterBest.size} chapters represented`);
+          
+          if (diverseResults.length > 0) {
             // Convert semantic results to the format we need
-            const codes = filteredResults.map(r => r.code);
+            const codes = diverseResults.map(r => r.code);
             allResults = await prisma.htsCode.findMany({
               where: { code: { in: codes } },
             });
             
             // Sort by similarity score from semantic search
-            const similarityMap = new Map(filteredResults.map(r => [r.code, r.similarity]));
+            const similarityMap = new Map(diverseResults.map(r => [r.code, r.similarity]));
             allResults.sort((a, b) => 
               (similarityMap.get(b.code) || 0) - (similarityMap.get(a.code) || 0)
             );
             
             usedSemanticSearch = true;
-            console.log(`[V10] Semantic search found ${allResults.length} candidates (filtered from ${semanticResults.length})`);
+            console.log(`[V10] Semantic search found ${allResults.length} candidates (${diverseResults.length} diverse from ${semanticResults.length} total)`);
           } else {
-            console.log(`[V10] All semantic results below ${minSimilarity} threshold, using keyword fallback`);
+            console.log(`[V10] All semantic results below ${ALTERNATIVE_THRESHOLD} threshold, using keyword fallback`);
           }
         }
       } else {
@@ -1586,35 +1616,75 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
   // Build full description path for primary
   const primaryDesc = await buildFullDescription(primary.code);
   
-  // Build alternatives (exclude primary)
-  const alternatives: Alternative[] = topCandidates.slice(1, 11).map((c, i) => {
-    // Generate material note if different chapter
-    let materialNote: string | undefined;
-    if (c.chapter !== primary.chapter) {
-      const chapterMaterial = Object.entries(MATERIAL_CHAPTERS)
-        .find(([_, chapters]) => chapters.includes(c.chapter))?.[0];
-      if (chapterMaterial) {
-        materialNote = `If your product is ${chapterMaterial}`;
+  // Build alternatives with DIVERSITY: prefer candidates from different chapters/headings
+  // This ensures users see multiple interpretations, not just variations of the same code
+  const buildDiverseAlternatives = (): Alternative[] => {
+    const result: Alternative[] = [];
+    const usedChapters = new Set<string>([primary.chapter]);
+    const usedHeadings = new Set<string>([primary.code.substring(0, 4)]);
+    
+    // First pass: prioritize alternatives from DIFFERENT chapters
+    for (const c of topCandidates.slice(1)) {
+      if (result.length >= 10) break;
+      if (!usedChapters.has(c.chapter)) {
+        usedChapters.add(c.chapter);
+        result.push(c);
       }
     }
     
-    // Get heading description from the map we already built
-    const heading = c.code.substring(0, 4);
-    const headingDesc = headingMap.get(heading) || '';
+    // Second pass: add alternatives from different HEADINGS within same chapters
+    for (const c of topCandidates.slice(1)) {
+      if (result.length >= 10) break;
+      const heading = c.code.substring(0, 4);
+      if (!usedHeadings.has(heading) && !result.includes(c)) {
+        usedHeadings.add(heading);
+        result.push(c);
+      }
+    }
     
-    return {
-      rank: i + 2,
-      htsCode: c.code,
-      htsCodeFormatted: c.codeFormatted,
-      confidence: c.score,
-      description: c.description,
-      fullDescription: c.fullDescription,
-      chapter: c.chapter,
-      chapterDescription: CHAPTER_DESCRIPTIONS[c.chapter] || `Chapter ${c.chapter}`,
-      headingDescription: headingDesc,
-      materialNote,
-    };
-  });
+    // Third pass: fill remaining slots with highest-scoring candidates
+    for (const c of topCandidates.slice(1)) {
+      if (result.length >= 10) break;
+      if (!result.includes(c)) {
+        result.push(c);
+      }
+    }
+    
+    // Sort by confidence (score) descending - highest confidence first
+    result.sort((a, b) => b.score - a.score);
+    
+    // Map to Alternative format with ranks reflecting the sorted order
+    return result.map((c, i) => {
+      // Generate material note if different chapter
+      let materialNote: string | undefined;
+      if (c.chapter !== primary.chapter) {
+        const chapterMaterial = Object.entries(MATERIAL_CHAPTERS)
+          .find(([_, chapters]) => chapters.includes(c.chapter))?.[0];
+        if (chapterMaterial) {
+          materialNote = `If your product is ${chapterMaterial}`;
+        }
+      }
+      
+      // Get heading description from the map we already built
+      const heading = c.code.substring(0, 4);
+      const headingDesc = headingMap.get(heading) || '';
+      
+      return {
+        rank: i + 2,
+        htsCode: c.code,
+        htsCodeFormatted: c.codeFormatted,
+        confidence: c.score,
+        description: c.description,
+        fullDescription: c.fullDescription,
+        chapter: c.chapter,
+        chapterDescription: CHAPTER_DESCRIPTIONS[c.chapter] || `Chapter ${c.chapter}`,
+        headingDescription: headingDesc,
+        materialNote,
+      };
+    });
+  };
+  
+  const alternatives = buildDiverseAlternatives();
   
   // Count remaining candidates
   const showMore = Math.max(0, uniqueCandidates.length - 11);
@@ -1624,31 +1694,98 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
   
   // ─────────────────────────────────────────────────────────────────────────────
   // LOW CONFIDENCE HANDLING: Ask for clarification when we're not confident
-  // This is better than returning garbage results (like "cucumbers" for "planter")
+  // This is better than returning garbage results
   // ─────────────────────────────────────────────────────────────────────────────
   
-  const CONFIDENCE_THRESHOLD = 40; // Below this, ask for clarification
-  const needsMaterialClarification = !detectedMaterial && primary.score < CONFIDENCE_THRESHOLD && productTypeHints.type;
+  const CONFIDENCE_THRESHOLD = 40; // Below this, consider asking for clarification
+  const CONFIDENCE_FLOOR = 15;     // Minimum displayable confidence (prevents 0%)
+  
+  // Apply confidence floor to prevent displaying 0% or very low scores
+  // This acknowledges uncertainty without showing absurdly low numbers
+  const displayConfidence = Math.max(CONFIDENCE_FLOOR, primary.score);
   
   let needsClarification: ClassifyV10Result['needsClarification'] = undefined;
   
-  if (needsMaterialClarification) {
-    console.log(`[V10] Low confidence (${primary.score}%) with no material detected - asking for clarification`);
+  // Determine what kind of clarification is most useful
+  const hasLowConfidence = primary.score < CONFIDENCE_THRESHOLD;
+  const hasDiverseAlternatives = alternatives.some(a => a.chapter !== primary.chapter);
+  const noMaterialDetected = !detectedMaterial;
+  
+  if (hasLowConfidence) {
+    console.log(`[V10] Low confidence (${primary.score}%) - determining best clarification approach`);
     
-    // Build material options based on common materials for this product type
-    const materialOptions = [
-      { value: 'plastic', label: 'Plastic', hint: 'Chapter 39' },
-      { value: 'ceramic', label: 'Ceramic/Clay', hint: 'Chapter 69' },
-      { value: 'metal', label: 'Metal', hint: 'Chapters 72-83' },
-      { value: 'wood', label: 'Wood', hint: 'Chapter 44' },
-      { value: 'glass', label: 'Glass', hint: 'Chapter 70' },
-    ];
+    // Priority 1: If no material detected and alternatives span multiple material-chapters
+    if (noMaterialDetected && hasDiverseAlternatives) {
+      // Find which material-chapters are represented in alternatives
+      const representedMaterials = new Set<string>();
+      for (const alt of alternatives) {
+        const material = Object.entries(MATERIAL_CHAPTERS)
+          .find(([_, chapters]) => chapters.includes(alt.chapter))?.[0];
+        if (material) representedMaterials.add(material);
+      }
+      
+      if (representedMaterials.size > 1) {
+        // Multiple materials possible - ask about material
+        const materialOptions = [
+          { value: 'plastic', label: 'Plastic', hint: 'Chapter 39' },
+          { value: 'ceramic', label: 'Ceramic/Clay', hint: 'Chapter 69' },
+          { value: 'metal', label: 'Metal', hint: 'Chapters 72-83' },
+          { value: 'wood', label: 'Wood', hint: 'Chapter 44' },
+          { value: 'glass', label: 'Glass', hint: 'Chapter 70' },
+        ];
+        
+        needsClarification = {
+          reason: 'material_ambiguous',
+          question: `What material is your product made of?`,
+          options: materialOptions,
+        };
+        console.log(`[V10] Clarification: material ambiguous (${[...representedMaterials].join(', ')})`);
+      }
+    }
     
-    needsClarification = {
-      reason: 'material_unknown',
-      question: `What material is your ${productTypeHints.type || 'product'} made of?`,
-      options: materialOptions,
-    };
+    // Priority 2: If alternatives have different use cases (household vs commercial, etc.)
+    // This handles cases like "indoor planter" which could be household OR hotel
+    if (!needsClarification && hasDiverseAlternatives) {
+      // Check if alternatives suggest different use contexts
+      const primaryDesc = primary.description.toLowerCase();
+      const hasUseAmbiguity = alternatives.some(alt => {
+        const altDesc = alt.description.toLowerCase();
+        // Detect household vs commercial ambiguity
+        const primaryIsHousehold = primaryDesc.includes('household') || primaryDesc.includes('domestic');
+        const primaryIsCommercial = primaryDesc.includes('hotel') || primaryDesc.includes('restaurant') || primaryDesc.includes('commercial');
+        const altIsHousehold = altDesc.includes('household') || altDesc.includes('domestic');
+        const altIsCommercial = altDesc.includes('hotel') || altDesc.includes('restaurant') || altDesc.includes('commercial');
+        return (primaryIsHousehold && altIsCommercial) || (primaryIsCommercial && altIsHousehold);
+      });
+      
+      if (hasUseAmbiguity) {
+        needsClarification = {
+          reason: 'use_ambiguous',
+          question: `What is the intended use of your product?`,
+          options: [
+            { value: 'household', label: 'Household/Residential', hint: 'For home use' },
+            { value: 'commercial', label: 'Commercial/Industrial', hint: 'For hotels, restaurants, businesses' },
+          ],
+        };
+        console.log(`[V10] Clarification: use context ambiguous (household vs commercial)`);
+      }
+    }
+    
+    // Priority 3: Generic low confidence - prompt for more details
+    if (!needsClarification && primary.score < 25) {
+      needsClarification = {
+        reason: 'low_confidence',
+        question: `We need more details to classify this product accurately. What is the primary material?`,
+        options: [
+          { value: 'plastic', label: 'Plastic', hint: 'Chapter 39' },
+          { value: 'ceramic', label: 'Ceramic/Clay', hint: 'Chapter 69' },
+          { value: 'metal', label: 'Metal', hint: 'Chapters 72-83' },
+          { value: 'textile', label: 'Textile/Fabric', hint: 'Chapters 50-63' },
+          { value: 'other', label: 'Other', hint: 'Please specify in description' },
+        ],
+      };
+      console.log(`[V10] Clarification: very low confidence (${primary.score}%)`);
+    }
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1683,7 +1820,8 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     primary: {
       htsCode: primary.code,
       htsCodeFormatted: primary.codeFormatted,
-      confidence: primary.score,
+      // Use displayConfidence (floored) instead of raw score to prevent showing 0%
+      confidence: displayConfidence,
       path: primaryDesc.path,
       fullDescription: primaryDesc.full,
       shortDescription: primary.description,

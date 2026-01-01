@@ -88,6 +88,18 @@ interface ConditionalAlternative {
     dutyDifference?: string;
 }
 
+interface ClarificationOption {
+    value: string;
+    label: string;
+    hint?: string;
+}
+
+interface NeedsClarification {
+    reason: string;
+    question: string;
+    options: ClarificationOption[];
+}
+
 interface V10Response {
     success: boolean;
     timing: {
@@ -109,6 +121,7 @@ interface V10Response {
         decisionQuestions: DecisionQuestion[];
         alternatives: ConditionalAlternative[];
     };
+    needsClarification?: NeedsClarification;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -596,6 +609,43 @@ export default function ClassificationV10LayoutB() {
                                             <span className="font-bold text-slate-900">EFFECTIVE TOTAL</span>
                                             <span className="font-bold text-lg text-amber-600">{displayedResult.duty.effective}</span>
                                         </div>
+                                    </div>
+                                </Card>
+                            )}
+
+                            {/* Low Confidence Clarification Card */}
+                            {result.needsClarification && (
+                                <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <AlertTriangle size={16} className="text-blue-500" />
+                                        <Text className="font-medium text-blue-800">Help us improve this result</Text>
+                                    </div>
+                                    <Text className="text-sm text-slate-700 block mb-3">
+                                        {result.needsClarification.question}
+                                    </Text>
+                                    <div className="flex gap-2 flex-wrap">
+                                        {result.needsClarification.options.map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    // Re-classify with clarification
+                                                    if (result.needsClarification?.reason.includes('material')) {
+                                                        setMaterial(opt.value);
+                                                    }
+                                                    // Trigger re-classification
+                                                    setDescription(prev => prev);
+                                                    setTimeout(() => handleClassify(), 100);
+                                                }}
+                                                className="px-3 py-2 text-sm rounded-lg border border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                                            >
+                                                <span className="font-medium">{opt.label}</span>
+                                                {opt.hint && (
+                                                    <span className="text-xs text-blue-600 ml-2">
+                                                        ({opt.hint})
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
                                     </div>
                                 </Card>
                             )}

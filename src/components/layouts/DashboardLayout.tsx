@@ -16,6 +16,7 @@ import {
     Globe,
     Menu as MenuIcon,
     X,
+    Map,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
@@ -96,6 +97,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         },
         {
             type: 'divider',
+        },
+        {
+            key: '/dashboard/roadmap',
+            icon: <Map size={18} />,
+            label: 'Feature Library',
         },
         {
             key: '/dashboard/settings',
@@ -213,6 +219,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             'classify': 'Classify Product',
             'suppliers': 'Supplier Explorer',
             'sourcing': 'Sourcing Intelligence',
+            'roadmap': 'Feature Library',
             'settings': 'Settings',
         };
         return titles[segment] || segment.replace('-', ' ');
