@@ -5,8 +5,8 @@ import { Layout, Menu, Button, Avatar, Dropdown, Drawer, Spin } from 'antd';
 import type { MenuProps } from 'antd';
 import {
     LayoutDashboard,
-    FileSearch,
-    Package,
+    Sparkles,
+    FolderOpen,
     Settings,
     Bell,
     LogOut,
@@ -16,7 +16,10 @@ import {
     Globe,
     Menu as MenuIcon,
     X,
-    Map,
+    Lock,
+    Crown,
+    FlaskConical,
+    Scale,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
@@ -51,20 +54,23 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
     
-    // Auto-login for development mode - only if DEV_AUTO_LOGIN is set in URL or localStorage
+    // Auto-login for development mode - only if ?dev=1 is in URL (one-time trigger)
     const [attemptedAutoLogin, setAttemptedAutoLogin] = useState(false);
     
     useEffect(() => {
         if (isSessionLoading || session?.user || attemptedAutoLogin) return;
         
-        // Check if we should auto-login (only in dev mode via URL param or localStorage flag)
+        // Only auto-login when explicitly requested via URL param
+        // This prevents infinite redirect loops
         const params = new URLSearchParams(window.location.search);
-        const shouldAutoLogin = params.get('dev') === '1' || localStorage.getItem('devAutoLogin') === 'true';
+        const hasDevParam = params.get('dev') === '1';
         
-        if (shouldAutoLogin) {
+        if (hasDevParam) {
             setAttemptedAutoLogin(true);
-            localStorage.setItem('devAutoLogin', 'true'); // Remember for future visits
+            // Store that we want dev mode, but remove the URL param to prevent re-triggering
+            localStorage.setItem('devAutoLogin', 'true');
             const currentPath = window.location.pathname;
+            // Redirect to dev-login WITHOUT the dev param in the redirect URL
             window.location.href = `/api/auth/dev-login?redirect=${encodeURIComponent(currentPath)}`;
         }
     }, [session, isSessionLoading, attemptedAutoLogin]);
@@ -74,6 +80,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         setMobileOpen(false);
     }, [pathname]);
 
+    // TODO: Get user tier from session for badge display
+    const userTier = 'free'; // Will be replaced with actual tier check
+    const isPro = userTier !== 'free';
+    
     const menuItems: MenuProps['items'] = [
         {
             key: '/dashboard',
@@ -82,26 +92,41 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         },
         {
             key: '/dashboard/classifications',
-            icon: <FileSearch size={18} />,
-            label: 'Classifications',
+            icon: <Sparkles size={18} />,
+            label: 'Classify',
         },
         {
-            key: '/dashboard/suppliers',
-            icon: <Package size={18} />,
-            label: 'Supplier Explorer',
+            key: '/dashboard/optimizer',
+            icon: <Scale size={18} />,
+            label: (
+                <span className="flex items-center gap-2">
+                    Optimize
+                    {!isPro && <Crown size={12} className="text-amber-500" />}
+                </span>
+            ),
+        },
+        {
+            key: '/dashboard/products',
+            icon: <FolderOpen size={18} />,
+            label: 'My Products',
         },
         {
             key: '/dashboard/sourcing',
             icon: <Globe size={18} />,
-            label: 'Sourcing Intelligence',
+            label: (
+                <span className="flex items-center gap-2">
+                    Sourcing
+                    {!isPro && <Crown size={12} className="text-amber-500" />}
+                </span>
+            ),
         },
         {
             type: 'divider',
         },
         {
             key: '/dashboard/roadmap',
-            icon: <Map size={18} />,
-            label: 'Feature Library',
+            icon: <FlaskConical size={18} />,
+            label: 'Feature Lab',
         },
         {
             key: '/dashboard/settings',
@@ -110,10 +135,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         },
     ];
 
-    // Get selected key - handle classify route mapping to classifications
+    // Get selected key - handle route variations
     const getSelectedKey = () => {
         if (pathname.startsWith('/dashboard/classify')) {
             return '/dashboard/classifications';
+        }
+        if (pathname.startsWith('/dashboard/monitoring')) {
+            return '/dashboard/products';
+        }
+        // Handle old suppliers route - redirect to sourcing
+        if (pathname.startsWith('/dashboard/suppliers')) {
+            return '/dashboard/sourcing';
         }
         return pathname;
     };
@@ -215,11 +247,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         const segment = pathname.split('/').pop() || 'dashboard';
         const titles: Record<string, string> = {
             'dashboard': 'Overview',
-            'classifications': 'Classifications',
+            'classifications': 'Classify',
             'classify': 'Classify Product',
-            'suppliers': 'Supplier Explorer',
+            'optimizer': 'Strategic Classification',
+            'products': 'My Products',
             'sourcing': 'Sourcing Intelligence',
-            'roadmap': 'Feature Library',
+            'roadmap': 'Feature Lab',
             'settings': 'Settings',
         };
         return titles[segment] || segment.replace('-', ' ');

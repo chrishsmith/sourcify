@@ -79,3 +79,4 @@ USING hnsw (avg_embedding vector_cosine_ops);
 ALTER TABLE hts_code
 ADD COLUMN IF NOT EXISTS embedding_generated_at TIMESTAMP;
 
+

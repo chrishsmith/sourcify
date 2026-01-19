@@ -1,14 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     Card, Typography, Input, Button, Tag, Tooltip, 
     Spin, Select, message 
 } from 'antd';
 import { 
     CheckCircle, AlertTriangle, Copy, ChevronRight,
-    Zap, Bookmark, Globe, ArrowRight
+    Zap, Bookmark, Globe, ArrowRight, Scale, Crown, Sparkles, TrendingDown, DollarSign
 } from 'lucide-react';
+import Link from 'next/link';
+
+// Teaser data type
+interface OptimizerTeaser {
+    hasOpportunity: boolean;
+    alternativeCount: number;
+    bestAlternative?: {
+        code: string;
+        formattedCode: string;
+        description: string;
+        totalRate: number;
+        savings: number;
+    };
+    currentRate: number;
+}
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -189,6 +204,46 @@ export default function ClassificationV10LayoutB() {
     const [result, setResult] = useState<V10Response | null>(null);
     const [selectedAltIndex, setSelectedAltIndex] = useState<number | null>(null); // null = original primary
     const [messageApi, contextHolder] = message.useMessage();
+    const [optimizerTeaser, setOptimizerTeaser] = useState<OptimizerTeaser | null>(null);
+    const [loadingTeaser, setLoadingTeaser] = useState(false);
+
+    // Fetch optimizer teaser when classification completes
+    useEffect(() => {
+        const fetchTeaser = async () => {
+            if (!result?.success || !result.primary) return;
+            
+            setLoadingTeaser(true);
+            try {
+                // Parse the effective rate from the result
+                let currentRate = 0;
+                if (result.primary.duty?.effective) {
+                    const match = result.primary.duty.effective.match(/([\d.]+)%/);
+                    if (match) currentRate = parseFloat(match[1]);
+                }
+                
+                const response = await fetch('/api/duty-optimizer/teaser', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        htsCode: result.primary.htsCode,
+                        currentRate,
+                        countryOfOrigin: origin,
+                    }),
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setOptimizerTeaser(data);
+                }
+            } catch (err) {
+                console.error('Error fetching optimizer teaser:', err);
+            } finally {
+                setLoadingTeaser(false);
+            }
+        };
+        
+        fetchTeaser();
+    }, [result, origin]);
 
     const handleClassify = async () => {
         if (!description.trim()) {
@@ -760,6 +815,110 @@ export default function ClassificationV10LayoutB() {
                                         )}
                                     </>
                                 )}
+                            </Card>
+
+                            {/* Duty Optimizer Teaser Card - Dynamic */}
+                            <Card 
+                                className={`shadow-sm cursor-pointer hover:shadow-md transition-all ${
+                                    optimizerTeaser?.hasOpportunity 
+                                        ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 hover:border-emerald-400' 
+                                        : 'border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 hover:border-violet-300'
+                                }`}
+                                size="small"
+                            >
+                                <Link 
+                                    href={`/dashboard/optimizer?product=${encodeURIComponent(description)}&origin=${origin}`} 
+                                    className="block"
+                                >
+                                    {loadingTeaser ? (
+                                        <div className="flex items-center justify-center py-3">
+                                            <Spin size="small" />
+                                            <Text className="text-xs text-slate-500 ml-2">Checking for savings...</Text>
+                                        </div>
+                                    ) : optimizerTeaser?.hasOpportunity ? (
+                                        /* Show strategic savings opportunity */
+                                        <div className="flex items-start gap-3">
+                                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg p-2 flex-shrink-0">
+                                                <TrendingDown size={16} className="text-white" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Text className="font-semibold text-emerald-900">
+                                                        💰 Could Save {optimizerTeaser.bestAlternative?.savings.toFixed(0)}% with Strategic Classification
+                                                    </Text>
+                                                </div>
+                                                <Text className="text-xs text-emerald-700 block mb-2">
+                                                    Your product may qualify for a lower rate. See how to legally optimize your classification.
+                                                </Text>
+                                                <div className="bg-white/60 rounded-lg p-2 mb-2">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-slate-600">Your current rate:</span>
+                                                        <span className="font-medium text-slate-700">{optimizerTeaser.currentRate.toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mt-1">
+                                                        <span className="text-slate-600">Potential optimized rate:</span>
+                                                        <span className="font-bold text-emerald-700">as low as {optimizerTeaser.bestAlternative?.totalRate.toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="border-t border-emerald-200 mt-2 pt-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-medium text-emerald-800">Savings if you qualify:</span>
+                                                            <span className="font-bold text-emerald-600">
+                                                                ${Math.round((optimizerTeaser.bestAlternative?.savings || 0) / 100 * 10000).toLocaleString()}/10k
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <Text className="text-xs text-emerald-700 font-medium">
+                                                        See if you qualify →
+                                                    </Text>
+                                                    <Tag color="purple" className="text-[10px] flex items-center gap-0.5">
+                                                        <Crown size={8} />
+                                                        PRO
+                                                    </Tag>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        /* Default teaser - no savings found or still checking */
+                                        <div className="flex items-start gap-3">
+                                            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg p-2 flex-shrink-0">
+                                                <Scale size={16} className="text-white" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Text className="font-semibold text-violet-900">
+                                                        Find All Applicable Codes
+                                                    </Text>
+                                                    <Tag color="purple" className="text-xs flex items-center gap-0.5">
+                                                        <Crown size={10} />
+                                                        PRO
+                                                    </Tag>
+                                                </div>
+                                                <Text className="text-xs text-violet-700 block mb-2">
+                                                    {optimizerTeaser?.alternativeCount 
+                                                        ? `${optimizerTeaser.alternativeCount} other codes may apply. Analyze all options to ensure you're using the best classification.`
+                                                        : 'Search exhaustively for all applicable codes and compare duty rates.'
+                                                    }
+                                                </Text>
+                                                <div className="flex flex-wrap gap-1">
+                                                    <Tag className="text-[10px] border-violet-200 text-violet-600">
+                                                        <Sparkles size={10} className="mr-0.5" />
+                                                        AI Analysis
+                                                    </Tag>
+                                                    <Tag className="text-[10px] border-violet-200 text-violet-600">
+                                                        All Codes
+                                                    </Tag>
+                                                    <Tag className="text-[10px] border-violet-200 text-violet-600">
+                                                        <DollarSign size={10} className="mr-0.5" />
+                                                        Savings
+                                                    </Tag>
+                                                </div>
+                                            </div>
+                                            <ArrowRight size={16} className="text-violet-400 mt-1 flex-shrink-0" />
+                                        </div>
+                                    )}
+                                </Link>
                             </Card>
 
                             {/* Detection Info Card */}

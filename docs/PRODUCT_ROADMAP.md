@@ -1,8 +1,8 @@
 # Sourcify Product Roadmap
 
-> **Version:** 1.3.0  
+> **Version:** 1.4.0  
 > **Created:** December 19, 2024  
-> **Last Updated:** January 1, 2026  
+> **Last Updated:** January 2, 2026  
 > **Status:** Active Development
 
 ---
@@ -11,6 +11,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.4.0 | Jan 2, 2026 | Team | Subscription foundation complete, pricing page live, navigation redesign |
 | 1.3.0 | Jan 1, 2026 | Team | Comprehensive services catalog + new optimization services |
 | 1.2.0 | Dec 30, 2025 | Team | Added funnel strategy (classification = hook, optimization = upsell) |
 | 1.1.0 | Dec 20, 2025 | Team | Added Country Tariff Registry (centralized data service) |
@@ -80,14 +81,30 @@
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Pricing Model
+### Pricing Model (✅ Implemented Jan 2, 2026)
 
-| Tier | Price | Features |
-|------|-------|----------|
-| **Free** | $0 | 5 classifications/day, basic tariff display |
-| **Pro** | $99/mo | Unlimited classifications, sourcing intelligence, tariff alerts |
-| **Business** | $299/mo | API access, bulk classification, team features |
+> **Live at:** `/pricing`  
+> **Schema:** `SubscriptionTier` enum in Prisma
+
+| Tier | Price | Key Features |
+|------|-------|--------------|
+| **Free** | $0 | 5 classifications/day, 1 alert, 10 search history |
+| **Pro** | $99/mo | Unlimited classifications, sourcing intelligence, 25 alerts, 100 saved products |
+| **Business** | $299/mo | Bulk classification (500/upload), API (1,000 calls/mo), 5 team members, PDF reports |
 | **Enterprise** | Custom | White-label, dedicated support, custom integrations |
+
+**Annual Billing:** 17% discount (2 months free)
+
+**Subscription Database Fields:**
+```prisma
+tier                  SubscriptionTier @default(free)
+stripeCustomerId      String?
+stripeSubscriptionId  String?
+subscriptionStatus    SubscriptionStatus @default(active)
+classificationsToday  Int @default(0)
+classificationsReset  DateTime @default(now())
+trialEndsAt           DateTime?
+```
 
 ---
 
@@ -146,13 +163,14 @@
 
 ### SPEC'D 📐 (Designed, Not Built)
 
-#### 6. Same-Country Optimization
-| Status | 📐 SPEC'D |
+#### 6. Duty Optimizer
+| Status | 📐 ARCHITECTURE COMPLETE |
 |--------|---------|
-| **What it does** | Find alternative HTS codes under same heading with lower duties |
-| **User Value** | "We found 3 alternative codes that could save 5% on duties" |
-| **Example** | `6912.00.44.00` (9.8%) → `6912.00.35.10` (4.5%) if value ≤$38 |
-| **Complexity** | Low - data exists, need UI/logic |
+| **What it does** | Exhaustive HTS code analysis - find ALL applicable codes, not just "best match" |
+| **User Value** | "Here are 8 codes that could apply. One saves you 15% on duties." |
+| **Architecture** | [`ARCHITECTURE_DUTY_OPTIMIZER.md`](./ARCHITECTURE_DUTY_OPTIMIZER.md) |
+| **Key Features** | AI-powered product interpretation, condition extraction, plain English translations, smart questions |
+| **Complexity** | Medium-High - V10 foundation + AI layer |
 | **Tier** | Pro |
 
 #### 7. CBP Ruling Research
@@ -289,7 +307,7 @@
 
 | Service | Revenue Impact | Build Effort | Data Available | Priority |
 |---------|----------------|--------------|----------------|----------|
-| Same-Country Optimization | High | Low | ✅ Yes | **P0** |
+| **Duty Optimizer** | High | Medium | ✅ Yes | **P0** |
 | Weekly Digest Email | Medium | Medium | ✅ Yes | **P0** |
 | Section 301 Exclusion Tracker | High | Medium | ✅ Yes | **P1** |
 | De Minimis Calculator | Low | Low | ✅ Yes | **P1** |
@@ -338,13 +356,18 @@
 │  🔲 Weekly Digest Email                                                         │
 │  🔲 Automated Daily Sync (cron)                                                 │
 │                                                                                  │
-│  PHASE 3: UPSELL & CONVERSION (Current)                      Target: Jan 2026   │
-│  ══════════════════════════════════════                                         │
-│  🔲 Same-Country Optimization (alternative HTS codes)                           │
-│  🔲 "Lower rate available" badge on classification results                      │
+│  PHASE 3: PAID FEATURES FOUNDATION (Current)                 Target: Jan 2026   │
+│  ══════════════════════════════════════════                                     │
+│  ✅ Subscription schema (tier, Stripe IDs, usage tracking)                      │
+│  ✅ Pricing page (/pricing) with tier comparison                                │
+│  ✅ Navigation redesign (Classify, My Products, Sourcing, Feature Lab)          │
+│  ✅ My Products page (consolidated product management)                          │
+│  📐 Duty Optimizer architecture complete (ARCHITECTURE_DUTY_OPTIMIZER.md)       │
+│  🔲 Duty Optimizer implementation (exhaustive HTS code finder)                  │
+│  🔲 De Minimis Calculator (<$800 duty free)                                     │
 │  🔲 Section 301 Exclusion Tracker                                               │
-│  🔲 De Minimis Calculator                                                       │
-│  🔲 Email capture via tariff alerts                                             │
+│  🔲 Upsell teasers on classification results                                    │
+│  🔲 Stripe integration (after features complete)                                │
 │                                                                                  │
 │  PHASE 4: ADVANCED OPTIMIZATION                              Target: Q1 2026    │
 │  ══════════════════════════════════════                                         │
@@ -859,6 +882,7 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 |---------|---------|------|-----|
 | **Country Tariff Registry** | Single source of truth for all tariff data | `tariffRegistry.ts` | [Architecture Doc](./ARCHITECTURE_TARIFF_REGISTRY.md) |
 | **Classification Engine** | AI-powered HTS classification | `classificationEngineV10.ts` | [Architecture Doc](./ARCHITECTURE_HTS_CLASSIFICATION.md) |
+| **Duty Optimizer** | Exhaustive HTS code finder | `dutyOptimizer.ts` (planned) | [Architecture Doc](./ARCHITECTURE_DUTY_OPTIMIZER.md) |
 | **Landed Cost Calculator** | Country comparison & full cost breakdown | `landedCost.ts` | - |
 | **USITC DataWeb** | Real import volume/value statistics | `usitcDataWeb.ts` | - |
 | **Sourcing Advisor** | Recommendations & savings analysis | `sourcingAdvisor.ts` | - |
@@ -946,7 +970,7 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 
 ## 📅 Sprint Planning
 
-### ✅ Completed Sprints (Dec 2025)
+### ✅ Completed Sprints (Dec 2025 - Jan 2026)
 
 | Sprint | Theme | Status |
 |--------|-------|--------|
@@ -955,25 +979,43 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 | Sprint 3 | Tariff Monitoring UI | ✅ Complete |
 | Sprint 4 | HTS Database & Semantic Search | ✅ Complete |
 | Sprint 5 | Classification UI/UX Refinement | ✅ Complete |
+| Sprint 6 | Subscription Foundation | ✅ Complete |
 
 ---
 
-### Sprint 6 (Current - Week of Jan 1)
-**Theme:** Upsell & Conversion Foundation
+### Sprint 7 (Current - Week of Jan 2)
+**Theme:** Duty Optimizer Foundation
+
+> **📐 Architecture Doc:** [`ARCHITECTURE_DUTY_OPTIMIZER.md`](./ARCHITECTURE_DUTY_OPTIMIZER.md)
 
 | Task | Priority | Est. Hours | Notes |
 |------|----------|------------|-------|
-| Same-Country Optimization - Backend | P0 | 4h | Find lower-duty alternatives under same heading |
-| Same-Country Optimization - UI | P0 | 4h | "Lower rate available" badge |
-| De Minimis Calculator | P1 | 3h | Simple rule: <$800 = duty free |
-| Section 301 Exclusion Tracker | P1 | 4h | Use existing Federal Register data |
-| Weekly Digest Email - Setup | P0 | 4h | Resend integration |
+| Duty Optimizer API - Layer 1 | P0 | 4h | V10 + sibling expansion |
+| Duty Optimizer API - Layer 2 | P0 | 6h | AI product interpretation, condition extraction |
+| Duty Optimizer UI - Page | P0 | 6h | `/dashboard/optimizer` full interface |
+| Duty Optimizer UI - Teaser | P1 | 2h | "X more codes found" in Classify results |
+| Plain English Cache | P1 | 3h | Pre-generate interpretations for common codes |
 
-**Sprint Goal:** First paid conversion features live
+**Sprint Goal:** Duty Optimizer MVP working end-to-end
 
 ---
 
-### Sprint 7 (Week of Jan 8)
+### Sprint 8 (Week of Jan 8)
+**Theme:** Polish & Payments Prep
+
+| Task | Priority | Est. Hours | Notes |
+|------|----------|------------|-------|
+| Usage Limits Enforcement | P0 | 4h | 5 classifications/day for free tier |
+| Pro Feature Gating | P1 | 4h | Lock Sourcing, bulk, exports for free tier |
+| Stripe Checkout Integration | P1 | 6h | Pro/Business tier checkout |
+| Stripe Webhook Handlers | P1 | 4h | subscription.created, updated, deleted |
+| Weekly Digest Email - Setup | P2 | 4h | Resend integration |
+
+**Sprint Goal:** Ready to accept payments
+
+---
+
+### Sprint 9 (Week of Jan 15)
 **Theme:** Market Intelligence
 
 | Task | Priority | Est. Hours | Notes |
@@ -987,20 +1029,20 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 
 ---
 
-### Sprint 8 (Week of Jan 15)
+### Sprint 10 (Week of Jan 22)
 **Theme:** What-If & Exploration
 
 | Task | Priority | Est. Hours | Notes |
 |------|----------|------------|-------|
 | What-If Simulator | P2 | 8h | Interactive duty calculator |
 | FTA Qualification Check | P3 | 4h | USMCA focus first |
-| Upsell Teasers Polish | P1 | 3h | Conversion optimization |
+| De Minimis Calculator | P1 | 3h | Simple rule: <$800 = duty free |
 
 **Sprint Goal:** Product development use case supported
 
 ---
 
-### Sprint 9 (Week of Jan 22)
+### Sprint 11 (Week of Jan 29)
 **Theme:** Portfolio Features
 
 | Task | Priority | Est. Hours | Notes |
@@ -1028,10 +1070,17 @@ curl -X POST "http://localhost:3000/api/tariff-registry/sync?type=comprehensive"
 | **Revenue** | Free → Pro conversion | 5%+ |
 | **Referral** | NPS Score | 50+ |
 
-### Phase 3 Goals (Upsell & Conversion)
-- [ ] Same-Country Optimization live on all classification results
-- [ ] 10%+ click rate on "Lower rate available" badge
-- [ ] 50 users signed up for tariff alerts (email capture)
+### Phase 3 Goals (Paid Features Foundation)
+- [x] Subscription schema and database migration
+- [x] Pricing page live at `/pricing`
+- [x] Navigation redesign complete
+- [x] My Products consolidated view
+- [x] Duty Optimizer architecture documented
+- [ ] Duty Optimizer MVP working end-to-end
+- [ ] Duty Optimizer teaser in Classify results
+- [ ] De Minimis Calculator working
+- [ ] Section 301 Exclusion Tracker working
+- [ ] Stripe checkout integration (after features complete)
 - [ ] First $99/mo Pro subscriber
 
 ### Phase 4 Goals (Advanced Optimization)

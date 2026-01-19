@@ -1,0 +1,68 @@
+# Sourcify Development Progress
+
+## Project Initialized: January 19, 2026
+
+### Initial State Analysis
+
+**What's Working:**
+- Authentication with Better Auth (email/password + Google OAuth)
+- HTS classification engine (V10) with confidence scoring
+- Full HTS database imported from USITC
+- Tariff calculation with Section 301, IEEPA, base MFN rates
+- Basic dashboard layout with sidebar navigation
+- Supplier database schema (needs data population)
+
+**What Needs Work:**
+- Saved products functionality (schema exists, UI incomplete)
+- Search history (schema exists, UI incomplete)
+- Bulk classification (API exists, no UI)
+- Export functionality (not implemented)
+- Compliance tools (not implemented)
+- Mobile responsiveness (partial)
+
+**Tech Stack:**
+- Next.js 14 App Router
+- TypeScript
+- Ant Design 5
+- Prisma + PostgreSQL
+- Better Auth
+- xAI (Grok) for AI classification
+- pgvector for HTS embeddings
+
+---
+
+## Learnings Log
+
+(Add learnings here as stories are completed)
+
+---
+
+## Notes for Future Sessions
+
+1. The classification engine has gone through 10 versions - V10 is current
+2. Tariff data is stored in CountryTariffProfile model
+3. HTS codes use pgvector for semantic search
+4. User tier checking is partial - needs completion
+5. Stripe integration is placeholder only
+
+---
+
+## Useful Commands
+
+```bash
+# Start dev server
+npm run dev
+
+# Build
+npm run build
+
+# Prisma commands
+npx prisma studio      # View database
+npx prisma generate    # Regenerate client
+npx prisma db push     # Push schema changes
+
+# Test HTS import
+npx ts-node prisma/seed-hts.ts
+```
+
+---

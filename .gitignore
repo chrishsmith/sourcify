@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 data/
+
+# Ralph config (may contain API key)
+.cursor/ralph-config.json

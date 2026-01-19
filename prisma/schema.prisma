@@ -20,6 +20,23 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SUBSCRIPTION & BILLING
+  // ═══════════════════════════════════════════════════════════════════════════
+  tier                  SubscriptionTier @default(free)
+  stripeCustomerId      String?          @map("stripe_customer_id")  // Stripe customer ID
+  stripeSubscriptionId  String?          @map("stripe_subscription_id")  // Stripe subscription ID
+  subscriptionStatus    SubscriptionStatus @default(active) @map("subscription_status")
+  subscriptionStart     DateTime?        @map("subscription_start")
+  subscriptionEnd       DateTime?        @map("subscription_end")  // For canceled subscriptions
+  trialEndsAt           DateTime?        @map("trial_ends_at")  // 14-day trial end date
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // USAGE TRACKING (resets daily for free tier)
+  // ═══════════════════════════════════════════════════════════════════════════
+  classificationsToday  Int       @default(0) @map("classifications_today")
+  classificationsReset  DateTime  @default(now()) @map("classifications_reset")  // When counter was last reset
+  
   // Core relationships
   sessions        Session[]
   accounts        Account[]
@@ -29,8 +46,26 @@ model User {
   savedProducts   SavedProduct[]
   tariffAlerts    TariffAlert[]
   savedSuppliers  UserSavedSupplier[]
+  usageLogs       UsageLog[]
 
+  @@index([tier])
+  @@index([stripeCustomerId])
   @@map("user")
+}
+
+enum SubscriptionTier {
+  free
+  pro
+  business
+  enterprise
+}
+
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  canceled
+  unpaid
 }
 
 model Session {
@@ -72,6 +107,45 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USAGE LOGGING
+// Track feature usage for analytics and billing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model UsageLog {
+  id          String   @id @default(cuid())
+  userId      String
+  
+  // What feature was used
+  feature     UsageFeature
+  
+  // Additional context
+  metadata    Json?    // { htsCode, country, etc. }
+  
+  // Result tracking
+  success     Boolean  @default(true)
+  errorCode   String?
+  
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, feature, createdAt])
+  @@index([feature, createdAt])
+  @@map("usage_log")
+}
+
+enum UsageFeature {
+  classification
+  sourcing_analysis
+  landed_cost
+  supplier_search
+  bulk_upload
+  api_call
+  export_csv
+  export_pdf
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

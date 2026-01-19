@@ -1,0 +1,399 @@
+{
+  "name": "Sourcify Trade Intelligence Platform",
+  "description": "Build the world's best trade intelligence platform combining AI-powered HTS classification, comprehensive duty calculation, trade intelligence, and compliance tools.",
+  "branchName": "feature/trade-intelligence-v1",
+  "version": "1.0.0",
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Foundation & Polish",
+      "description": "Clean up existing features, establish patterns, fix bugs"
+    },
+    {
+      "id": "phase-1",
+      "name": "Core Classification Excellence",
+      "description": "Make classification best-in-class with reasoning, bulk upload, exports"
+    },
+    {
+      "id": "phase-2",
+      "name": "Landed Cost Calculator",
+      "description": "Complete duty calculation with landed cost, fees, scenarios"
+    },
+    {
+      "id": "phase-3",
+      "name": "Compliance Tools",
+      "description": "Denied party screening, ADD/CVD, PGA, CBP rulings"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "P0-001",
+      "phase": "phase-0",
+      "title": "Fix saved products list page",
+      "description": "The My Products page should show a proper list of saved products with search, filter, and actions",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Products page at /dashboard/products shows all saved products",
+        "Each product card shows: name, HTS code, country, duty rate, date saved",
+        "User can search products by name or HTS code",
+        "User can delete a product",
+        "User can click a product to view details",
+        "Empty state shown when no products saved",
+        "Loading state while fetching"
+      ],
+      "technicalNotes": "Use existing SavedProduct model and /api/saved-products endpoints",
+      "passes": false
+    },
+    {
+      "id": "P0-002",
+      "phase": "phase-0",
+      "title": "Save classification to My Products",
+      "description": "After classifying a product, user should be able to save it to their products list",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Classification result shows 'Save to My Products' button",
+        "Clicking save opens modal to confirm/edit product name",
+        "Product is saved with: name, description, HTS code, country, duty info",
+        "Success toast shown after saving",
+        "Button changes to 'Saved ✓' after successful save",
+        "Saved product links to search history record"
+      ],
+      "technicalNotes": "Connect ClassificationV10 component to SavedProduct API",
+      "passes": false
+    },
+    {
+      "id": "P0-003",
+      "phase": "phase-0",
+      "title": "Search history with re-run capability",
+      "description": "User should see their classification history and be able to re-run searches",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Classification history panel shows recent searches",
+        "Each entry shows: product description (truncated), HTS result, date, confidence",
+        "Clicking an entry loads the full result",
+        "Re-classify button re-runs the search with same inputs",
+        "User can delete history entries",
+        "History persists across sessions (stored in DB)"
+      ],
+      "technicalNotes": "Use existing SearchHistory model and SearchHistoryPanel component",
+      "passes": false
+    },
+    {
+      "id": "P0-004",
+      "phase": "phase-0",
+      "title": "Add global loading and error states",
+      "description": "All pages should have consistent loading spinners and error handling",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "All data-fetching pages show Spin component while loading",
+        "Error states show Alert with retry button",
+        "Empty states show appropriate message with action",
+        "Loading states are consistent across all pages"
+      ],
+      "technicalNotes": "Create reusable LoadingState, ErrorState, EmptyState components in src/components/shared/",
+      "passes": false
+    },
+    {
+      "id": "P0-005",
+      "phase": "phase-0",
+      "title": "Fix mobile navigation and layout",
+      "description": "Ensure all pages work well on mobile devices",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Sidebar drawer opens/closes smoothly on mobile",
+        "All forms are usable on mobile (proper input sizes)",
+        "Classification results scroll properly on mobile",
+        "Tariff breakdown is readable on mobile",
+        "Tables become scrollable or stack on mobile",
+        "No horizontal overflow on any page"
+      ],
+      "technicalNotes": "Use Ant Design responsive utilities and test with Chrome DevTools mobile view",
+      "passes": false
+    },
+    {
+      "id": "P0-006",
+      "phase": "phase-0",
+      "title": "Set up Excel/CSV export service",
+      "description": "Create reusable export utilities for Excel and CSV downloads",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Export service exists at src/services/exportService.ts",
+        "exportToExcel function takes data array and column config",
+        "exportToCSV function takes data array",
+        "Both trigger browser download with proper filename",
+        "Works with classification results, product lists, etc."
+      ],
+      "technicalNotes": "Use xlsx (SheetJS) library for Excel generation",
+      "passes": false
+    },
+    {
+      "id": "P1-001",
+      "phase": "phase-1",
+      "title": "Add AI reasoning to classification results",
+      "description": "Show WHY the AI chose this classification with clear reasoning",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Classification result shows 'AI Reasoning' section",
+        "Reasoning explains: why this chapter, why this heading, why this code",
+        "Key factors highlighted (material, use, construction)",
+        "If 'Other' code, explain what was excluded",
+        "Reasoning is collapsible (expanded by default)",
+        "Reasoning formatted for readability (bullets, bold terms)"
+      ],
+      "technicalNotes": "Enhance classificationEngineV10 to include reasoning in response, update ClassificationV10 component",
+      "passes": false
+    },
+    {
+      "id": "P1-002",
+      "phase": "phase-1",
+      "title": "Build bulk classification UI",
+      "description": "User can upload CSV of products and classify them all at once",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Bulk upload page at /dashboard/classify/bulk",
+        "User can download CSV template with required columns",
+        "User can upload CSV file (drag-drop or file picker)",
+        "Preview shows first 5 rows before processing",
+        "Progress bar shows classification progress",
+        "Results table shows all products with HTS codes",
+        "User can download results as Excel",
+        "Errors shown inline for failed rows"
+      ],
+      "technicalNotes": "Use existing /api/classify/bulk endpoint, add UI components",
+      "passes": false
+    },
+    {
+      "id": "P1-003",
+      "phase": "phase-1",
+      "title": "Classification report PDF export",
+      "description": "User can export a professional PDF report of classification",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Export PDF button on classification results",
+        "PDF includes: product description, HTS code, full path, duty breakdown",
+        "PDF includes AI reasoning",
+        "PDF includes disclaimer text",
+        "PDF has Sourcify branding",
+        "PDF downloads with sensible filename"
+      ],
+      "technicalNotes": "Use @react-pdf/renderer for PDF generation",
+      "passes": false
+    },
+    {
+      "id": "P1-004",
+      "phase": "phase-1",
+      "title": "Compare alternatives with duty rates",
+      "description": "Show duty rate comparison for all alternative classifications",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Alternative classifications show duty rate for each",
+        "Duty rates fetched for selected country of origin",
+        "Visual indicator if alternative has lower duty",
+        "User can click to see full duty breakdown for any alternative",
+        "Sort alternatives by confidence or by duty rate"
+      ],
+      "technicalNotes": "Fetch duty rates for top 5 alternatives in classification API",
+      "passes": false
+    },
+    {
+      "id": "P1-005",
+      "phase": "phase-1",
+      "title": "What if different country comparison",
+      "description": "Quick comparison of duties from different countries",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "After classification, show 'Compare Countries' button",
+        "Modal shows duty comparison for: China, Vietnam, India, Mexico, Thailand",
+        "Each country shows: effective rate, breakdown summary, savings vs current",
+        "Highlight best option (lowest duty)",
+        "User can add/remove countries to compare"
+      ],
+      "technicalNotes": "Use existing tariff registry to calculate rates for multiple countries",
+      "passes": false
+    },
+    {
+      "id": "P2-001",
+      "phase": "phase-2",
+      "title": "Build landed cost calculator page",
+      "description": "Dedicated page for calculating total landed cost of imports",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Landed cost page at /dashboard/duties/calculator",
+        "Input fields: HTS code, country, product value, quantity",
+        "Input fields: shipping cost, insurance cost",
+        "Calculate button triggers calculation",
+        "Results show: duties, fees, total landed cost",
+        "Per-unit cost shown if quantity > 1"
+      ],
+      "technicalNotes": "Create new page and API endpoint for landed cost",
+      "passes": false
+    },
+    {
+      "id": "P2-002",
+      "phase": "phase-2",
+      "title": "Add customs fees to calculation",
+      "description": "Include MPF and HMF in landed cost calculation",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Merchandise Processing Fee (MPF) calculated correctly",
+        "MPF: 0.3464% of value, min $31.67, max $614.35",
+        "Harbor Maintenance Fee (HMF) calculated for ocean shipments",
+        "HMF: 0.125% of value",
+        "Fees shown as separate line items in breakdown",
+        "Toggle for ocean vs air shipment (affects HMF)"
+      ],
+      "technicalNotes": "Add fee calculations to landed cost service",
+      "passes": false
+    },
+    {
+      "id": "P2-003",
+      "phase": "phase-2",
+      "title": "Save and compare scenarios",
+      "description": "User can save cost scenarios and compare them",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Save scenario button stores current calculation",
+        "Saved scenarios shown in sidebar",
+        "Compare mode shows 2-3 scenarios side by side",
+        "Highlight differences between scenarios",
+        "Delete saved scenarios"
+      ],
+      "technicalNotes": "Store scenarios in localStorage or user preferences",
+      "passes": false
+    },
+    {
+      "id": "P3-001",
+      "phase": "phase-3",
+      "title": "Ingest OFAC SDN list",
+      "description": "Download and parse OFAC Specially Designated Nationals list",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Service to download OFAC SDN list (XML or CSV)",
+        "Parse and store in database table",
+        "Track last update timestamp",
+        "Manual sync button for admins",
+        "Store: name, aliases, type, country, IDs"
+      ],
+      "technicalNotes": "OFAC provides SDN list at https://www.treasury.gov/ofac/downloads/sdn.csv",
+      "passes": false
+    },
+    {
+      "id": "P3-002",
+      "phase": "phase-3",
+      "title": "Ingest BIS restricted party lists",
+      "description": "Download and parse BIS Entity List and Denied Persons",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Download BIS Entity List",
+        "Download BIS Denied Persons List",
+        "Parse and store in same denied party table",
+        "Tag each entry with source list",
+        "Track last update timestamp"
+      ],
+      "technicalNotes": "BIS lists available at https://www.bis.doc.gov/",
+      "passes": false
+    },
+    {
+      "id": "P3-003",
+      "phase": "phase-3",
+      "title": "Build denied party search UI",
+      "description": "User interface for searching denied party lists",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Denied party page at /dashboard/compliance/denied-party",
+        "Search input for company/person name",
+        "Optional country filter",
+        "Results show matches with: name, list source, country",
+        "Click result to see full details",
+        "Clear indication if NO matches found",
+        "Show which lists were searched"
+      ],
+      "technicalNotes": "Create search endpoint with fuzzy matching",
+      "passes": false
+    },
+    {
+      "id": "P3-004",
+      "phase": "phase-3",
+      "title": "Batch denied party screening",
+      "description": "Screen multiple parties at once via CSV upload",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Upload CSV with party names",
+        "Process all rows against all lists",
+        "Results show: screened count, matches found",
+        "Download results as Excel with match details",
+        "Audit log entry created for batch screening"
+      ],
+      "technicalNotes": "Create batch endpoint, use background job for large files",
+      "passes": false
+    },
+    {
+      "id": "P3-005",
+      "phase": "phase-3",
+      "title": "Build ADD/CVD lookup",
+      "description": "Look up antidumping and countervailing duty cases",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "ADD/CVD page at /dashboard/compliance/addcvd",
+        "Search by HTS code",
+        "Filter by country of origin",
+        "Results show active cases with: product, country, duty rates",
+        "Link to ITA for full case details",
+        "Indicate if HTS code has potential ADD/CVD exposure"
+      ],
+      "technicalNotes": "Use existing ADD/CVD data in adcvdOrders.ts, enhance with API",
+      "passes": false
+    },
+    {
+      "id": "P3-006",
+      "phase": "phase-3",
+      "title": "Build PGA requirements lookup",
+      "description": "Show Partner Government Agency requirements for HTS codes",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "PGA lookup at /dashboard/compliance/pga",
+        "Enter HTS code (10-digit)",
+        "Show list of PGA flags and what they mean",
+        "Show which agencies have requirements (FDA, EPA, etc.)",
+        "Link to agency resources",
+        "Explain common PGA codes (FD2, EP5, etc.)"
+      ],
+      "technicalNotes": "Build PGA database from ACE PGA Appendix",
+      "passes": false
+    },
+    {
+      "id": "P3-007",
+      "phase": "phase-3",
+      "title": "Index CBP rulings database",
+      "description": "Ingest and index CBP classification rulings for search",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Scraper/ingester for rulings.cbp.gov",
+        "Store ruling: number, date, HTS code, product, full text",
+        "Index for full-text search",
+        "At least 10,000 recent rulings indexed",
+        "Daily/weekly update job"
+      ],
+      "technicalNotes": "CBP rulings available at https://rulings.cbp.gov/",
+      "passes": false
+    },
+    {
+      "id": "P3-008",
+      "phase": "phase-3",
+      "title": "Build CBP rulings search UI",
+      "description": "User interface for searching CBP rulings",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Rulings search at /dashboard/compliance/rulings",
+        "Search by keyword in ruling text",
+        "Search by HTS code",
+        "Filter by date range",
+        "Results show: ruling #, date, product, HTS code (snippet)",
+        "Click to view full ruling text",
+        "Link to original on CBP site"
+      ],
+      "technicalNotes": "Use PostgreSQL full-text search or add search index",
+      "passes": false
+    }
+  ]
+}

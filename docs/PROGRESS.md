@@ -1,18 +1,73 @@
 # Sourcify Development Progress
 
-> **Last Updated:** January 1, 2026  
-> **Current Phase:** Phase 2.9 - Classification Accuracy Improvements  
-> **Current Sprint:** Sprint 5
+> **Last Updated:** January 2, 2026  
+> **Current Phase:** Phase 3 - Paid Features Foundation  
+> **Current Sprint:** Sprint 6
 
 ---
 
-## 🎯 Current Sprint: Sprint 5
+## 🎯 Current Sprint: Sprint 6
+
+**Theme:** Paid Features Foundation (Subscription & Navigation)  
+**Dates:** Jan 2 - Jan 5, 2026  
+**Goal:** Set up subscription infrastructure, pricing page, and streamlined navigation
+
+### Completed This Sprint (Jan 2, 2026 - Subscription Foundation)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 6.1 Subscription Schema | ✅ Complete | Added `tier`, `stripeCustomerId`, usage tracking to User model |
+| 6.2 UsageLog Model | ✅ Complete | Tracks feature usage (classification, sourcing, exports, etc.) |
+| 6.3 Subscription Enums | ✅ Complete | `SubscriptionTier` (free/pro/business/enterprise), `SubscriptionStatus` |
+| 6.4 Navigation Redesign | ✅ Complete | Classify, My Products, Sourcing (with lock icon for free tier) |
+| 6.5 My Products Page | ✅ Complete | Consolidated: All Products, Monitored, Alerts, Portfolio Analysis |
+| 6.6 Pricing Page | ✅ Complete | `/pricing` - Free/Pro($99)/Business($299) with feature comparison |
+| 6.7 Prisma Migration | ✅ Complete | Applied `add_subscription_and_usage_tracking` to Neon DB |
+
+**New Database Fields (User model):**
+```prisma
+tier                  SubscriptionTier @default(free)
+stripeCustomerId      String?
+stripeSubscriptionId  String?
+subscriptionStatus    SubscriptionStatus @default(active)
+subscriptionStart     DateTime?
+subscriptionEnd       DateTime?
+trialEndsAt           DateTime?
+classificationsToday  Int @default(0)
+classificationsReset  DateTime @default(now())
+```
+
+**New UsageLog Model:**
+```prisma
+model UsageLog {
+  id          String       @id @default(cuid())
+  userId      String
+  feature     UsageFeature // classification, sourcing_analysis, landed_cost, etc.
+  metadata    Json?
+  success     Boolean      @default(true)
+  errorCode   String?
+  createdAt   DateTime     @default(now())
+}
+```
+
+**Navigation Changes:**
+| Old | New | Notes |
+|-----|-----|-------|
+| Classifications | Classify | Renamed for clarity |
+| Supplier Explorer | *(removed)* | Merged into Sourcing |
+| Sourcing Intelligence | Sourcing | With 🔒 for free tier |
+| Feature Library | *(removed)* | Dev-only, not needed |
+| — | **My Products** | New consolidated view |
+
+---
+
+## 📋 Previous Sprint: Sprint 5 (Complete ✅)
 
 **Theme:** Classification UI/UX Refinement + Accuracy Improvements  
-**Dates:** Jan 1 - Jan 3, 2026  
+**Dates:** Jan 1 - Jan 2, 2026  
 **Goal:** Professional, Zonos-quality classification results UI + robust accuracy
 
-### Completed This Sprint (Jan 1, 2026 - Classification Accuracy)
+### Completed Sprint 5 (Jan 1, 2026 - Classification Accuracy)
 
 | Task | Status | Notes |
 |------|--------|-------|
@@ -429,6 +484,24 @@ Options:
 
 **Phase 2.7 Overall: 100% ✅**
 
+### Phase 3: Paid Features Foundation 🟡 45%
+
+| Task | Status | Completion |
+|------|--------|------------|
+| Subscription Schema | ✅ | 100% - User tier, Stripe IDs, usage tracking |
+| UsageLog Model | ✅ | 100% - Feature usage tracking |
+| Navigation Redesign | ✅ | 100% - Classify, My Products, Sourcing, Feature Lab |
+| My Products Page | ✅ | 100% - Consolidated product management |
+| Pricing Page | ✅ | 100% - `/pricing` with tier comparison |
+| Prisma Migration | ✅ | 100% - Applied to database |
+| **Duty Optimizer** | 📐 | Architecture complete - [`ARCHITECTURE_DUTY_OPTIMIZER.md`](./ARCHITECTURE_DUTY_OPTIMIZER.md) |
+| De Minimis Calculator | 🔲 | 0% - <$800 = duty free |
+| Section 301 Tracker | 🔲 | 0% - Exclusion tracking |
+| Upsell Teasers | 🔲 | 0% - Classification result CTAs |
+| Stripe Integration | 🔲 | 0% - After features complete |
+
+**Phase 3 Overall: 45%**
+
 ---
 
 ## 🔧 Technical Debt / Known Issues
@@ -442,26 +515,43 @@ Options:
 | Email notifications not set up | Medium | No Resend/SendGrid integration |
 | Pre-existing `classify-db.ts` error | Medium | Uses `prisma.product` which doesn't exist |
 | V10 cache layer missing | Medium | Redis cache would cut response to <1s |
+| Stripe integration pending | Low | Schema ready, after features complete |
+| Usage limits not enforced | Low | Free tier has no daily limit yet |
 
 ---
 
 ## 🎯 Next Up
 
-### Priority 1: Upsell Teasers
+### Priority 1: Duty Optimizer (PRO Feature)
+> **📐 Architecture Doc:** See [`ARCHITECTURE_DUTY_OPTIMIZER.md`](./ARCHITECTURE_DUTY_OPTIMIZER.md)
+
+The "killer feature" - exhaustive HTS code analysis to find ALL applicable codes:
+- Layer 1: V10 semantic search + sibling expansion (fast)
+- Layer 2: AI analysis - product interpretation, condition extraction, plain English
+- Layer 3: Comparative duty analysis with savings calculation
+- **Goal:** Help users find the code with the best duty rate
+
+### Priority 2: Supporting Features
+- De Minimis Calculator (<$800 = duty free)
+- Section 301 Exclusion Tracker
+- **Goal:** Complete PRO feature set
+
+### Priority 2: Upsell Teasers  
 - Add "Lower rate available" badge when alternatives have lower duties
 - Add "Save with different sourcing" hint for country optimization
-- Wire up CTAs to sign-up / paid service pages
-- **Goal:** Convert free classifications to paid service sign-ups
+- Wire up CTAs to pricing page
+- **Goal:** Show value to free users
 
-### Priority 2: Redis Cache Layer
+### Priority 3: Redis Cache Layer
 - Cache common product queries for instant results
 - Target: 40%+ cache hit rate, <1s response time
 - Estimated: 2-4 hours
 
-### Priority 3: Scoring Refinement
-- Improve classification accuracy for edge cases
-- Better handling of multi-material products
-- User correction learning loop
+### Priority 4: Stripe Integration (After features complete)
+- Connect Stripe checkout for Pro/Business tiers
+- Implement subscription webhook handlers
+- Add billing management in Settings
+- **Goal:** Accept first payment
 
 ---
 
@@ -506,9 +596,14 @@ Options:
 - [x] **Jan 1, 2026** - **Confidence Scoring Fix** - Exact matches score higher (25% → 70%) 🎯
 - [x] **Jan 1, 2026** - **Demo User + Auto-Login** - Development infrastructure 🔧
 - [x] **Jan 1, 2026** - **Search History Working** - Full flow with authenticated users 📜
+- [x] **Jan 2, 2026** - **Subscription Schema** - Tier, Stripe IDs, usage tracking fields 💳
+- [x] **Jan 2, 2026** - **UsageLog Model** - Feature usage tracking for analytics 📊
+- [x] **Jan 2, 2026** - **Navigation Redesign** - Classify, My Products, Sourcing 🧭
+- [x] **Jan 2, 2026** - **My Products Page** - Consolidated product management view 📦
+- [x] **Jan 2, 2026** - **Pricing Page** - `/pricing` with Free/Pro/Business tiers 💰
+- [ ] Stripe integration (checkout, webhooks, portal)
+- [ ] Usage limits enforcement (5/day for free)
 - [ ] Upsell teasers on classification results
-- [ ] Automated daily sync configured
-- [ ] Redis cache layer for <1s responses
 - [ ] First paying customer
 
 ---

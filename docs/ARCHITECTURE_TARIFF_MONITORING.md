@@ -52,7 +52,7 @@ All personas now have appropriate entry points in the monitoring tab's empty sta
 | Component | Location | Purpose | Persona Fit |
 |-----------|----------|---------|-------------|
 | **Summary Card** | Main Dashboard | "What needs attention NOW?" | Entrepreneur, all |
-| **Full Monitoring Tab** | Sourcing Intelligence | Detailed table + actions | Importer, Compliance |
+| **Full Monitoring Tab** | My Products | Detailed table + actions | Importer, Compliance |
 
 ### Visual Architecture
 
@@ -71,8 +71,8 @@ All personas now have appropriate entry points in the monitoring tab's empty sta
 └─────────────────────────────────────────────────────────────────────────────────┘
                               ↓ "View All" clicks to...
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  SOURCING INTELLIGENCE                    ← Full detail: Monitoring tab        │
-│  [Analyze] [Suppliers] [📊 Monitoring]                                          │
+│  MY PRODUCTS                              ← Full detail: Monitoring tab         │
+│  [All Products] [Monitored] [Alerts] [Portfolio Analysis]                       │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
 │  (Full table with history, actions, alternatives)                               │
