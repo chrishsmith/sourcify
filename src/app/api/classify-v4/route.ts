@@ -107,6 +107,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ClassifyV
                 materialComposition: body.materialComposition,
                 countryOfOrigin: body.countryOfOrigin || 'CN',
                 intendedUse: body.intendedUse,
+                classificationType: body.classificationType || 'import',
             },
             {
                 skipAmbiguityCheck: body.quickMode,
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ClassifyV
                 tariffDetails = await getEffectiveTariff(
                     body.countryOfOrigin,
                     result.htsCode.code,
-                    { baseMfnRate: parseDutyRate(result.dutyRate.generalRate) }
+                    { baseMfnRate: parseDutyRate(result.dutyRate.generalRate) ?? undefined }
                 );
             } catch (e) {
                 console.warn('[API-V4] Tariff lookup failed:', e);
@@ -174,8 +175,8 @@ function buildSummary(
     if (!result.ambiguity.isAmbiguous) {
         primaryMessage = `Classification complete with ${confidenceLabel} confidence.`;
         nextSteps = 'You can save this to your product library or export the details.';
-    } else if (result.ambiguity.questionsCount > 0) {
-        primaryMessage = `We found ${result.ambiguity.possibleCodes.length} possible codes. Answer ${result.ambiguity.questionsCount} question(s) to narrow down.`;
+    } else if (result.ambiguity.questionsToAsk.length > 0) {
+        primaryMessage = `We found ${result.ambiguity.possibleCodes.length} possible codes. Answer ${result.ambiguity.questionsToAsk.length} question(s) to narrow down.`;
         nextSteps = 'Click "Refine Classification" to answer questions and get an exact code.';
     } else if (result.assumptions.length > 0) {
         primaryMessage = `Classification complete with ${result.assumptions.length} assumption(s). Verify for accuracy.`;

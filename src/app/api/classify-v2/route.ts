@@ -34,7 +34,7 @@ interface ClassifyV2ApiResponse {
     error?: string;
     meta?: {
         processingTime: number;
-        phase: ClassificationPhase;
+        phase: ClassificationPhase | 'result';
     };
 }
 
