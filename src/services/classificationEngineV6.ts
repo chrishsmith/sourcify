@@ -563,7 +563,7 @@ async function navigateTreeDynamic(product: ProductUnderstanding): Promise<TreeP
     description: headingResult.selected.description,
     reasoning: headingResult.reasoning,
     selected: true,
-    alternatives: headingResult.rejected,
+    alternatives: headingResult.rejected.map(r => ({ code: r.code, reason: r.whyNot || r.description })),
     excluded: [],
   });
   confidence *= 0.95;
@@ -599,7 +599,7 @@ async function navigateTreeDynamic(product: ProductUnderstanding): Promise<TreeP
       description: childResult.selected.description,
       reasoning: childResult.reasoning,
       selected: true,
-      alternatives: childResult.rejected,
+      alternatives: childResult.rejected.map(r => ({ code: r.code, reason: r.whyNot || r.description })),
       excluded: [],
     });
 
