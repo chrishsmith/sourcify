@@ -46,6 +46,7 @@ export interface ClassificationStep {
   codeFormatted: string;
   description: string;
   reasoning: string;
+  selected?: boolean;
   alternatives: { code: string; reason: string }[];
   excluded: { code: string; reason: string }[];
 }
