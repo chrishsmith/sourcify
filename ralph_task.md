@@ -243,4 +243,4 @@ All stories complete when:
 - [x] Story 4 complete
 - [x] Story 5 complete
 - [x] `npm run build` passes
-- [ ] All changes committed
+- [x] All changes committed
