@@ -701,12 +701,5 @@ function capitalizeWords(str: string): string {
         .join(' ');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-export {
-    classifyProductGuided,
-    analyzeProductV4,
-};
+// Functions are exported inline above
 
