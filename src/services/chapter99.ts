@@ -267,7 +267,7 @@ export async function getLiveAdditionalDuties(
         ieepaBaseline?.numericRate,
         section232Steel?.numericRate,
         section232Aluminum?.numericRate,
-    ].reduce((sum, rate) => sum + (rate || 0), 0);
+    ].reduce((sum: number, rate) => sum + (rate || 0), 0);
     
     const allRates = [section301, ieepaFentanyl, ieepaReciprocal, ieepaBaseline, section232Steel, section232Aluminum]
         .filter(Boolean);

@@ -646,16 +646,15 @@ export default function ClassificationV10LayoutB() {
                                             <span className="font-semibold text-slate-900">{displayedResult.duty.baseMfn}</span>
                                         </div>
                                         
-                                        {/* Additional Tariffs from breakdown - only for original result */}
-                                        {displayedResult.isOriginal && result.primary?.duty?.breakdown && result.primary.duty.breakdown
-                                            .filter((item: { program: string; rate: number }) => item.program !== 'Base MFN' && item.rate > 0)
-                                            .map((item: { program: string; rate: number; description?: string }, idx: number) => (
-                                                <div key={idx} className="flex justify-between items-center py-1.5 text-slate-600">
-                                                    <span>+ {item.program}</span>
-                                                    <span className="font-semibold">{item.rate.toFixed(1)}%</span>
-                                                </div>
-                                            ))
-                                        }
+                                        {/* Additional Tariffs - show if different from base MFN */}
+                                        {displayedResult.isOriginal && displayedResult.duty.additional && 
+                                         displayedResult.duty.additional !== '0%' && 
+                                         displayedResult.duty.additional !== '0.0%' && (
+                                            <div className="flex justify-between items-center py-1.5 text-slate-600">
+                                                <span>+ Additional Duties</span>
+                                                <span className="font-semibold">{displayedResult.duty.additional}</span>
+                                            </div>
+                                        )}
                                         
                                         {/* Divider */}
                                         <div className="border-t border-slate-300 border-dashed my-2" />
