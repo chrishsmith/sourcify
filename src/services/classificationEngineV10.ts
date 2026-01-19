@@ -1620,7 +1620,7 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
   // Build alternatives with DIVERSITY: prefer candidates from different chapters/headings
   // This ensures users see multiple interpretations, not just variations of the same code
   const buildDiverseAlternatives = (): Alternative[] => {
-    const result: Alternative[] = [];
+    const result: HtsCandidate[] = [];
     const usedChapters = new Set<string>([primary.chapter]);
     const usedHeadings = new Set<string>([primary.code.substring(0, 4)]);
     
