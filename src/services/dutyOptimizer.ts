@@ -258,7 +258,7 @@ async function layer1ExhaustiveSearch(
   console.log('[DutyOptimizer] Layer 1: Starting exhaustive search');
   
   // Step 1: Semantic search (primary method)
-  const semanticResults = await searchHtsBySemantic(productDescription, 30);
+  const semanticResults = await searchHtsBySemantic(productDescription, { limit: 30 });
   console.log(`[DutyOptimizer] Semantic search found ${semanticResults.length} candidates`);
   
   const candidates: CandidateCode[] = semanticResults.map(r => ({

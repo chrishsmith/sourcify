@@ -36,9 +36,18 @@ export type ClassificationV7Input = ClassificationV6Input;
 export interface ProductUnderstanding {
   whatThisIs: string;
   productType: string;
+  primaryFunction?: string;
   material: string;
   materialSource: 'stated' | 'inferred' | 'unknown';
+  materialComposition?: string;
   useContext: 'household' | 'commercial' | 'industrial' | 'agricultural';
+  isForCarrying?: boolean;
+  isWearable?: boolean;
+  isToy?: boolean;
+  isFurniture?: boolean;
+  isElectronic?: boolean;
+  isMachinery?: boolean;
+  isJewelry?: boolean;
   keywords: string[];
 }
 
