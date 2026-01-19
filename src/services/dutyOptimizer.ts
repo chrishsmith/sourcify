@@ -265,12 +265,12 @@ async function layer1ExhaustiveSearch(
     code: r.code,
     formattedCode: formatHtsCode(r.code),
     description: r.description,
-    fullDescription: r.fullDescription || r.description,
-    parentGroupings: r.parentGroupings || [],
+    fullDescription: r.description,
+    parentGroupings: [],
     generalRate: r.generalRate,
-    adValoremRate: r.adValoremRate,
-    chapter: r.code.substring(0, 2),
-    heading: r.code.substring(0, 4),
+    adValoremRate: r.generalRate ? parseFloat(r.generalRate.replace('%', '')) : null,
+    chapter: r.chapter || r.code.substring(0, 2),
+    heading: r.heading || r.code.substring(0, 4),
     similarity: r.similarity,
     source: 'semantic' as const,
   }));
@@ -598,11 +598,11 @@ async function calculateDutyForCode(
     return {
       baseMfnRate,
       baseMfnDisplay: generalRate || 'Free',
-      section301Rate: tariff.section301 || 0,
-      ieepaRate: (tariff.ieepaBaseline || 0) + (tariff.ieepaReciprocal || 0),
-      fentanylRate: tariff.fentanyl || 0,
-      totalRate: baseMfnRate + (tariff.section301 || 0) + (tariff.ieepaBaseline || 0) + 
-                 (tariff.ieepaReciprocal || 0) + (tariff.fentanyl || 0),
+      section301Rate: tariff.section301Rate || 0,
+      ieepaRate: (tariff.ieepaBreakdown?.baseline || 0) + (tariff.ieepaBreakdown?.reciprocal || 0),
+      fentanylRate: tariff.ieepaBreakdown?.fentanyl || 0,
+      totalRate: baseMfnRate + (tariff.section301Rate || 0) + (tariff.ieepaBreakdown?.baseline || 0) + 
+                 (tariff.ieepaBreakdown?.reciprocal || 0) + (tariff.ieepaBreakdown?.fentanyl || 0),
     };
   } catch (err) {
     console.error(`[DutyOptimizer] Error calculating duty for ${code}:`, err);

@@ -318,6 +318,8 @@ export interface SemanticSearchResult {
   chapter: string;
   heading: string | null;
   generalRate: string | null;
+  adValoremRate: number | null;
+  parentGroupings: string[];
   similarity: number;
 }
 
@@ -350,6 +352,8 @@ export async function searchHtsBySemantic(
         chapter,
         heading,
         "generalRate",
+        "adValoremRate",
+        "parentGroupings",
         1 - (embedding <=> ${queryEmbedding}::vector) AS similarity
       FROM hts_code
       WHERE embedding IS NOT NULL
@@ -369,6 +373,8 @@ export async function searchHtsBySemantic(
         chapter,
         heading,
         "generalRate",
+        "adValoremRate",
+        "parentGroupings",
         1 - (embedding <=> ${queryEmbedding}::vector) AS similarity
       FROM hts_code
       WHERE embedding IS NOT NULL

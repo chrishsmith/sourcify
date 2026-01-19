@@ -65,7 +65,7 @@ export async function saveProduct(
             intendedUse: result.input.intendedUse || null,
             baseDutyRate: result.dutyRate.generalRate,
             effectiveDutyRate: effectiveRate,
-            latestClassification: result as unknown as Record<string, unknown>,
+            latestClassification: JSON.parse(JSON.stringify(result)),
             isMonitored: options?.isMonitored ?? false,
             isFavorite: options?.isFavorite ?? false,
         },
