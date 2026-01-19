@@ -109,7 +109,7 @@ export async function saveProductDirect(
             intendedUse: data.intendedUse || null,
             baseDutyRate: data.baseDutyRate || null,
             effectiveDutyRate: data.effectiveDutyRate ?? null,
-            latestClassification: data.latestClassification as unknown as Record<string, unknown> || null,
+            latestClassification: data.latestClassification ? JSON.parse(JSON.stringify(data.latestClassification)) : null,
             isMonitored: data.isMonitored ?? false,
             isFavorite: data.isFavorite ?? false,
         },
@@ -245,7 +245,7 @@ export async function updateProductClassification(
             htsDescription: result.htsCode.description,
             baseDutyRate: result.dutyRate.generalRate,
             effectiveDutyRate: effectiveRate,
-            latestClassification: result as unknown as Record<string, unknown>,
+            latestClassification: JSON.parse(JSON.stringify(result)),
             updatedAt: new Date(),
         },
     });
@@ -297,10 +297,10 @@ export async function getSavedProductStats(userId: string): Promise<{
     `;
 
     const result = stats[0] || { 
-        total_products: 0n, 
-        monitored_products: 0n, 
-        favorite_products: 0n, 
-        unique_hts_codes: 0n 
+        total_products: BigInt(0), 
+        monitored_products: BigInt(0), 
+        favorite_products: BigInt(0), 
+        unique_hts_codes: BigInt(0) 
     };
 
     return {

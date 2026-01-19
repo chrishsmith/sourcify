@@ -455,10 +455,18 @@ export async function selectBestChild(
           whyNot: avoidCheck.reason,
         });
       } else {
-        return aiSelection;
+        return {
+          selected: aiSelection.selected,
+          reasoning: aiSelection.reasoning,
+          alternatives: aiSelection.alternatives,
+        };
       }
     } else {
-      return aiSelection;
+      return {
+        selected: aiSelection.selected,
+        reasoning: aiSelection.reasoning,
+        alternatives: aiSelection.alternatives,
+      };
     }
   }
   
