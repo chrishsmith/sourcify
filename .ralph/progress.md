@@ -198,3 +198,9 @@ This is how Ralph maintains continuity across iterations.
 
 ### 2026-01-19 14:27:40
 **Session 20 started** (model: opus-4.5-thinking)
+
+### 2026-01-19 14:28:15
+**Session 20 ended** - 🔄 Context rotation (token limit reached)
+
+### 2026-01-19 14:28:17
+**Loop ended** - ⚠️ Max iterations (20) reached

@@ -455,15 +455,19 @@ export async function selectBestChild(
           whyNot: avoidCheck.reason,
         });
       } else {
+        // aiSelection.selected is confirmed non-null by the if check above
+        const selected = aiSelection.selected;
         return {
-          selected: aiSelection.selected,
+          selected,
           reasoning: aiSelection.reasoning,
           alternatives: aiSelection.alternatives,
         };
       }
     } else {
+      // aiSelection.selected is confirmed non-null by the if check above
+      const selected = aiSelection.selected;
       return {
-        selected: aiSelection.selected,
+        selected,
         reasoning: aiSelection.reasoning,
         alternatives: aiSelection.alternatives,
       };

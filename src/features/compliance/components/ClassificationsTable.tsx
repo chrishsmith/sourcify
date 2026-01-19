@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, Tag, Button, Typography, Empty, Input, Dropdown, message, Skeleton, Modal } from 'antd';
 import type { MenuProps } from 'antd';
-import { Search, RefreshCw, Clock, Globe, MoreHorizontal, Eye, Trash2, Star, Bell } from 'lucide-react';
+import { Search, RefreshCw, Clock, Globe, MoreHorizontal, Eye, Trash2, Star, Bell, Plus } from 'lucide-react';
 import { ClassificationResultDisplay } from './ClassificationResult';
+import { formatHtsCode } from '@/utils/htsFormatting';
+import Link from 'next/link';
 
 const { Text, Paragraph } = Typography;
 
@@ -79,17 +81,45 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
         }
     }, [pageSize]);
 
+    // Debounce timer ref
+    const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         fetchProducts(page, searchQuery);
     }, [page, fetchProducts]);
 
+    // Cleanup debounce timer on unmount
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) {
+                clearTimeout(searchDebounceRef.current);
+            }
+        };
+    }, []);
+
     const handleSearch = (value: string) => {
         setSearchQuery(value);
-        setPage(1);
-        fetchProducts(1, value);
+        
+        // Clear existing debounce timer
+        if (searchDebounceRef.current) {
+            clearTimeout(searchDebounceRef.current);
+        }
+        
+        // Debounce the search API call (300ms)
+        searchDebounceRef.current = setTimeout(() => {
+            setPage(1);
+            fetchProducts(1, value);
+        }, 300);
     };
 
     const handleViewDetail = useCallback(async (id: string) => {
+        // If external handler is provided (drawer from parent), use that instead of internal modal
+        if (onViewClassification) {
+            onViewClassification(id);
+            return;
+        }
+        
+        // Otherwise use internal modal
         setDetailLoading(true);
         setShowDetailModal(true);
         
@@ -99,11 +129,6 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
             
             const detail = await response.json();
             setSelectedProduct(detail);
-            
-            // Also call the external handler if provided
-            if (onViewClassification) {
-                onViewClassification(id);
-            }
         } catch (error) {
             console.error('Failed to fetch product detail:', error);
             message.error('Failed to load product details');
@@ -113,22 +138,31 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
         }
     }, [onViewClassification]);
 
-    const handleDelete = useCallback(async (id: string) => {
-        try {
-            const response = await fetch(`/api/saved-products/${id}`, {
-                method: 'DELETE',
-            });
-            
-            if (!response.ok) throw new Error('Failed to delete');
-            
-            // Immediately update UI
-            setProducts(prev => prev.filter(p => p.id !== id));
-            setTotal(prev => prev - 1);
-            message.success('Product deleted');
-        } catch (error) {
-            console.error('Failed to delete product:', error);
-            message.error('Failed to delete product');
-        }
+    const handleDelete = useCallback(async (id: string, productName: string) => {
+        Modal.confirm({
+            title: 'Delete Product',
+            content: `Are you sure you want to delete "${productName}"? This action cannot be undone.`,
+            okText: 'Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                try {
+                    const response = await fetch(`/api/saved-products/${id}`, {
+                        method: 'DELETE',
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to delete');
+                    
+                    // Immediately update UI
+                    setProducts(prev => prev.filter(p => p.id !== id));
+                    setTotal(prev => prev - 1);
+                    message.success('Product deleted');
+                } catch (error) {
+                    console.error('Failed to delete product:', error);
+                    message.error('Failed to delete product');
+                }
+            },
+        });
     }, []);
 
     const handleToggleFavorite = useCallback(async (id: string, currentValue: boolean) => {
@@ -241,7 +275,7 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
                     className="font-mono text-sm px-3 py-1 cursor-pointer"
                     onClick={() => handleViewDetail(record.id)}
                 >
-                    {code}
+                    {formatHtsCode(code)}
                 </Tag>
             ),
         },
@@ -273,9 +307,9 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
             ),
         },
         {
-            title: 'Updated',
-            dataIndex: 'updatedAt',
-            key: 'updatedAt',
+            title: 'Date Saved',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
             width: '13%',
             render: (date: string) => (
                 <div className="flex items-center gap-1 text-slate-500">
@@ -325,7 +359,7 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
                         danger: true,
                         onClick: (e) => {
                             e.domEvent.stopPropagation();
-                            handleDelete(record.id);
+                            handleDelete(record.id, record.name);
                         },
                     },
                 ];
@@ -379,13 +413,20 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
                     description={
                         searchQuery
                             ? "No products match your search"
-                            : "No saved products yet"
+                            : "No products saved yet"
                     }
                 >
                     {!searchQuery && (
-                        <Text type="secondary" className="block">
-                            Save products from your classifications to track them here
-                        </Text>
+                        <div className="flex flex-col items-center gap-3">
+                            <Text type="secondary" className="block">
+                                Save products from your classifications to track them here
+                            </Text>
+                            <Link href="/dashboard/classify">
+                                <Button type="primary" icon={<Plus size={14} />}>
+                                    Classify a Product
+                                </Button>
+                            </Link>
+                        </div>
                     )}
                 </Empty>
             ) : (

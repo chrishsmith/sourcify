@@ -3,6 +3,32 @@
  */
 
 /**
+ * Formats an HTS code with dots for display
+ * e.g., "6109100012" -> "6109.10.00.12"
+ * 
+ * @param code The HTS code (stored without dots)
+ * @returns The formatted code with dots
+ */
+export function formatHtsCode(code: string): string {
+    if (!code) return '';
+    
+    // Remove any existing dots and spaces
+    const clean = code.replace(/[.\s]/g, '');
+    
+    // Format based on length
+    if (clean.length <= 4) {
+        return clean;
+    } else if (clean.length <= 6) {
+        return `${clean.slice(0, 4)}.${clean.slice(4)}`;
+    } else if (clean.length <= 8) {
+        return `${clean.slice(0, 4)}.${clean.slice(4, 6)}.${clean.slice(6)}`;
+    } else {
+        // Full 10-digit code
+        return `${clean.slice(0, 4)}.${clean.slice(4, 6)}.${clean.slice(6, 8)}.${clean.slice(8)}`;
+    }
+}
+
+/**
  * Generates a human-readable breadcrumb path for an HTS code
  * e.g., "Plastics (Ch 39) > Articles of Plastic (3926) > Other > Other"
  * 

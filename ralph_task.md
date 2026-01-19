@@ -1,64 +1,246 @@
 ---
-task: Build Sourcify Trade Intelligence Platform - Phase 0 Foundation
+task: Sourcify Phase 0 - Foundation
 test_command: "npm run build"
 ---
 
-# Task: Sourcify Phase 0 - Foundation & Polish
+# Sourcify Phase 0: Foundation & Polish
 
-Build the foundational features for Sourcify, a trade intelligence platform competing with Descartes Datamyne and CustomsInfo.
+Work through each story sequentially. Complete one story fully before moving to the next.
 
-## Context
+---
 
-Read these files first:
-- `docs/MASTER_FEATURE_SPEC.md` - Full feature specification
-- `docs/COMPETITIVE_ANALYSIS_DATAMYNE.md` - Competitive landscape
-- `AGENTS.md` - Project patterns and gotchas
-- `prisma/schema.prisma` - Database schema
+## Story 1: Products Table Displays Data
+**Status:** [x] Complete
 
-## Success Criteria
+### Description
+The My Products page at `/dashboard/products` should display saved products in a table.
 
-### P0-001: Fix Saved Products List Page
-1. [ ] My Products page (`/dashboard/products`) loads without errors
-2. [ ] Products display in a table with: name, HTS code, country, duty rate, date saved
-3. [ ] Search filters products by name or HTS code
-4. [ ] Empty state shows helpful message when no products saved
-5. [ ] Loading state shows skeleton while fetching
-6. [ ] Delete action works with confirmation dialog
-7. [ ] Click row opens product detail drawer
+### Files to Modify
+- `src/features/compliance/components/ClassificationsTable.tsx`
 
-### P0-002: Save Classification to My Products
-1. [ ] "Save to My Products" button appears on classification results
-2. [ ] Clicking save stores: HTS code, product description, country, duty breakdown
-3. [ ] Success toast confirms save with link to My Products
-4. [ ] Duplicate detection warns if same HTS+country already saved
-5. [ ] Saved products appear immediately in My Products list
+### Acceptance Criteria
+- [x] Table has columns: Product, HTS Code, Country, Duty Rate, Date Saved
+- [x] HTS codes formatted with dots using `formatHtsCode()` from `src/utils/htsFormatting.ts`
+- [x] `npm run build` passes
 
-### P0-003: Mobile Navigation
-1. [ ] Sidebar collapses to hamburger menu on mobile (<768px)
-2. [ ] Hamburger opens drawer with full navigation
-3. [ ] Active route highlighted in mobile nav
-4. [ ] Drawer closes on route change
-5. [ ] Touch targets are at least 44px
+### Implementation
+```typescript
+// In ClassificationsTable.tsx, ensure columns are:
+const columns = [
+  { title: 'Product', dataIndex: 'description', key: 'description' },
+  { title: 'HTS Code', dataIndex: 'htsCode', key: 'htsCode', 
+    render: (code: string) => formatHtsCode(code) },
+  { title: 'Country', dataIndex: 'countryOfOrigin', key: 'country' },
+  { title: 'Duty Rate', dataIndex: 'effectiveDutyRate', key: 'duty',
+    render: (rate: number) => rate ? `${rate}%` : '-' },
+  { title: 'Saved', dataIndex: 'createdAt', key: 'date',
+    render: (date: string) => new Date(date).toLocaleDateString() },
+];
+```
 
-### P0-004: Dashboard Statistics
-1. [ ] Dashboard shows real user statistics (not mock data)
-2. [ ] "Total Classifications" counts user's saved products
-3. [ ] "Countries Tracked" counts unique countries in saved products
-4. [ ] "Recent Activity" shows last 5 classifications
-5. [ ] Stats update when products are added/removed
+### When Complete
+Change `[ ] Not Started` above to `[x] Complete`, then commit:
+```bash
+git add -A && git commit -m "feat: products table displays formatted data"
+```
 
-## Technical Notes
+---
 
-- Use Prisma client from `src/lib/db.ts`
-- Use Better Auth session from `src/lib/auth-client.ts`
-- Follow existing patterns in `src/features/compliance/components/`
-- HTS codes stored WITHOUT dots, displayed WITH dots (use `formatHtsCode()`)
-- Test with `npm run build` - must compile without errors
+## Story 2: Empty State for No Products
+**Status:** [x] Complete
+
+### Description
+When user has no saved products, show a helpful empty state instead of an empty table.
+
+### Files to Modify
+- `src/features/compliance/components/ClassificationsTable.tsx`
+
+### Acceptance Criteria
+- [x] Empty state shows "No products saved yet" message
+- [x] Includes button linking to `/dashboard/classify`
+- [x] `npm run build` passes
+
+### Implementation
+```typescript
+import { Empty, Button } from 'antd';
+
+// In render, before the Table:
+if (!loading && products.length === 0) {
+  return (
+    <Empty
+      description="No products saved yet"
+      image={Empty.PRESENTED_IMAGE_SIMPLE}
+    >
+      <Button type="primary" href="/dashboard/classify">
+        Classify Your First Product
+      </Button>
+    </Empty>
+  );
+}
+```
+
+### When Complete
+Change status to `[x] Complete`, commit:
+```bash
+git add -A && git commit -m "feat: empty state for products list"
+```
+
+---
+
+## Story 3: Loading State
+**Status:** [x] Complete
+
+### Description
+Show a loading skeleton while products are being fetched.
+
+### Files to Modify
+- `src/features/compliance/components/ClassificationsTable.tsx`
+
+### Acceptance Criteria
+- [x] Skeleton shown while `loading` is true
+- [x] Skeleton disappears when data loads
+- [x] `npm run build` passes
+
+### Implementation
+```typescript
+import { Skeleton } from 'antd';
+
+// In render:
+if (loading) {
+  return <Skeleton active paragraph={{ rows: 5 }} />;
+}
+```
+
+### When Complete
+Change status to `[x] Complete`, commit:
+```bash
+git add -A && git commit -m "feat: loading skeleton for products"
+```
+
+---
+
+## Story 4: Delete Product
+**Status:** [x] Complete
+
+### Description
+User can delete a saved product with confirmation.
+
+### Files to Modify
+- `src/features/compliance/components/ClassificationsTable.tsx`
+
+### Acceptance Criteria
+- [x] Delete button on each row
+- [x] Clicking shows confirmation modal
+- [x] Confirming calls `DELETE /api/saved-products/[id]`
+- [x] Row removed from table after delete
+- [x] Success message shown
+- [x] `npm run build` passes
+
+### Implementation
+```typescript
+import { Modal, message, Button } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
+
+const handleDelete = (id: string) => {
+  Modal.confirm({
+    title: 'Delete Product?',
+    content: 'This cannot be undone.',
+    okText: 'Delete',
+    okType: 'danger',
+    onOk: async () => {
+      const res = await fetch(`/api/saved-products/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        message.success('Product deleted');
+      } else {
+        message.error('Failed to delete');
+      }
+    },
+  });
+};
+
+// Add to columns:
+{
+  title: '',
+  key: 'actions',
+  width: 50,
+  render: (_, record) => (
+    <Button 
+      type="text" 
+      danger 
+      icon={<DeleteOutlined />}
+      onClick={(e) => { e.stopPropagation(); handleDelete(record.id); }}
+    />
+  ),
+}
+```
+
+### When Complete
+Change status to `[x] Complete`, commit:
+```bash
+git add -A && git commit -m "feat: delete product with confirmation"
+```
+
+---
+
+## Story 5: Search Products
+**Status:** [x] Complete
+
+### Description
+User can search/filter products by name or HTS code.
+
+### Files to Modify
+- `src/features/compliance/components/ClassificationsTable.tsx`
+
+### Acceptance Criteria
+- [x] Search input above table
+- [x] Filters by product name OR HTS code
+- [x] Case-insensitive search
+- [x] `npm run build` passes
+
+### Implementation
+```typescript
+import { Input } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+
+const [searchTerm, setSearchTerm] = useState('');
+
+const filteredProducts = products.filter(p => {
+  const term = searchTerm.toLowerCase();
+  return (
+    p.description?.toLowerCase().includes(term) ||
+    p.htsCode?.toLowerCase().includes(term)
+  );
+});
+
+// Above table:
+<Input
+  placeholder="Search by product or HTS code..."
+  prefix={<SearchOutlined />}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  style={{ marginBottom: 16, maxWidth: 400 }}
+  allowClear
+/>
+
+// Use filteredProducts in table:
+<Table dataSource={filteredProducts} ... />
+```
+
+### When Complete
+Change status to `[x] Complete`, commit:
+```bash
+git add -A && git commit -m "feat: search products by name or HTS"
+```
+
+---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria checked
-- [ ] `npm run build` passes
-- [ ] No TypeScript errors
-- [ ] Code follows existing patterns
-- [ ] Changes committed with descriptive messages
+All stories complete when:
+- [x] Story 1 complete
+- [x] Story 2 complete  
+- [x] Story 3 complete
+- [x] Story 4 complete
+- [x] Story 5 complete
+- [x] `npm run build` passes
+- [ ] All changes committed

@@ -6,6 +6,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import type { ClassificationResult, ClassificationInput } from '@/types/classification.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -70,7 +71,7 @@ export async function saveSearchToHistory(
                 htsCode: result.htsCode.code,
                 htsDescription: result.htsCode.description,
                 confidence: result.confidence,
-                fullResult: result as unknown as Record<string, unknown>,
+                fullResult: JSON.parse(JSON.stringify(result)),
                 
                 // Quick access fields
                 baseDutyRate: result.dutyRate.generalRate,
@@ -244,7 +245,7 @@ export async function getSearchStats(userId: string): Promise<{
         WHERE "userId" = ${userId}
     `;
 
-    const result = stats[0] || { total_searches: 0n, unique_hts_codes: 0n, avg_confidence: null, searches_this_month: 0n };
+    const result = stats[0] || { total_searches: BigInt(0), unique_hts_codes: BigInt(0), avg_confidence: null, searches_this_month: BigInt(0) };
     
     return {
         totalSearches: Number(result.total_searches),
