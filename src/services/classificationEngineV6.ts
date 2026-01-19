@@ -526,7 +526,7 @@ async function navigateTreeDynamic(product: ProductUnderstanding): Promise<TreeP
     description: chapterResult.selected.description,
     reasoning: chapterResult.reasoning,
     selected: true,
-    alternatives: chapterResult.rejected,
+    alternatives: chapterResult.rejected.map(r => ({ code: r.code, reason: r.whyNot || r.description })),
     excluded: [],
   });
   confidence *= 0.95;
