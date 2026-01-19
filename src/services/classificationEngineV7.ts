@@ -31,6 +31,8 @@ export interface ClassificationV6Input {
   value?: number;
 }
 
+export type ClassificationV7Input = ClassificationV6Input;
+
 export interface ProductUnderstanding {
   whatThisIs: string;
   productType: string;
