@@ -110,14 +110,8 @@ export const ClassificationForm: React.FC = () => {
                     ? `Classified as "Other" because the product doesn't match specific carve-outs: ${v10Result.primary?.otherExclusions?.join(', ') || 'N/A'}`
                     : `Best match based on semantic similarity and HTS tree analysis.`,
                 createdAt: new Date(),
-                effectiveTariff: v10Result.primary?.duty ? {
-                    baseMfnRate: parseFloat(v10Result.primary.duty.baseMfn) || 0,
-                    formattedBaseMfn: v10Result.primary.duty.baseMfn,
-                    totalEffectiveRate: parseFloat(v10Result.primary.duty.effective) || 0,
-                    formattedEffective: v10Result.primary.duty.effective,
-                    additionalDuties: [],
-                    breakdown: [],
-                } : undefined,
+                // Note: effectiveTariff requires full tariff layer calculation - skipped for basic classification
+                effectiveTariff: undefined,
                 humanReadablePath: v10Result.primary?.path?.descriptions?.join(' → ') || '',
                 searchHistoryId: v10Result.searchHistoryId,
                 suggestedProductName: values.productName || v10Result.searchTerms?.join(' ') || 'Product',

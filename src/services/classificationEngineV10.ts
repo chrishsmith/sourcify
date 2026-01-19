@@ -175,6 +175,7 @@ export interface ClassifyV10Result {
       additional: string;
       effective: string;
       special?: string;
+      breakdown?: Array<{ program: string; rate: number; description?: string }>;
     } | null;
     
     isOther: boolean;

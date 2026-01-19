@@ -49,6 +49,7 @@ interface V10Primary {
         additional: string;
         effective: string;
         special?: string;
+        breakdown?: Array<{ program: string; rate: number; description?: string }>;
     } | null;
     isOther: boolean;
     otherExclusions?: string[];
