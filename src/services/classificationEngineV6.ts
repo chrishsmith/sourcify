@@ -490,7 +490,9 @@ function formatHtsCode(code: string): string {
 /**
  * Determine the HTS level based on code length
  */
-function getLevel(code: string): string {
+type HtsLevel = 'chapter' | 'heading' | 'subheading' | 'tariff_line' | 'statistical';
+
+function getLevel(code: string): HtsLevel {
   const clean = code.replace(/\./g, '');
   if (clean.length <= 2) return 'chapter';
   if (clean.length <= 4) return 'heading';

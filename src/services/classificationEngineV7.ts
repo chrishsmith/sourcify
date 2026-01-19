@@ -50,7 +50,7 @@ export interface ClassificationStep {
   excluded: { code: string; reason: string }[];
 }
 
-export interface TreePath {
+export interface TreePathV6 {
   steps: ClassificationStep[];
   finalCode: string;
   finalCodeFormatted: string;
@@ -66,7 +66,7 @@ export interface ClassificationV6Result {
   generalRate: string | null;
   confidence: number;
   confidenceLabel: 'high' | 'medium' | 'low';
-  treePath: TreePath;
+  treePath: TreePathV6;
   productUnderstanding: ProductUnderstanding;
   transparency: {
     stated: string[];
