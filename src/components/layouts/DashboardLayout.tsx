@@ -296,9 +296,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 open={mobileOpen}
                 onClose={() => setMobileOpen(false)}
                 placement="left"
-                styles={{ wrapper: { width: 280 } }}
                 closable={false}
                 styles={{ 
+                    wrapper: { width: 280 },
                     body: { padding: 0 },
                     header: { display: 'none' }
                 }}

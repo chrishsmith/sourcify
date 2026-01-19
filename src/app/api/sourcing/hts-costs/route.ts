@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
             distinct: ['htsCode'],
             select: {
                 htsCode: true,
-                _count: true,
             },
             orderBy: { htsCode: 'asc' },
             take: 100,

@@ -358,7 +358,7 @@ function buildHtsHierarchy(result: GuidedClassificationResult): ClassifyV4Respon
     // Parse the code into hierarchy levels
     // 8211.92.20.00 -> ["82", "8211", "8211.92", "8211.92.20", "8211.92.20.00"]
     const cleanCode = code.replace(/\./g, '');
-    const levels: ClassifyV4Response['htsHierarchy']['levels'] = [];
+    const levels: Array<{ code: string; description: string; dutyRate?: string }> = [];
     
     // Chapter (2 digit)
     if (cleanCode.length >= 2) {
