@@ -98,7 +98,7 @@ export interface NavigationStep {
   alternatives: { code: string; description: string; whyNot: string }[];
 }
 
-export interface TreePath {
+export interface TreePathV7 {
   steps: NavigationStep[];
   finalCode: string;
   finalCodeFormatted: string;
@@ -114,7 +114,7 @@ export interface ClassificationV7Result {
   generalRate: string | null;
   confidence: number;
   confidenceLabel: 'high' | 'medium' | 'low';
-  treePath: TreePath;
+  treePath: TreePathV7;
   productUnderstanding: ProductUnderstanding;
   griRulesApplied: string[];
   transparency: {
