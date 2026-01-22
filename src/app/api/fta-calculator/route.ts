@@ -9,7 +9,7 @@ import {
     type FtaAgreement,
     type TariffShiftType,
 } from '@/data/ftaRules';
-import { getEffectiveTariff } from '@/services/tariffRegistry';
+import { getEffectiveTariff } from '@/services/tariff/registry';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

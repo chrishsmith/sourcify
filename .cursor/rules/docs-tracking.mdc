@@ -1,0 +1,50 @@
+---
+description: Rules for maintaining progress, TODOs, and feature tracking via Markdown in docs/
+globs: 
+  - "docs/**/*"
+  - "README.md"
+  - "PROGRESS.md"
+alwaysApply: true   # Apply whenever docs or progress files are mentioned/created
+---
+
+# Documentation & Progress Tracking Rule for Sourcify
+
+## Central Files
+- **docs/PROGRESS.md** (or **docs/TODO.md**): Single source of truth for current status
+  - Use checklists: - [ ] / - [x]
+  - Sections: In Progress, Done This Week, Backlog, Blocked
+  - Update on every major commit or feature completion
+
+- **docs/roadmap.md** or **docs/product-roadmap.md**: High-level milestones & quarterly goals
+- **docs/prd-*.md**: One PRD per major feature/module (kebab-case naming)
+  - Include: Vision, Goals, Success Metrics, Competitive Notes, Open Questions
+- **docs/changelog.md**: Auto-buildable from conventional commits (or manual appends)
+
+## How to Track During Vibe Coding
+When I create or mention a new feature / task:
+- Suggest adding a line to docs/PROGRESS.md (e.g. "- [ ] Implement premium tier upsell flow")
+- If completing something: Suggest checking it off + adding to Done section
+- For big features: Suggest creating docs/prd-<feature-name>.md with basic template
+
+## Template for New PRDs / Feature Docs
+When creating a new .md in docs/:
+Start with:
+
+```markdown
+# PRD: <Feature Name>
+
+**Created:** YYYY-MM-DD  
+**Status:** DRAFT / In Progress / Done  
+**Owner:** Product / Engineering  
+
+## 1. Vision & Goals
+
+## 2. Success Metrics
+
+## 3. Competitive Positioning
+
+## 4. Requirements / Stories
+
+## 5. Open Questions / Risks
+
+## 6. Related Docs

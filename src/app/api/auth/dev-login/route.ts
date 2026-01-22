@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         if (!user) {
             return NextResponse.json(
                 { 
-                    error: 'Demo user not found. Run: npx ts-node prisma/seed-demo-user.ts',
+                    error: 'Demo user not found. Run: npx tsx scripts/seeds/seed-demo-user.ts',
                     help: 'This will create the demo user for development.',
                 },
                 { status: 404 }

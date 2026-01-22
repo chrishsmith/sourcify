@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getEffectiveTariff } from '@/services/tariffRegistry';
+import { getEffectiveTariff } from '@/services/tariff/registry';
 
 export async function GET(request: Request) {
   try {

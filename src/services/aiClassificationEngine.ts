@@ -19,7 +19,7 @@
  */
 
 import { getXAIClient } from '@/lib/xai';
-import { searchHtsCodes, getHtsCode, getHtsCodesByChapter, HtsLevel } from './htsDatabase';
+import { searchHtsCodes, getHtsCode, getHtsCodesByChapter, HtsLevel } from '@/services/hts/database';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

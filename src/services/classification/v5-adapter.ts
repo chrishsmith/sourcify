@@ -9,7 +9,7 @@
  */
 
 import type { ClassificationResult, ClassificationInput, HTSCode, DutyRate } from '@/types/classification.types';
-import type { ClassificationV5Result, ClassificationV5Input } from './classificationEngineV5';
+import type { ClassificationV5Result, ClassificationV5Input } from '@/services/classification/engine-v5';
 
 /**
  * Convert V5 input to the standard ClassificationInput format

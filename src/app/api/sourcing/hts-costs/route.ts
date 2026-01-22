@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getHtsCostData, aggregateAllHtsCosts, aggregateHtsCosts, saveAggregatedCosts } from '@/services/htsCostAggregation';
+import { getHtsCostData, aggregateAllHtsCosts, aggregateHtsCosts, saveAggregatedCosts } from '@/services/hts/cost-aggregation';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {

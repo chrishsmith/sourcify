@@ -15,7 +15,7 @@ import {
   getHtsChildren,
   formatHtsCode,
   normalizeHtsCode,
-} from '@/services/htsDatabase';
+} from '@/services/hts/database';
 
 interface RouteParams {
   params: Promise<{ code: string }>;

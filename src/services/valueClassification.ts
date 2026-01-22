@@ -10,7 +10,7 @@
  * - Textiles: Often valued per dozen/kg thresholds
  */
 
-import { searchHTSCodes, type HTSSearchResult } from './usitc';
+import { searchHTSCodes, type HTSSearchResult } from '@/services/usitc';
 
 export interface ValueThreshold {
     condition: string;          // e.g., "valued not over $100 each"

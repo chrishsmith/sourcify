@@ -10,7 +10,7 @@ import {
   generateAllEmbeddings, 
   getEmbeddingStats,
   searchHtsBySemantic,
-} from '@/services/htsEmbeddings';
+} from '@/services/hts/embeddings';
 
 export const maxDuration = 300; // 5 minutes for embedding generation
 export const dynamic = 'force-dynamic';

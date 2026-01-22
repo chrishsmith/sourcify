@@ -12,7 +12,7 @@ import {
     Target, DollarSign, FileQuestion, Lightbulb, 
     Folder, FileText, TrendingUp, Info, Layers
 } from 'lucide-react';
-import type { GuidedClassificationResult } from '@/services/classificationEngineV4';
+import type { GuidedClassificationResult } from '@/services/classification/engine-v4';
 import type { DecisionVariable } from '@/services/ambiguityDetector';
 
 const { Title, Text, Paragraph } = Typography;

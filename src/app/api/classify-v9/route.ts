@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyProductV9 } from '@/services/classificationEngineV9';
+import { classifyProductV9 } from '@/services/classification/engine-v9';
 
 export async function POST(request: NextRequest) {
   try {

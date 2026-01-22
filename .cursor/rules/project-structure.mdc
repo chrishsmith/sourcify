@@ -1,0 +1,32 @@
+---
+description: Enforce clean Next.js + Prisma project structure, documentation placement, and naming conventions
+globs: 
+  - "**/*"          # Apply broadly, or narrow e.g. "*.md", "src/**/*.tsx"
+alwaysApply: false  # or true if you want it in EVERY prompt
+---
+
+# Project Structure & Organization Rule for Sourcify
+
+## Folder Structure to Always Follow
+- **Root**: Keep minimal → app/, components/, prisma/, public/, middleware.ts, next.config.*, package.json, tsconfig.json, .gitignore, README.md
+- **app/**: Next.js App Router pages, layouts, route handlers (do NOT move)
+- **components/**: Reusable UI (split into ui/, features/ if grows)
+- **features/** or **domains/**: Group by business domain (e.g. features/classification/, features/compliance/)
+- **services/** or **lib/**: Business logic, classification engine, utils (archive old versions to services/archive/classification-v1/)
+- **prisma/**: Keep as-is (migrations/, seed.ts, schema.prisma)
+- **docs/**: All .md files — PRDs, roadmaps, architecture, progress
+  - Rename to kebab-case (e.g. prd-trade-intelligence.md)
+  - Subfolders: docs/archive/, docs/ralph/ for agent logs
+- **migrations/** or keep in prisma/migrations/: SQL/alembic-style if added later
+- **tests/** or **__tests__/**: Near code or centralized
+
+## Key Rules
+- No source code or docs scattered in root (except essentials)
+- Move all .md → docs/ unless it's README at root
+- Use kebab-case for new .md files and feature folders (classification-flow-v2 → classification-flow-v2.md)
+- When creating files: Suggest full path (e.g. features/classification/components/ClassificationTable.tsx)
+- When moving files: Update all imports/references automatically
+- Preserve Next.js conventions: app/, public/, prisma/migrations/
+- For agent outputs (.ralph/): Move to docs/ralph/
+
+Always propose locations following this structure. Remind if I suggest something that violates it.

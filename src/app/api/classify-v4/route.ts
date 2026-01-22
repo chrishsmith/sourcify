@@ -13,8 +13,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyProductGuided, type GuidedClassificationResult } from '@/services/classificationEngineV4';
-import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
+import { classifyProductGuided, type GuidedClassificationResult } from '@/services/classification/engine-v4';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariff/registry';
 import type { ClassificationInput } from '@/types/classification.types';
 
 interface ClassifyV4Request extends ClassificationInput {

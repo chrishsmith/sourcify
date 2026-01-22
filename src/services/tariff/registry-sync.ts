@@ -51,16 +51,16 @@ import {
     fetchProgramRates,
     CHAPTER_99_PROGRAMS,
     type LiveTariffRate,
-} from './chapter99';
+} from '@/services/compliance/chapter99';
 
 // USITC HTS API - Direct tariff lookups
-import { searchHTSCodes, validateHTSCode } from './usitc';
+import { searchHTSCodes, validateHTSCode } from '@/services/usitc';
 
 // USITC DataWeb - Import statistics (volume, value by country)
-import { getImportStatsByHTS } from './usitcDataWeb';
+import { getImportStatsByHTS } from '@/services/usitcDataWeb';
 
 // HTS Hierarchy - Classification structure
-import { getHTSHierarchy, CHAPTER_DESCRIPTIONS } from './htsHierarchy';
+import { getHTSHierarchy, CHAPTER_DESCRIPTIONS } from '@/services/hts/hierarchy';
 
 // AD/CVD Orders - Antidumping/Countervailing duty warnings
 import { checkADCVDWarning, getChapterADCVDRisk } from '@/data/adcvdOrders';

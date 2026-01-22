@@ -8,7 +8,7 @@ import { ClassificationsTable } from '@/features/compliance/components/Classific
 import ClassificationV10LayoutB from '@/features/compliance/components/ClassificationV10LayoutB';
 import { ClassificationResultDisplay } from '@/features/compliance/components/ClassificationResult';
 import { SearchHistoryPanel, ReClassifyInput } from '@/features/compliance/components/SearchHistoryPanel';
-import { getClassificationById } from '@/services/classificationHistory';
+import { getClassificationById } from '@/services/classification/history';
 import type { ClassificationResult } from '@/types/classification.types';
 
 const { Title, Text } = Typography;

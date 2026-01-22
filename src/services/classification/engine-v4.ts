@@ -19,7 +19,7 @@ import { getLikelyChapters, getChapterInfo, HEADING_MAPPINGS } from '@/data/htsC
 import { 
     validateClassificationSemantics, 
     getCategoryDisplayName,
-} from '@/services/classificationValidator';
+} from '@/services/classification/validator';
 import {
     analyzeAmbiguity,
     type AmbiguityAnalysis,

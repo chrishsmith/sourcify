@@ -6,7 +6,7 @@
  * Now includes sibling codes at each level for optional exploration
  */
 
-import { searchHTSCodes, type HTSSearchResult } from './usitc';
+import { searchHTSCodes, type HTSSearchResult } from '@/services/usitc';
 
 export interface HTSSibling {
     code: string;

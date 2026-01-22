@@ -30,7 +30,7 @@ import {
     syncAllDataSources,
     syncADCVDWarnings,
     getRegistryStats,
-} from '@/services/tariffRegistrySync';
+} from '@/services/tariff/registry-sync';
 
 export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);

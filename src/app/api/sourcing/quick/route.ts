@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { calculateEffectiveTariff } from '@/services/landedCost';
+import { calculateEffectiveTariff } from '@/services/sourcing/landed-cost';
 
 // FTA country names
 const FTA_NAMES: Record<string, string> = {

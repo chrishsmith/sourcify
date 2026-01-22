@@ -1,0 +1,39 @@
+---
+description: Enforce consistent naming conventions across the Sourcify project (files, folders, components, variables)
+globs: 
+  - "**/*"
+alwaysApply: false
+---
+
+# Naming Conventions Rule for Sourcify
+
+## Folder Names
+- Use **kebab-case** for all folders (lowercase with hyphens)
+  - Good: classification-flow, trade-intelligence, user-auth
+  - Bad: ClassificationFlow, classificationFlow, CLASSIFICATION_FLOW
+
+## File Names
+- React/TSX components → **PascalCase**.tsx
+  - Good: ClassificationTable.tsx, BulkClassificationForm.tsx
+- Utility functions, hooks, helpers → **camelCase**.ts / .tsx
+  - Good: formatClassificationResult.ts, useClassification.ts
+- Pages / route handlers (in app/) → **kebab-case** for folders, page.tsx or layout.tsx inside
+  - Good: app/classification-flow/page.tsx
+- Markdown docs (in docs/) → **kebab-case**.md
+  - Good: prd-trade-intelligence.md, competitive-analysis-datamyne.md
+  - Rename existing SCREAMING_CASE files during refactors
+- Prisma schema & migrations → keep as Prisma defaults (schema.prisma, migrations/ numbered folders)
+- Seed scripts → camelCase or kebab-case (e.g. seed-classification-data.ts)
+
+## Variable / Function Names
+- Variables, functions, hooks → **camelCase**
+- Constants → **UPPER_SNAKE_CASE** (especially env vars, magic numbers)
+- Types / Interfaces → **PascalCase**
+- Enum members → **UPPER_SNAKE_CASE** or PascalCase (consistency within file)
+
+## When Suggesting or Creating Files
+- Always propose the full path with correct naming (e.g. features/classification/components/ClassificationResultTable.tsx)
+- If I suggest a bad name, gently correct it and explain (e.g. "Prefer kebab-case for folders: features/classification-flow/...")
+- During refactors, rename files/folders to match these conventions and update all imports/references
+
+This keeps the codebase readable, searchable, and modern while moving fast.

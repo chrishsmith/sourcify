@@ -7,9 +7,9 @@
  */
 
 import { getXAIClient } from '@/lib/xai';
-import { compareLandedCosts, LandedCostBreakdown } from './landedCost';
-import { findMatchingSuppliers, SupplierMatch } from './supplierMatching';
-import { syncImportStatsToDatabase } from './usitcDataWeb';
+import { compareLandedCosts, LandedCostBreakdown } from '@/services/sourcing/landed-cost';
+import { findMatchingSuppliers, SupplierMatch } from '@/services/sourcing/supplier-matching';
+import { syncImportStatsToDatabase } from '@/services/usitcDataWeb';
 import { prisma } from '@/lib/db';
 
 // ═══════════════════════════════════════════════════════════════════════════════

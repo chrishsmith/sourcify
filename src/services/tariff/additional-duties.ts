@@ -6,11 +6,11 @@
  * 
  * Migration:
  *   // OLD (this file)
- *   import { calculateEffectiveTariff } from '@/services/additionalDuties';
+ *   import { calculateEffectiveTariff } from '@/services/tariff/additional-duties';
  *   const result = await calculateEffectiveTariff(htsCode, description, baseMfn, country);
  * 
  *   // NEW (tariffRegistry.ts)
- *   import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
+ *   import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariff/registry';
  *   const registryResult = await getEffectiveTariff(country, htsCode, { baseMfnRate });
  *   const result = convertToLegacyFormat(registryResult, htsCode, description, country);
  * 
@@ -51,7 +51,7 @@ import {
 import { 
     getLiveAdditionalDuties,
     type LiveTariffRate 
-} from './chapter99';
+} from '@/services/compliance/chapter99';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN CALCULATION FUNCTION

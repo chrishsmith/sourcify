@@ -20,7 +20,7 @@ import {
   applyUserAnswers,
   type InferenceResult,
   type ExtractedAttribute,
-} from './inferenceEngineV5';
+} from '@/services/inferenceEngineV5';
 import { 
   searchHtsCodes, 
   getHtsHierarchy,
@@ -28,18 +28,18 @@ import {
   HtsLevel,
   type HtsSearchResult,
   type HtsCodeResult,
-} from './htsDatabase';
+} from '@/services/hts/database';
 import {
   ENABLE_AI_PRODUCT_NORMALIZATION,
   normalizeProductDescription,
   expandSearchTerms,
   type NormalizationResult,
-} from './productNormalization';
+} from '@/services/productNormalization';
 import {
   classifyWithAI,
   validateAndEnrichRecommendations,
   type AIClassificationRecommendation,
-} from './aiClassificationEngine';
+} from '@/services/aiClassificationEngine';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // FEATURE FLAG: AI-FIRST CLASSIFICATION

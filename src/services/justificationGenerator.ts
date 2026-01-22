@@ -8,8 +8,8 @@
  * @created December 23, 2025
  */
 
-import type { ClassificationV5Result, ClassificationCandidate } from './classificationEngineV5';
-import type { InferenceResult, ExtractedAttribute } from './inferenceEngineV5';
+import type { ClassificationV5Result, ClassificationCandidate } from '@/services/classification/engine-v5';
+import type { InferenceResult, ExtractedAttribute } from '@/services/inferenceEngineV5';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

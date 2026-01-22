@@ -12,7 +12,7 @@ import {
     getCacheStatus,
     clearRateCache,
     CHAPTER_99_PROGRAMS 
-} from '@/services/chapter99';
+} from '@/services/compliance/chapter99';
 import { searchHTSCodes } from '@/services/usitc';
 
 export async function GET(request: NextRequest) {

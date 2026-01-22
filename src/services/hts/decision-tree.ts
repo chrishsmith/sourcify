@@ -12,7 +12,7 @@
  * @created December 27, 2025
  */
 
-import { ProductUnderstanding } from './productClassifier';
+import { ProductUnderstanding } from '@/services/productClassifier';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

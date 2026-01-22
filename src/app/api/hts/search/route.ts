@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { searchHtsCodes } from '@/services/htsDatabase';
+import { searchHtsCodes } from '@/services/hts/database';
 import { HtsLevel } from '@prisma/client';
 
 export async function GET(request: NextRequest) {

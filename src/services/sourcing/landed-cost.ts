@@ -35,7 +35,7 @@ import {
 import { 
     getEffectiveTariff as getEffectiveTariffFromRegistry,
     getTariffProfile,
-} from './tariffRegistry';
+} from '@/services/tariff/registry';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TARIFF HELPERS - Using centralized data sources for accuracy

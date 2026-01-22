@@ -2,7 +2,7 @@
  * Seed Demo User for Development
  * 
  * Creates a demo user for local development and testing.
- * Run: npx tsx prisma/seed-demo-user.ts
+ * Run: npx tsx scripts/seeds/seed-demo-user.ts
  */
 
 // Load environment variables from .env.local

@@ -10,9 +10,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { runHtsImportFromDefault, getHtsImportHistory } from '@/services/htsImport';
-import { getHtsDatabaseStats } from '@/services/htsDatabase';
-import { checkForHtsUpdates, markRevisionAsCurrent } from '@/services/htsRevisionChecker';
+import { runHtsImportFromDefault, getHtsImportHistory } from '@/services/hts/import';
+import { getHtsDatabaseStats } from '@/services/hts/database';
+import { checkForHtsUpdates, markRevisionAsCurrent } from '@/services/hts/revision-checker';
 
 export async function GET() {
   try {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     
     if (specificFile) {
       // Import specific file
-      const { runHtsImport } = await import('@/services/htsImport');
+      const { runHtsImport } = await import('@/services/hts/import');
       const filePath = `${process.cwd()}/data/hts/raw/${specificFile}`;
       result = await runHtsImport(filePath, specificFile);
       revisionId = specificFile;

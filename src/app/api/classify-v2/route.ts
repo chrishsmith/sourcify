@@ -17,7 +17,7 @@ import {
     type ClassificationInputV2,
     type ClassificationPhase,
     type ClassificationResponseV2,
-} from '@/services/classificationFlowV2';
+} from '@/services/classification/flow-v2';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REQUEST/RESPONSE TYPES

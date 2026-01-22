@@ -9,13 +9,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
-import { classifyProductV5, ClassificationV5Result, ClassificationV5Input } from '@/services/classificationEngineV5';
+import { classifyProductV5, ClassificationV5Result, ClassificationV5Input } from '@/services/classification/engine-v5';
 import { generateJustification, generateQuickJustification } from '@/services/justificationGenerator';
 import { 
   convertV5ResultToClassificationResult, 
   convertV5InputToClassificationInput,
   extractEffectiveRateFromV5,
-} from '@/services/classificationV5Adapter';
+} from '@/services/classification/v5-adapter';
 import { saveSearchToHistory } from '@/services/searchHistory';
 
 /**

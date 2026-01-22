@@ -18,7 +18,7 @@
 import { getXAIClient } from '@/lib/xai';
 import { searchHTSCodes, getHTSDutyRate } from '@/services/usitc';
 import { getLikelyChapters } from '@/data/htsChapterGuide';
-import { getEffectiveTariff } from '@/services/tariffRegistry';
+import { getEffectiveTariff } from '@/services/tariff/registry';
 import { analyzeAmbiguity, type AmbiguityAnalysis, type DecisionVariable } from '@/services/ambiguityDetector';
 
 // ═══════════════════════════════════════════════════════════════════════════════

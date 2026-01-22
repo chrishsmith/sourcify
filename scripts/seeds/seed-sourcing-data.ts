@@ -6,7 +6,7 @@
  * - HTS cost aggregations
  * - Supplier verifications
  * 
- * Run: npx ts-node prisma/seed-sourcing-data.ts
+ * Run: npx tsx scripts/seeds/seed-sourcing-data.ts
  */
 
 import { PrismaClient } from '@prisma/client';

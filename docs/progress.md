@@ -128,7 +128,7 @@ STATISTICAL (8-10)    = FOR WHOM?       (least important)
 | 5.11 Remove Timing Display | ✅ Complete | Removed "X.Xs" tag from results (internal metric) |
 | 5.12 Confidence Scoring Fix | ✅ Complete | Exact matches now score higher (confetti: 25% → 70%) |
 | 5.13 Confidence Label | ✅ Complete | Added "MATCH" label + tooltip explaining the score |
-| 5.14 Demo User Setup | ✅ Complete | `prisma/seed-demo-user.ts` - demo@sourcify.dev |
+| 5.14 Demo User Setup | ✅ Complete | `scripts/seeds/seed-demo-user.ts` - demo@sourcify.dev |
 | 5.15 Dev Auto-Login | ✅ Complete | `/api/auth/dev-login` - auto-login for development |
 | 5.16 Search History Fix | ✅ Complete | Now saves searches for authenticated users |
 | 5.17 View Details Fix | ✅ Complete | Fixed V10-to-ClassificationResult transform error |
@@ -142,7 +142,7 @@ STATISTICAL (8-10)    = FOR WHOM?       (least important)
 **Demo User:**
 ```bash
 # Seed the demo user
-npx tsx prisma/seed-demo-user.ts
+npx tsx scripts/seeds/seed-demo-user.ts
 
 # Auto-login in development
 http://localhost:3000/api/auth/dev-login?redirect=/dashboard/classifications

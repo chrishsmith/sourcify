@@ -5,7 +5,7 @@ import { Card, Typography, Steps, message } from 'antd';
 import { Loader2, CheckCircle, Zap } from 'lucide-react';
 import { ClassificationResultDisplay } from './ClassificationResult';
 import { ProductInputForm, ProductInputValues } from '@/components/shared';
-import { saveClassification } from '@/services/classificationHistory';
+import { saveClassification } from '@/services/classification/history';
 import type { ClassificationInput, ClassificationResult } from '@/types/classification.types';
 
 const { Title, Paragraph } = Typography;

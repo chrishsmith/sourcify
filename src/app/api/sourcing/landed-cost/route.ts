@@ -9,7 +9,7 @@ import {
     compareLandedCosts, 
     calculateLandedCost,
     getQuickCostComparison 
-} from '@/services/landedCost';
+} from '@/services/sourcing/landed-cost';
 
 export async function GET(request: NextRequest) {
     try {

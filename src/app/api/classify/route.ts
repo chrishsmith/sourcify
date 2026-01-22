@@ -14,9 +14,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
-import { classifyProduct } from '@/services/classificationEngine';
-import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
-import { getHTSHierarchy } from '@/services/htsHierarchy';
+import { classifyProduct } from '@/services/classification/engine';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariff/registry';
+import { getHTSHierarchy } from '@/services/hts/hierarchy';
 import { detectValueDependentCodes } from '@/services/valueClassification';
 import { saveSearchToHistory } from '@/services/searchHistory';
 import type { ClassificationInput, ClassificationResult } from '@/types/classification.types';

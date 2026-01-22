@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyProductV6 } from '@/services/classificationEngineV6';
+import { classifyProductV6 } from '@/services/classification/engine-v6';
 
 export async function POST(request: NextRequest) {
   try {

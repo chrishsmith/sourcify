@@ -13,7 +13,7 @@
  */
 
 import { searchHTSCodes } from '@/services/usitc';
-import { getHTSHierarchy } from '@/services/htsHierarchy';
+import { getHTSHierarchy } from '@/services/hts/hierarchy';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES

@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getEffectiveTariff, type EffectiveTariffResult } from '@/services/tariffRegistry';
+import { getEffectiveTariff, type EffectiveTariffResult } from '@/services/tariff/registry';
 
 export const dynamic = 'force-dynamic';
 

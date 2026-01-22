@@ -9,7 +9,7 @@
  * This service fetches LIVE rates from the USITC API to ensure accuracy.
  */
 
-import { searchHTSCodes, type HTSSearchResult } from './usitc';
+import { searchHTSCodes, type HTSSearchResult } from '@/services/usitc';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CHAPTER 99 CODE PATTERNS

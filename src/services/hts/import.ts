@@ -22,7 +22,7 @@ import {
   parseHtsCode,
   parseAdValoremRate,
   parseSpecificRate,
-} from './htsDatabase';
+} from '@/services/hts/database';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

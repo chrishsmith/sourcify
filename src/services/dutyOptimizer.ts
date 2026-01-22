@@ -21,9 +21,9 @@ import {
   normalizeHtsCode,
   getHtsSiblings,
   getHtsHierarchy,
-} from './htsDatabase';
-import { searchHtsBySemantic } from './htsEmbeddings';
-import { getEffectiveTariff } from './tariffRegistry';
+} from '@/services/hts/database';
+import { searchHtsBySemantic } from '@/services/hts/embeddings';
+import { getEffectiveTariff } from '@/services/tariff/registry';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

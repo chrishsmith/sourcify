@@ -15,14 +15,14 @@ import {
   syncOFACSDNList, 
   getLastSyncInfo as getOFACLastSyncInfo, 
   getSyncHistory as getOFACSyncHistory 
-} from '@/services/ofacService';
+} from '@/services/compliance/ofac-service';
 import {
   syncBISEntityList,
   syncBISDeniedPersons,
   syncAllBISLists,
   getLastBISSyncInfo,
   getBISSyncHistory,
-} from '@/services/bisService';
+} from '@/services/compliance/bis-service';
 import { DeniedPartyList } from '@prisma/client';
 
 type SupportedList = 'ofac_sdn' | 'bis_entity_list' | 'bis_denied' | 'all';

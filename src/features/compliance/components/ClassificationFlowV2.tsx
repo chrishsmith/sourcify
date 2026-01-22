@@ -28,7 +28,7 @@ import type {
     CleanMaterialGroup,
     ProductCategory,
     CleanCode,
-} from '@/services/classificationFlowV2';
+} from '@/services/classification/flow-v2';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;

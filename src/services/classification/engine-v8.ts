@@ -25,20 +25,20 @@ import {
   ProductUnderstanding,
   DecisionPoint,
   ClassificationRoute,
-} from './productClassifier';
+} from '@/services/productClassifier';
 import {
   getChapterByMaterial,
   getHeadingForChapter,
   getFullMaterialRoute,
-} from './htsDecisionTree';
+} from '@/services/hts/decision-tree';
 import {
   navigateTree,
   ProductContext,
   TreePath,
   NavigationStep,
-} from './htsTreeNavigator';
-import { CHAPTER_DESCRIPTIONS } from './htsHierarchy';
-import { selectChapterAndHeading } from './aiChapterSelector';
+} from '@/services/hts/tree-navigator';
+import { CHAPTER_DESCRIPTIONS } from '@/services/hts/hierarchy';
+import { selectChapterAndHeading } from '@/services/aiChapterSelector';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HIERARCHY TYPES
@@ -828,11 +828,11 @@ function buildTransparency(
 export {
   analyzeProduct,
   determineRoute,
-} from './productClassifier';
+} from '@/services/productClassifier';
 
 export type {
   ProductUnderstanding,
   DecisionPoint,
   ClassificationRoute,
-} from './productClassifier';
+} from '@/services/productClassifier';
 

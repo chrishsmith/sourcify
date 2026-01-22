@@ -10,7 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariff/registry';
 
 // MPF: 0.3464% of value, min $31.67, max $614.35
 const MPF_RATE = 0.003464;

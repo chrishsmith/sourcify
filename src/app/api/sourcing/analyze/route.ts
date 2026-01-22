@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateSourcingRecommendations, SourcingAnalysisInput } from '@/services/sourcingAdvisor';
+import { generateSourcingRecommendations, SourcingAnalysisInput } from '@/services/sourcing/advisor';
 
 export async function POST(request: NextRequest) {
     try {

@@ -8,8 +8,8 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { classifyProduct } from '@/services/classificationEngine';
-import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariffRegistry';
+import { classifyProduct } from '@/services/classification/engine';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariff/registry';
 import { saveSearchToHistory } from '@/services/searchHistory';
 import { prisma } from '@/lib/db';
 import type { ClassificationInput } from '@/types/classification.types';

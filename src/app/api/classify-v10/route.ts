@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { classifyV10, generateJustification, ClassifyV10Input } from '@/services/classificationEngineV10';
+import { classifyV10, generateJustification, ClassifyV10Input } from '@/services/classification/engine-v10';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 

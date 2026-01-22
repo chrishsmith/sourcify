@@ -18,7 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyProductV8 } from '@/services/classificationEngineV8';
+import { classifyProductV8 } from '@/services/classification/engine-v8';
 
 export async function POST(request: NextRequest) {
   try {

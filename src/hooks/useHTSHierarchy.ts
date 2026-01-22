@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getHTSHierarchy } from '@/services/htsHierarchy';
+import { getHTSHierarchy } from '@/services/hts/hierarchy';
 import type { HTSHierarchy } from '@/types/classification.types';
 
 interface UseHTSHierarchyResult {

@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { findMatchingSuppliers, MatchCriteria } from '@/services/supplierMatching';
+import { findMatchingSuppliers, MatchCriteria } from '@/services/sourcing/supplier-matching';
 
 export async function POST(request: NextRequest) {
     try {

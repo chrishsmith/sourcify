@@ -14,12 +14,12 @@ async function getServices() {
 }
 
 async function getTariffRegistry() {
-    const { getEffectiveTariff } = await import('@/services/tariffRegistry');
+    const { getEffectiveTariff } = await import('@/services/tariff/registry');
     return { getEffectiveTariff };
 }
 
 async function getAlertService() {
-    const { getUserAlerts } = await import('@/services/tariffAlerts');
+    const { getUserAlerts } = await import('@/services/tariff/alerts');
     return { getUserAlerts };
 }
 

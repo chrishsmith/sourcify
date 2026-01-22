@@ -1,0 +1,54 @@
+---
+description: Git commit message and branch naming conventions optimized for fast vibe-coding in Sourcify
+globs: 
+  - "**/*"
+alwaysApply: false
+---
+
+# Commit & Branch Conventions Rule for Vibe Coding
+
+## Commit Messages
+Use **Conventional Commits** format for clean history and auto-changelogs:
+
+<type>(<scope>): <short description>
+
+Types (pick one):
+- feat:     new feature / capability
+- fix:      bug fix
+- refactor: code restructure (no behavior change)
+- docs:     documentation only
+- style:    formatting, missing semicolons, etc.
+- test:     adding or correcting tests
+- chore:    maintenance (deps, tooling)
+- perf:     performance improvement
+
+Scope: optional, e.g. classification, prisma, ui, auth, docs
+
+Examples (perfect for fast iteration):
+- feat(classification): add bulk classification endpoint
+- fix: handle null result in ClassificationTable
+- docs: update prd-trade-intelligence with new paid tier
+- refactor(services): extract classification engine to ClassificationService
+- chore(deps): upgrade prisma to latest
+
+Keep subject line < 72 chars. Add body if needed for why/how.
+
+## Branch Names
+For quick features / fixes (vibe-coding friendly):
+- feature/<kebab-case-description>     e.g. feature/add-premium-tier-check
+- fix/<kebab-case-bug>                 e.g. fix/classification-null-crash
+- refactor/<area>                      e.g. refactor/services-layer
+- docs/<topic>                         e.g. docs/update-roadmap-2026
+- spike/<experiment>                   (delete after)
+
+Main branches:
+- main → production / releases
+- develop → integration (optional)
+
+## Workflow Tips for Fast Iteration
+- Commit often (every 5-20 min or logical chunk)
+- Use small, atomic commits — easier to revert during vibes
+- Squash messy branches before merging to main
+- When suggesting Git commands or reviewing changes, remind me of these conventions
+
+This keeps Git history clean without slowing down rapid prototyping.

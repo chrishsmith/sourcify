@@ -16,7 +16,7 @@ import {
     validateClassificationSemantics, 
     getCategoryDisplayName,
     type ValidationResult as SemanticValidationResult 
-} from '@/services/classificationValidator';
+} from '@/services/classification/validator';
 import type { ClassificationInput, ClassificationResult, USITCCandidate, HTSCode, DutyRate } from '@/types/classification.types';
 
 // ═══════════════════════════════════════════════════════════════════════════

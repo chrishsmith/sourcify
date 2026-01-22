@@ -22,13 +22,13 @@ import {
   getHtsHierarchy,
   getHtsSiblings,
   parseHtsCode,
-} from './htsDatabase';
-import { getEffectiveTariff, convertToLegacyFormat } from './tariffRegistry';
-import { searchHtsBySemantic, dualPathSearch, getEmbeddingStats } from './htsEmbeddings';
+} from '@/services/hts/database';
+import { getEffectiveTariff, convertToLegacyFormat } from '@/services/tariff/registry';
+import { searchHtsBySemantic, dualPathSearch, getEmbeddingStats } from '@/services/hts/embeddings';
 import { 
   detectConditionalSiblings,
   ConditionalClassificationResult,
-} from './conditionalClassification';
+} from '@/services/conditionalClassification';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HTS CHAPTER DESCRIPTIONS (Not in database, stored here for reference)
