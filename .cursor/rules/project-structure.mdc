@@ -8,7 +8,7 @@ alwaysApply: false  # or true if you want it in EVERY prompt
 # Project Structure & Organization Rule for Sourcify
 
 ## Folder Structure to Always Follow
-- **Root**: Keep minimal → src/, prisma/, public/, _archive/, middleware.ts, next.config.*, package.json, tsconfig.json, .gitignore, README.md
+- **Root**: Keep minimal → src/, prisma/, public/, _archive/, middleware.ts, next.config.*, package.json, tsconfig.json, .gitignore, README.md, CONTRIBUTING.md
 - **src/app/**: Next.js App Router pages, layouts, route handlers (do NOT move)
 - **src/components/**: Reusable UI (split into ui/, features/ if grows)
 - **src/features/**: Group by business domain (e.g. features/classification/, features/compliance/)
@@ -26,7 +26,7 @@ alwaysApply: false  # or true if you want it in EVERY prompt
 
 ## Key Rules
 - No source code or docs scattered in root (except essentials)
-- Move all .md → docs/ unless it's README at root
+- Move all .md → docs/ unless it's README.md or CONTRIBUTING.md at root (GitHub convention)
 - Use kebab-case for new .md files and feature folders (classification-flow-v2 → classification-flow-v2.md)
 - When creating files: Suggest full path (e.g. src/features/classification/components/ClassificationTable.tsx)
 - When moving files: Update all imports/references automatically
