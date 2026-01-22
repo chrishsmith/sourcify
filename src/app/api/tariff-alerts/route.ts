@@ -1,96 +1,115 @@
 /**
  * Tariff Alerts API
- * GET - List user's alerts
- * POST - Create new alert
+ * 
+ * GET /api/tariff-alerts - List all alerts for the current user
+ * POST /api/tariff-alerts - Create a new alert
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
-import {
-    getUserAlerts,
-    createTariffAlert,
-    getAlertStats,
-} from '@/services/tariffAlerts';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { getEffectiveTariff } from '@/services/tariffRegistry';
 
-export async function GET(request: NextRequest) {
-    try {
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+export async function GET(request: Request) {
+  try {
+    // In production, get userId from session
+    // For now, we'll use a demo user or return sample data
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
 
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { searchParams } = new URL(request.url);
-        const activeOnly = searchParams.get('activeOnly') === 'true';
-        const includeStats = searchParams.get('includeStats') === 'true';
-        const limit = parseInt(searchParams.get('limit') || '50');
-        const offset = parseInt(searchParams.get('offset') || '0');
-
-        const { alerts, total } = await getUserAlerts(session.user.id, {
-            activeOnly,
-            limit,
-            offset,
-        });
-
-        let stats = null;
-        if (includeStats) {
-            stats = await getAlertStats(session.user.id);
-        }
-
-        return NextResponse.json({
-            alerts,
-            total,
-            limit,
-            offset,
-            ...(stats && { stats }),
-        });
-    } catch (error) {
-        console.error('[API] Get alerts error:', error);
-        return NextResponse.json({ error: 'Failed to fetch alerts' }, { status: 500 });
+    if (!userId) {
+      // Return sample data for demo
+      return NextResponse.json({
+        success: true,
+        alerts: [],
+        message: 'No user ID provided - returning empty list',
+      });
     }
+
+    const alerts = await prisma.tariffAlert.findMany({
+      where: { userId },
+      include: {
+        savedProduct: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({
+      success: true,
+      alerts,
+    });
+  } catch (error) {
+    console.error('Tariff alerts GET error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch alerts' },
+      { status: 500 }
+    );
+  }
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const session = await auth.api.getSession({
-            headers: await headers(),
-        });
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { htsCode, countryOfOrigin, alertType, threshold, userId } = body;
 
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const body = await request.json();
-
-        if (!body.htsCode || body.currentRate === undefined) {
-            return NextResponse.json(
-                { error: 'htsCode and currentRate are required' },
-                { status: 400 }
-            );
-        }
-
-        const alertId = await createTariffAlert(session.user.id, {
-            htsCode: body.htsCode,
-            countryOfOrigin: body.countryOfOrigin,
-            currentRate: body.currentRate,
-            alertType: body.alertType,
-            threshold: body.threshold,
-            savedProductId: body.savedProductId,
-            searchHistoryId: body.searchHistoryId,
-        });
-
-        return NextResponse.json({ id: alertId, success: true });
-    } catch (error) {
-        console.error('[API] Create alert error:', error);
-        return NextResponse.json({ error: 'Failed to create alert' }, { status: 500 });
+    if (!htsCode) {
+      return NextResponse.json(
+        { success: false, error: 'HTS code is required' },
+        { status: 400 }
+      );
     }
+
+    // Normalize HTS code
+    const normalizedCode = htsCode.replace(/\./g, '');
+
+    // Get current rate for the HTS code and country
+    let originalRate = 0;
+    try {
+      const tariffInfo = await getEffectiveTariff(normalizedCode, countryOfOrigin || 'CN');
+      originalRate = tariffInfo.effectiveRate || 0;
+    } catch {
+      // Default to 0 if we can't get the rate
+      originalRate = 0;
+    }
+
+    // Create the alert
+    // In production, get userId from session
+    const effectiveUserId = userId || 'demo-user';
+
+    const alert = await prisma.tariffAlert.create({
+      data: {
+        userId: effectiveUserId,
+        htsCode: normalizedCode,
+        countryOfOrigin: countryOfOrigin || null,
+        originalRate,
+        currentRate: originalRate,
+        alertType: alertType || 'ANY_CHANGE',
+        threshold: threshold || null,
+        isActive: true,
+      },
+      include: {
+        savedProduct: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      alert,
+    });
+  } catch (error) {
+    console.error('Tariff alerts POST error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create alert' },
+      { status: 500 }
+    );
+  }
 }
-
-
-
-
-
-

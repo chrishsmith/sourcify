@@ -24,6 +24,12 @@ import {
     Shield,
     AlertTriangle,
     FileCheck,
+    BarChart3,
+    Handshake,
+    ClipboardCheck,
+    ListChecks,
+    History,
+    BellRing,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
@@ -120,6 +126,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             label: 'My Products',
         },
         {
+            key: '/dashboard/intelligence/trade-stats',
+            icon: <BarChart3 size={18} />,
+            label: 'Trade Stats',
+        },
+        {
             key: '/dashboard/sourcing',
             icon: <Globe size={18} />,
             label: (
@@ -143,6 +154,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             key: '/dashboard/compliance/pga',
             icon: <FileCheck size={18} />,
             label: 'PGA',
+        },
+        {
+            key: '/dashboard/compliance/fta-rules',
+            icon: <Handshake size={18} />,
+            label: 'FTA Rules',
+        },
+        {
+            key: '/dashboard/compliance/fta-calculator',
+            icon: <ClipboardCheck size={18} />,
+            label: 'FTA Calculator',
+        },
+        {
+            key: '/dashboard/compliance/tariff-tracker',
+            icon: <ListChecks size={18} />,
+            label: 'Tariff Tracker',
+        },
+        {
+            key: '/dashboard/compliance/hts-history',
+            icon: <History size={18} />,
+            label: 'HTS History',
+        },
+        {
+            key: '/dashboard/compliance/alerts',
+            icon: <BellRing size={18} />,
+            label: 'Alerts',
         },
         {
             type: 'divider',
@@ -176,12 +212,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         if (pathname.startsWith('/dashboard/suppliers')) {
             return '/dashboard/sourcing';
         }
+        // Trade statistics
+        if (pathname.startsWith('/dashboard/intelligence')) {
+            return '/dashboard/intelligence/trade-stats';
+        }
         // Compliance tools - denied party screening, ADD/CVD, and PGA
         if (pathname === '/dashboard/compliance/addcvd') {
             return '/dashboard/compliance/addcvd';
         }
         if (pathname === '/dashboard/compliance/pga') {
             return '/dashboard/compliance/pga';
+        }
+        if (pathname === '/dashboard/compliance/fta-rules') {
+            return '/dashboard/compliance/fta-rules';
+        }
+        if (pathname === '/dashboard/compliance/fta-calculator') {
+            return '/dashboard/compliance/fta-calculator';
+        }
+        if (pathname === '/dashboard/compliance/tariff-tracker') {
+            return '/dashboard/compliance/tariff-tracker';
+        }
+        if (pathname === '/dashboard/compliance/hts-history') {
+            return '/dashboard/compliance/hts-history';
+        }
+        if (pathname === '/dashboard/compliance/alerts') {
+            return '/dashboard/compliance/alerts';
         }
         if (pathname.startsWith('/dashboard/compliance')) {
             return '/dashboard/compliance/denied-party';
@@ -299,7 +354,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             'denied-party': 'Denied Party Screening',
             'addcvd': 'ADD/CVD Lookup',
             'pga': 'PGA Requirements',
+            'fta-rules': 'FTA Rules of Origin',
+            'fta-calculator': 'FTA Qualification Calculator',
+            'tariff-tracker': 'Section 301/IEEPA Tariff Tracker',
+            'hts-history': 'HTS Code History',
+            'alerts': 'Compliance Alerts',
             'compliance': 'Compliance Tools',
+            'trade-stats': 'Trade Statistics',
+            'intelligence': 'Trade Intelligence',
         };
         return titles[segment] || segment.replace('-', ' ');
     };

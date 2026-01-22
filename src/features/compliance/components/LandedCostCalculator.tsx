@@ -616,9 +616,7 @@ export const LandedCostCalculator: React.FC = () => {
                                     <InputNumber<number>
                                         prefix="$"
                                         style={{ width: '100%' }}
-                                        placeholder="10,000.00"
-                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={value => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
+                                        placeholder="10000"
                                         min={0.01}
                                         step={100}
                                     />
@@ -634,9 +632,7 @@ export const LandedCostCalculator: React.FC = () => {
                                 >
                                     <InputNumber<number>
                                         style={{ width: '100%' }}
-                                        placeholder="1,000"
-                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={value => Number(value?.replace(/,/g, '') || 0)}
+                                        placeholder="1000"
                                         min={1}
                                         step={1}
                                     />
@@ -662,9 +658,7 @@ export const LandedCostCalculator: React.FC = () => {
                                     <InputNumber<number>
                                         prefix="$"
                                         style={{ width: '100%' }}
-                                        placeholder="500.00"
-                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={value => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
+                                        placeholder="500"
                                         min={0}
                                         step={50}
                                     />
@@ -678,9 +672,7 @@ export const LandedCostCalculator: React.FC = () => {
                                     <InputNumber<number>
                                         prefix="$"
                                         style={{ width: '100%' }}
-                                        placeholder="100.00"
-                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={value => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
+                                        placeholder="100"
                                         min={0}
                                         step={25}
                                     />

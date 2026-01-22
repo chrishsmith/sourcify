@@ -24,6 +24,7 @@
     "openai": "^6.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "recharts": "^2.15.4",
     "uploadthing": "^7.7.4",
     "xlsx": "^0.18.5"
   },

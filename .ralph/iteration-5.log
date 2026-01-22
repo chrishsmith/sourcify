@@ -1,3 +1,48 @@
 --- cursor-agent output start ---
-RetriableError: Connection stalled
+Story **P1-008 - Build FTA Qualification Calculator** is complete. Here's the summary:
+
+## Implementation Complete
+
+### Files Created:
+1. **API** - `src/app/api/fta-calculator/route.ts` (~400 lines)
+   - POST: Calculate FTA qualification (RVC, tariff shift analysis)
+   - GET: Fetch FTA agreements list
+
+2. **Component** - `src/features/compliance/components/FTAQualificationCalculator.tsx` (~1150 lines)
+   - Product info card (HTS code, FTA selection, transaction value)
+   - BOM management (add/edit/delete components)
+   - RVC calculation with circular progress
+   - Tariff shift analysis table
+   - Pass/fail result with explanation
+   - Duty savings display
+   - Save/load BOM to localStorage
+
+3. **Page** - `src/app/(dashboard)/dashboard/compliance/fta-calculator/page.tsx`
+
+4. **Navigation** - Updated `DashboardLayout.tsx` with ClipboardCheck icon "FTA Calculator"
+
+### Acceptance Criteria Met:
+- ✅ FTA calculator at /dashboard/compliance/fta-calculator
+- ✅ User enters HTS code and selects FTA
+- ✅ System shows applicable rule of origin
+- ✅ User inputs Bill of Materials (component, HTS, origin country, value)
+- ✅ Calculator determines RVC percentage and tariff shift compliance
+- ✅ Clear pass/fail result with explanation
+- ✅ Shows duty savings if qualified vs MFN rate
+- ✅ Save BOM for future reference (localStorage)
+
+### Manual Steps Required:
+The build and git commands were rejected by the sandbox. Please run:
+
+```bash
+cd /Users/smithchrish/Projects/sourcify
+npm run build
+git add -A && git commit -m "feat(P1-008): Build FTA Qualification Calculator
+
+- Add FTA qualification calculator at /dashboard/compliance/fta-calculator
+- Support RVC calculation (transaction, net_cost, build_down, build_up methods)
+- Tariff shift analysis (CC/CTH/CTSH/CTI) for BOM components
+- Show pass/fail with duty savings estimate
+- Save/load BOMs to localStorage"
+```
 --- cursor-agent output end ---

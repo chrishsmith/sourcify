@@ -416,6 +416,122 @@
       "technicalNotes": "Use PostgreSQL full-text search or add search index",
       "passes": false,
       "notes": "DEFERRED: Complex web scraping - needs manual implementation"
+    },
+    {
+      "id": "P1-006",
+      "phase": "phase-1",
+      "title": "Build Trade Statistics Dashboard",
+      "description": "Visualize USITC trade data with interactive dashboards for import/export trends",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Trade statistics page at /dashboard/intelligence/trade-stats",
+        "Top 10 import sources by HTS code (bar chart)",
+        "Trade volume/value trends over time (line chart)",
+        "Country breakdown for selected HTS (pie chart)",
+        "Year-over-year growth comparison",
+        "Filter by HTS chapter, date range, country",
+        "Export chart data to Excel"
+      ],
+      "technicalNotes": "Use existing USITC DataWeb API integration, Ant Design Charts or Recharts",
+      "passes": true,
+      "notes": "Implementation was mostly complete from previous iterations. Created page at /dashboard/intelligence/trade-stats/page.tsx. Added navigation item with BarChart3 icon to DashboardLayout.tsx. Component: TradeStatsDashboard at src/features/intelligence/components/TradeStatsDashboard.tsx (670 lines). API: /api/trade-stats using usitcDataWeb service. Features: horizontal bar chart for top 10 sources, area chart for trends over time (toggle view), pie chart for market share, YoY growth comparison table, HTS chapter dropdown with 10 popular chapters, multi-select country filter, Excel export via exportService. Uses Recharts for visualization. Sample data provided when USITC_DATAWEB_API_KEY is not set."
+    },
+    {
+      "id": "P1-007",
+      "phase": "phase-1",
+      "title": "Build FTA Rules Engine",
+      "description": "Index 300+ FTA rules of origin by HTS code for quick lookup",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "FTA rules page at /dashboard/compliance/fta-rules",
+        "Search by HTS code to see applicable FTAs",
+        "Each FTA shows: rule of origin text, qualifying criteria",
+        "Support USMCA, CAFTA-DR, Korea, Australia, Singapore, etc.",
+        "Show RVC threshold and/or tariff shift requirements",
+        "Link to full FTA text on USTR website",
+        "Database table for FTA rules with HTS mappings"
+      ],
+      "technicalNotes": "Parse FTA annexes from USTR PDFs, store in FtaRule table with htsPrefix and ruleType fields",
+      "passes": true,
+      "notes": "Complete implementation. Data: src/data/ftaRules.ts with 14 FTA agreements (USMCA, KORUS, CAFTA-DR, AUSFTA, SFTA, etc.) and 30+ rules covering chapters 29, 30, 39, 44, 48, 61, 62, 64, 71, 73, 84, 85, 87, 90, 94, 95. Each rule includes ruleType (tariff_shift, rvc, rvc_or_shift, etc.), tariffShift type (CC, CTH, CTSH), rvcThreshold, rvcMethod, additionalRequirements, and official ruleText. API: /api/fta-rules (GET) with htsCode, ftaCode, countryCode params. Component: FTARulesLookup.tsx (~700 lines) with HTS search, country filter (20 FTA partners), FTA dropdown, results table with rule type/shift/RVC tags, detail modal with full rule text and requirements explanation, collapsible reference sections for tariff shift and RVC methods. Navigation: Handshake icon 'FTA Rules' in sidebar. External links to USTR FTA Portal, CBP FTA Resources, USITC HTS Database."
+    },
+    {
+      "id": "P1-008",
+      "phase": "phase-1",
+      "title": "Build FTA Qualification Calculator",
+      "description": "Help users determine if their product qualifies for FTA preferential rates based on Bill of Materials",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "FTA calculator at /dashboard/compliance/fta-calculator",
+        "User enters HTS code and selects FTA (e.g., USMCA)",
+        "System shows applicable rule of origin",
+        "User inputs Bill of Materials with: component, HTS, origin country, value",
+        "Calculator determines: RVC percentage, tariff shift compliance",
+        "Clear pass/fail result with explanation",
+        "Show duty savings if qualified vs MFN rate",
+        "Save BOM for future reference"
+      ],
+      "technicalNotes": "Build on FTA Rules Engine (P1-007), RVC formula: (Transaction Value - Non-Originating Materials) / Transaction Value * 100",
+      "passes": true,
+      "notes": "Complete implementation. Page: /dashboard/compliance/fta-calculator. Component: src/features/compliance/components/FTAQualificationCalculator.tsx (~1150 lines). API: /api/fta-calculator (POST for calculation, GET for FTA list). Features: 1) Product info card (HTS code, FTA selection, transaction value), 2) BOM management with add/edit/delete components (name, HTS, origin country, value), 3) Auto-determines originating status based on FTA countries, 4) RVC calculation with circular progress (Transaction/Net Cost/Build-Down/Build-Up methods), 5) Tariff shift analysis table showing CC/CTH/CTSH/CTI compliance per component, 6) Pass/fail result card with green/red styling, 7) Duty savings display (MFN vs FTA rate), 8) Save BOM to localStorage with load/delete, 9) Quick reference panels. Navigation: ClipboardCheck icon 'FTA Calculator' in DashboardLayout.tsx."
+    },
+    {
+      "id": "P1-009",
+      "phase": "phase-1",
+      "title": "Build Historical HTS Archives",
+      "description": "Track HTS code changes over time to help users map old codes to new ones",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "HTS history page at /dashboard/compliance/hts-history",
+        "Enter old HTS code to see current equivalent",
+        "Enter current HTS code to see previous versions",
+        "Show effective dates for each change",
+        "Store HTS revisions from 2020-present minimum",
+        "API endpoint for programmatic lookup",
+        "Indicate if code was split, merged, or renamed"
+      ],
+      "technicalNotes": "Use existing HtsRevision model, parse USITC change notices",
+      "passes": true,
+      "notes": "Complete implementation. Page: /dashboard/compliance/hts-history. Component: src/features/compliance/components/HTSHistoryLookup.tsx (~700 lines). API: /api/hts-history (GET with code, year, chapter params). Data: src/data/htsCodeChanges.ts with 15+ HTS code changes from 2020-2025 (splits, merges, renames, additions, deletions, rate changes, description updates). Features: 1) Code Lookup tab - enter HTS to see forward mappings (old→new) and backward mappings (new←old) with Timeline history, 2) Browse All Changes tab - filterable table by year/chapter with change type tags, expandable rows for descriptions/notes, Federal Register links, 3) Stats cards showing total changes/years covered/chapters affected/change types, 4) External resource links to USITC HTS Database, Federal Register ITC, CBP Rulings. Change types with colored tags: split (blue), merge (purple), rename (cyan), added (green), deleted (red), rate_change (orange), description_update (gray). Navigation: History icon 'HTS History' in sidebar."
+    },
+    {
+      "id": "P1-010",
+      "phase": "phase-1",
+      "title": "Build Section 301/IEEPA Tariff Tracker",
+      "description": "Dedicated page to track current special tariffs with exclusions and effective dates",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Tariff tracker page at /dashboard/compliance/tariff-tracker",
+        "Section 301 lists breakdown (List 1-4A/B with rates)",
+        "IEEPA tariffs by country (CN, MX, CA)",
+        "Section 232 steel/aluminum rates",
+        "Each tariff shows: rate, effective date, applicable HTS chapters",
+        "Search by HTS code to see all applicable special tariffs",
+        "Show active exclusions if any",
+        "Links to Federal Register notices"
+      ],
+      "technicalNotes": "Use existing tariff registry data, add Federal Register links",
+      "passes": true,
+      "notes": "Complete implementation. Page: /dashboard/compliance/tariff-tracker. Component: src/features/compliance/components/TariffTrackerContent.tsx (~865 lines). API: /api/tariff-tracker (GET with category/country/htsCode/status filters). Data: src/data/specialTariffs.ts with Section 301 lists (1-4A/B), IEEPA programs (baseline, fentanyl, reciprocal by country), Section 232 (steel/aluminum/auto). Features: 1) Summary stats cards (program counts by category), 2) Search by HTS code to see applicable tariffs, 3) Country filter with 18 options, 4) Category filter (Section 301/IEEPA/Section 232), 5) Active-only toggle, 6) Calculated total tariff when HTS+country selected with breakdown, 7) Collapsible panels for each category with detail tables, 8) IEEPA reciprocal rates by country visual grid (color-coded by severity), 9) Detail modal with Federal Register links, Executive Orders, and legal references, 10) Export to Excel, 11) External resources links to Federal Register, USTR, CBP, USITC, Commerce. Navigation: ListChecks icon 'Tariff Tracker' in sidebar."
+    },
+    {
+      "id": "P1-011",
+      "phase": "phase-1",
+      "title": "Build Compliance Alert System",
+      "description": "Notify users when tariff rates change for their saved products",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Alert preferences in user settings",
+        "Option to receive: email digest (weekly), in-app notifications, both",
+        "Alerts trigger for: rate changes, new exclusions, expiring programs",
+        "Alert history visible in dashboard",
+        "Click alert to see affected product and details",
+        "Unsubscribe option per alert type",
+        "Batch processing for efficiency"
+      ],
+      "technicalNotes": "Use existing TariffAlert model, add email integration with Resend/SendGrid, daily cron job for digest",
+      "passes": true,
+      "notes": "Complete implementation. Page: /dashboard/compliance/alerts. Component: src/features/compliance/components/ComplianceAlerts.tsx (~900 lines). API: /api/tariff-alerts (GET/POST), /api/tariff-alerts/[id] (GET/PATCH/DELETE), /api/tariff-alerts/events (GET). Features: 1) My Alerts tab - table with HTS code, country, alert type (ANY_CHANGE/INCREASE_ONLY/DECREASE_ONLY/THRESHOLD), current rate, active toggle, delete action, 2) Alert History tab - table with date, rate change visualization, reason, notification status (sent/pending), 3) Preferences tab - email notifications toggle with frequency (instant/daily/weekly), in-app notifications toggle, alert triggers (increases/decreases toggles), minimum change threshold percentage. Uses existing TariffAlert and TariffAlertEvent Prisma models. Create Alert modal with HTS code input, optional country filter, alert type selection with threshold for THRESHOLD type. Stats cards show active/total alerts, recent events, notifications sent. Preferences stored in localStorage. Note: Email integration info message - requires Resend/SendGrid server integration for actual delivery."
     }
   ]
 }

@@ -1283,3 +1283,287 @@ npx ts-node prisma/seed-hts.ts
 - Story: P3-007
 - Duration: 44s
 - Status: In Progress
+
+### Iteration 1 - 2026-01-22 12:22
+- Story: P1-006
+- Duration: 256s
+- Status: In Progress
+
+### Iteration 2 - 2026-01-22 12:30
+- Story: P1-006
+- Duration: 490s
+- Status: In Progress
+
+### Story P1-006 - 2026-01-22
+**What I Did:** Completed Trade Statistics Dashboard feature. The component and API were already implemented from previous iterations - just needed to create the page route and add navigation.
+
+**Implementation Summary:**
+- Page: `/dashboard/intelligence/trade-stats/page.tsx` - Simple wrapper importing TradeStatsDashboard
+- Navigation: Added "Trade Stats" with BarChart3 icon to DashboardLayout.tsx menu
+- Component: `src/features/intelligence/components/TradeStatsDashboard.tsx` (~670 lines)
+- API: `/api/trade-stats/route.ts` - Returns import stats by country, trends, pie data
+- Service: `src/services/usitcDataWeb.ts` - USITC DataWeb API integration
+
+**Features Implemented:**
+- Top 10 import sources horizontal bar chart (Recharts BarChart)
+- Trade trends area chart with toggle (Recharts AreaChart)
+- Market share pie chart (Recharts PieChart)
+- YoY growth comparison table with country flags
+- HTS chapter dropdown (10 popular chapters: 6109, 8471, 8517, etc.)
+- Multi-select country filter (15 countries)
+- Excel export via exportService
+- Sample data fallback when USITC_DATAWEB_API_KEY not set
+
+**Patterns Found:**
+- Recharts library for React charts (BarChart, PieChart, AreaChart, ResponsiveContainer)
+- Segmented component for chart view toggle (bar vs trend)
+- formatValue helper for currency display ($1.2M, $3.5B)
+- getCountryFlag helper for flag emojis by ISO code
+- Sample data pattern: provide realistic mock data when API key unavailable
+- useMemo for derived chart data transformation
+
+**Gotchas:**
+- Recharts requires ResponsiveContainer wrapper for proper sizing
+- Custom tooltip components need specific prop typing
+- BarChart layout="vertical" swaps X/Y axes for horizontal bars
+- Cell component needed to color each bar individually
+
+**For Next Time:**
+- Trade stats component location: `src/features/intelligence/components/`
+- USITC DataWeb service: `src/services/usitcDataWeb.ts`
+- For new pages: create `page.tsx` + add menu item to DashboardLayout + add getSelectedKey + add title mapping
+- Recharts docs: https://recharts.org/en-US/api
+
+### Iteration 3 - 2026-01-22 12:33
+- Story: P1-006
+- Duration: 198s
+- Status: Completed ✅
+
+### Story P1-007 - 2026-01-22
+**What I Did:** Built FTA Rules Engine with searchable database of Free Trade Agreement rules of origin indexed by HTS code.
+
+**Implementation Summary:**
+- Data: `src/data/ftaRules.ts` (~600 lines) - Comprehensive FTA rules database
+- API: `src/app/api/fta-rules/route.ts` - GET endpoint with htsCode, ftaCode, countryCode filters
+- Component: `src/features/compliance/components/FTARulesLookup.tsx` (~700 lines)
+- Page: `/dashboard/compliance/fta-rules/page.tsx`
+- Navigation: Added "FTA Rules" with Handshake icon to DashboardLayout.tsx
+
+**Data Structure (ftaRules.ts):**
+- FTA_AGREEMENTS: 14 active US FTAs (USMCA, KORUS, CAFTA-DR, AUSFTA, SFTA, CIFTA, CTPA, PTPA, MFTA, JFTA, BFTA, OFTA, ILFTA)
+- FTA_RULES: 30+ rules covering chapters 29, 30, 39, 44, 48, 61, 62, 64, 71, 73, 84, 85, 87, 90, 94, 95
+- Each rule includes: ruleType, tariffShift (CC/CTH/CTSH), rvcThreshold, rvcMethod, additionalRequirements, ruleText
+- Helper functions: getAllFtaAgreements, getRulesByHtsPrefix, getRulesByFta, getRuleForHtsAndFta, hasUsaFta
+
+**UI Features:**
+- Search by HTS code with prefix matching
+- Filter by country of origin (20 FTA partner countries)
+- Filter by specific FTA agreement
+- Results table with: FTA code, HTS prefix, product category, rule type tag, requirements (shift/RVC tags), Details button
+- Detail modal with: official rule text, tariff shift explanation, RVC calculation formula, additional requirements
+- Country FTA eligibility alert (green for FTA country, amber for non-FTA)
+- Collapsible reference sections explaining tariff shift types (CC, CTH, CTSH) and RVC methods
+- External links to USTR FTA Portal, CBP FTA Resources, USITC HTS Database
+
+**Patterns Found:**
+- Static data pattern: FTA rules stored in TypeScript const arrays (like adcvdOrders.ts, pgaFlags.ts)
+- Rule type enum pattern: tariff_shift, rvc, rvc_or_shift, rvc_and_shift, wholly_obtained, specific_process
+- Tariff shift hierarchy: CC (2-digit) > CTH (4-digit) > CTSH (6-digit) > CTI (8-digit)
+- RVC methods: transaction, net_cost, build_down, build_up
+- Country-to-FTA mapping: getFtasByCountry filters agreements by country code array
+
+**Gotchas:**
+- FTA rules are HTS prefix-based, not exact code matches - use startsWith for matching
+- USMCA has stricter rules (75% RVC for auto, yarn-forward for textiles) vs other FTAs (35% typical)
+- Some rules allow either RVC or tariff shift (rvc_or_shift), some require both (rvc_and_shift)
+- Textiles (Ch 61/62) have yarn-forward rules - special requirements beyond standard tariff shift
+- RVC formulas vary by method - transaction value vs net cost produce different results
+
+**For Next Time:**
+- Data file: `src/data/ftaRules.ts` has FTA_AGREEMENTS, FTA_RULES, helper functions
+- API filters: ?htsCode, ?ftaCode, ?countryCode, ?includeAgreements=true
+- P1-008 (FTA Qualification Calculator) will build on this rules engine
+- Consider adding more rules from FTA annexes for comprehensive coverage
+- Could add estimated duty savings calculation (MFN vs FTA rate)
+
+### Iteration 4 - 2026-01-22
+- Story: P1-007
+- Status: Completed ✅
+
+### Iteration 4 - 2026-01-22 12:40
+- Story: P1-007
+- Duration: 387s
+- Status: Completed ✅
+
+### Story P1-008 - 2026-01-22
+**What I Did:** Built FTA Qualification Calculator for determining if products qualify for FTA preferential duty rates based on Bill of Materials analysis.
+
+**Implementation Summary:**
+- Page: `/dashboard/compliance/fta-calculator/page.tsx` - Simple wrapper
+- Component: `src/features/compliance/components/FTAQualificationCalculator.tsx` (~1150 lines)
+- API: `src/app/api/fta-calculator/route.ts` - POST for calculation, GET for FTA list
+- Navigation: Added "FTA Calculator" with ClipboardCheck icon to DashboardLayout.tsx
+
+**Key Features:**
+1. **Product Information Card:**
+   - HTS code input
+   - FTA selection dropdown (13 FTAs from ftaRules.ts)
+   - Transaction value input
+   - Shows originating countries for selected FTA
+
+2. **Bill of Materials (BOM) Management:**
+   - Add/edit/delete components with modal form
+   - Each component: name, HTS code, origin country, value
+   - Auto-determines originating status based on FTA territory
+   - BOM summary: total value, originating value, non-originating value
+
+3. **RVC Calculation:**
+   - Supports transaction, net_cost, build_down, build_up methods
+   - Circular progress showing calculated vs required RVC
+   - Formula display with actual numbers
+   - Pass/fail determination
+
+4. **Tariff Shift Analysis:**
+   - Determines shift achieved for each non-originating component
+   - Compares component HTS chapter/heading to product HTS
+   - CC/CTH/CTSH/CTI hierarchy analysis
+   - Component-level pass/fail table
+
+5. **Qualification Result:**
+   - Pass/fail header with Award/XCircle icon
+   - Green/red styling based on qualification
+   - Applicable rule display with official text
+   - Requirements list
+
+6. **Duty Savings:**
+   - Compares MFN rate vs FTA rate
+   - Shows potential savings amount and percentage
+   - Uses tariffRegistry service for rate lookup
+
+7. **Save BOM:**
+   - localStorage persistence via useLocalStorage hook
+   - Save modal with name input
+   - Sidebar list of saved BOMs
+   - Load and delete functionality
+
+**Patterns Found:**
+- Tariff shift determination: compare HTS chapters (2-digit), headings (4-digit), subheadings (6-digit)
+- Shift hierarchy: CC > CTH > CTSH > CTI (higher shift satisfies lower requirements)
+- RVC formula: ((Transaction Value - Non-Originating Materials) / Transaction Value) × 100
+- Rule type handling: tariff_shift, rvc, rvc_or_shift, rvc_and_shift, wholly_obtained, specific_process
+- FTA territory: US + FTA partner countries determines "originating" status
+
+**Gotchas:**
+- Only non-originating components need tariff shift - originating components are excluded
+- RVC method affects formula (build_up uses originating value, others use non-originating value)
+- rvc_or_shift means EITHER can qualify, rvc_and_shift means BOTH required
+- Some FTAs (CAFTA-DR) have multiple countries but same rules apply to all
+- Duty savings calculation uses first FTA country as reference
+
+**For Next Time:**
+- Component: `src/features/compliance/components/FTAQualificationCalculator.tsx`
+- API: POST /api/fta-calculator with { productHtsCode, ftaCode, transactionValue, bomComponents }
+- BOM interface: { id, name, htsCode, originCountry, value, isOriginating }
+- Uses ftaRules.ts helper functions: getRuleForHtsAndFta, getFtaByCode
+- localStorage key: `sourcify_fta_saved_boms`
+- Consider adding "Import BOM from CSV" feature for complex products
+- Could extend to calculate Labor Value Content (LVC) for USMCA auto rules
+
+### Iteration 5 - 2026-01-22
+- Story: P1-008
+- Status: Completed ✅
+
+### Iteration 5 - 2026-01-22 12:48
+- Story: P1-008
+- Duration: 462s
+- Status: Completed ✅
+
+### Story P1-010 - 2026-01-22
+**What I Did:** Built Section 301/IEEPA Tariff Tracker - a comprehensive dashboard for tracking all special tariffs including Section 301 (China), IEEPA (universal baseline, fentanyl, reciprocal), and Section 232 (steel/aluminum/auto).
+
+**Implementation Summary:**
+- Data file: `src/data/specialTariffs.ts` (~550 lines)
+  - 5 Section 301 lists with Federal Register citations
+  - 11 IEEPA programs including country-specific reciprocal rates
+  - 3 Section 232 programs (steel, aluminum, auto)
+  - HTS chapter coverage mappings
+  - Helper functions for tariff calculation
+- Page: `/dashboard/compliance/tariff-tracker/page.tsx`
+- Component: `src/features/compliance/components/TariffTrackerContent.tsx` (~865 lines)
+- API: `/api/tariff-tracker/route.ts` with GET endpoint
+- Navigation: "Tariff Tracker" with ListChecks icon added to DashboardLayout
+
+**Key Features:**
+1. **Summary Statistics Cards:**
+   - Program counts by category (Section 301, IEEPA, Section 232)
+   - Active vs total programs
+
+2. **Search & Filters:**
+   - HTS code search to see applicable special tariffs
+   - Country of origin filter (18 countries)
+   - Category filter
+   - Active-only toggle
+
+3. **Calculated Totals:**
+   - When HTS code + country selected, shows total additional tariff
+   - Circular progress with percentage
+   - Breakdown of each program contributing to total
+   - Warning notes about estimate limitations
+
+4. **Collapsible Program Sections:**
+   - Section 301 panel (China trade tariffs)
+   - IEEPA panel (emergency/reciprocal tariffs)
+   - Section 232 panel (national security tariffs)
+   - Each with detail table (program, category, rate, status, date, affected countries)
+
+5. **IEEPA Reciprocal Rates Grid:**
+   - Visual grid showing rate by country
+   - Color-coded by severity (red >100%, orange 40-99%, yellow 20-39%)
+   - 15+ countries displayed
+
+6. **Detail Modal:**
+   - Full program information
+   - Legal authority and executive orders
+   - Federal Register citations with links
+   - Chapter 99 HTS code
+   - Affected HTS chapters
+   - Notes and explanations
+
+7. **External Resources:**
+   - Federal Register search link
+   - USTR Section 301 page
+   - CBP tariff information
+   - USITC HTS Database
+   - Commerce Section 232 page
+
+**Patterns Found:**
+- TariffProgram interface: id, name, type, category, rate, rateDisplay, affectedCountries, htsChapters, chapter99Code, effectiveDate, status, legalAuthority, executiveOrder, federalRegisterCitation, federalRegisterUrl, description, notes
+- Category grouping: section_301, ieepa, section_232 with distinct colors (red, orange, blue)
+- Status handling: active (green), paused (yellow), expired (gray)
+- IEEPA reciprocal rates are country-specific, replacing the 10% baseline when higher
+- Tariffs stack: China can exceed 145% (base + 301 + fentanyl + reciprocal + 232)
+
+**Gotchas:**
+- IEEPA universal baseline (10%) applies to nearly ALL countries including FTA partners!
+- Only USMCA-compliant goods from MX/CA may be exempt from some IEEPA tariffs
+- Section 301 rates vary by list (25% for List 1-3, 7.5% for List 4A, up to 100% for List 4B/2024 strategic)
+- Federal Register URLs must be verified - older citations may have moved
+- Some IEEPA tariffs (MX, CA fentanyl) are "paused" status, not expired
+
+**For Next Time:**
+- Data file: `src/data/specialTariffs.ts` has ALL_TARIFF_PROGRAMS, category-specific arrays, helper functions
+- API: GET /api/tariff-tracker with ?category, ?country, ?htsCode, ?status params
+- Returns: programs array, summary stats, calculation (if HTS+country), reciprocalRates, htsCoverage, externalResources
+- Component uses Collapse panels with nested Tables for organization
+- Status icons: CheckCircle (active), PauseCircle (paused), XCircle (expired)
+- Consider adding exclusion data when available (currently shows empty)
+- Could add Federal Register API integration for real-time notices
+
+### Iteration 6 - 2026-01-22
+- Story: P1-010
+- Status: Completed ✅
+
+### Iteration 6 - 2026-01-22 12:54
+- Story: P1-010
+- Duration: 399s
+- Status: Completed ✅

@@ -573,7 +573,8 @@ If you don't do these, the work is lost and the next iteration won't know what w
         "Daily/weekly update job"
       ],
       "technicalNotes": "CBP rulings available at https://rulings.cbp.gov/",
-      "passes": false
+      "passes": false,
+      "notes": "DEFERRED: Complex web scraping - needs manual implementation"
     },
     {
       "id": "P3-008",
@@ -591,7 +592,124 @@ If you don't do these, the work is lost and the next iteration won't know what w
         "Link to original on CBP site"
       ],
       "technicalNotes": "Use PostgreSQL full-text search or add search index",
-      "passes": false
+      "passes": false,
+      "notes": "DEFERRED: Complex web scraping - needs manual implementation"
+    },
+    {
+      "id": "P1-006",
+      "phase": "phase-1",
+      "title": "Build Trade Statistics Dashboard",
+      "description": "Visualize USITC trade data with interactive dashboards for import/export trends",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Trade statistics page at /dashboard/intelligence/trade-stats",
+        "Top 10 import sources by HTS code (bar chart)",
+        "Trade volume/value trends over time (line chart)",
+        "Country breakdown for selected HTS (pie chart)",
+        "Year-over-year growth comparison",
+        "Filter by HTS chapter, date range, country",
+        "Export chart data to Excel"
+      ],
+      "technicalNotes": "Use existing USITC DataWeb API integration, Ant Design Charts or Recharts",
+      "passes": true,
+      "notes": "Implementation was mostly complete from previous iterations. Created page at /dashboard/intelligence/trade-stats/page.tsx. Added navigation item with BarChart3 icon to DashboardLayout.tsx. Component: TradeStatsDashboard at src/features/intelligence/components/TradeStatsDashboard.tsx (670 lines). API: /api/trade-stats using usitcDataWeb service. Features: horizontal bar chart for top 10 sources, area chart for trends over time (toggle view), pie chart for market share, YoY growth comparison table, HTS chapter dropdown with 10 popular chapters, multi-select country filter, Excel export via exportService. Uses Recharts for visualization. Sample data provided when USITC_DATAWEB_API_KEY is not set."
+    },
+    {
+      "id": "P1-007",
+      "phase": "phase-1",
+      "title": "Build FTA Rules Engine",
+      "description": "Index 300+ FTA rules of origin by HTS code for quick lookup",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "FTA rules page at /dashboard/compliance/fta-rules",
+        "Search by HTS code to see applicable FTAs",
+        "Each FTA shows: rule of origin text, qualifying criteria",
+        "Support USMCA, CAFTA-DR, Korea, Australia, Singapore, etc.",
+        "Show RVC threshold and/or tariff shift requirements",
+        "Link to full FTA text on USTR website",
+        "Database table for FTA rules with HTS mappings"
+      ],
+      "technicalNotes": "Parse FTA annexes from USTR PDFs, store in FtaRule table with htsPrefix and ruleType fields",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "P1-008",
+      "phase": "phase-1",
+      "title": "Build FTA Qualification Calculator",
+      "description": "Help users determine if their product qualifies for FTA preferential rates based on Bill of Materials",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "FTA calculator at /dashboard/compliance/fta-calculator",
+        "User enters HTS code and selects FTA (e.g., USMCA)",
+        "System shows applicable rule of origin",
+        "User inputs Bill of Materials with: component, HTS, origin country, value",
+        "Calculator determines: RVC percentage, tariff shift compliance",
+        "Clear pass/fail result with explanation",
+        "Show duty savings if qualified vs MFN rate",
+        "Save BOM for future reference"
+      ],
+      "technicalNotes": "Build on FTA Rules Engine (P1-007), RVC formula: (Transaction Value - Non-Originating Materials) / Transaction Value * 100",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "P1-009",
+      "phase": "phase-1",
+      "title": "Build Historical HTS Archives",
+      "description": "Track HTS code changes over time to help users map old codes to new ones",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "HTS history page at /dashboard/compliance/hts-history",
+        "Enter old HTS code to see current equivalent",
+        "Enter current HTS code to see previous versions",
+        "Show effective dates for each change",
+        "Store HTS revisions from 2020-present minimum",
+        "API endpoint for programmatic lookup",
+        "Indicate if code was split, merged, or renamed"
+      ],
+      "technicalNotes": "Use existing HtsRevision model, parse USITC change notices",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "P1-010",
+      "phase": "phase-1",
+      "title": "Build Section 301/IEEPA Tariff Tracker",
+      "description": "Dedicated page to track current special tariffs with exclusions and effective dates",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Tariff tracker page at /dashboard/compliance/tariff-tracker",
+        "Section 301 lists breakdown (List 1-4A/B with rates)",
+        "IEEPA tariffs by country (CN, MX, CA)",
+        "Section 232 steel/aluminum rates",
+        "Each tariff shows: rate, effective date, applicable HTS chapters",
+        "Search by HTS code to see all applicable special tariffs",
+        "Show active exclusions if any",
+        "Links to Federal Register notices"
+      ],
+      "technicalNotes": "Use existing tariff registry data, add Federal Register links",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "P1-011",
+      "phase": "phase-1",
+      "title": "Build Compliance Alert System",
+      "description": "Notify users when tariff rates change for their saved products",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Alert preferences in user settings",
+        "Option to receive: email digest (weekly), in-app notifications, both",
+        "Alerts trigger for: rate changes, new exclusions, expiring programs",
+        "Alert history visible in dashboard",
+        "Click alert to see affected product and details",
+        "Unsubscribe option per alert type",
+        "Batch processing for efficiency"
+      ],
+      "technicalNotes": "Use existing TariffAlert model, add email integration with Resend/SendGrid, daily cron job for digest",
+      "passes": false,
+      "notes": ""
     }
   ]
 }
@@ -600,96 +718,6 @@ If you don't do these, the work is lost and the next iteration won't know what w
 
 ## Progress So Far (Last 100 lines)
 
-### Iteration 19 - 2026-01-19 16:40
-- Story: P3-004
-- Duration: 385s
-- Status: Completed ✅
-
-### Iteration 1 - 2026-01-19 16:48
-- Story: P3-006
-- Duration: 323s
-- Status: In Progress
-
-### Iteration 20 - 2026-01-19 16:48
-- Story: P3-006
-- Duration: 475s
-- Status: In Progress
-
-### Iteration 2 - 2026-01-19 16:51
-- Story: P3-006
-- Duration: 145s
-- Status: In Progress
-
-### Iteration 3 - 2026-01-19 16:51
-- Story: P3-006
-- Duration: 34s
-- Status: In Progress
-
-### Iteration 4 - 2026-01-19 16:54
-- Story: P3-006
-- Duration: 132s
-- Status: In Progress
-
-### Iteration 5 - 2026-01-19 16:55
-- Story: P3-006
-- Duration: 109s
-- Status: In Progress
-
-### Iteration 6 - 2026-01-19 16:57
-- Story: P3-006
-- Duration: 115s
-- Status: In Progress
-
-### Iteration 7 - 2026-01-19 17:01
-- Story: P3-006
-- Duration: 187s
-- Status: In Progress
-
-### Iteration 8 - 2026-01-19 17:03
-- Story: P3-006
-- Duration: 173s
-- Status: In Progress
-
-### Iteration 9 - 2026-01-19 17:08
-- Story: P3-006
-- Duration: 260s
-- Status: In Progress
-
-### Iteration 10 - 2026-01-19 17:09
-- Story: P3-006
-- Duration: 50s
-- Status: In Progress
-
-### Story P3-006 - 2026-01-19 17:15
-**What I Did:** Completed PGA (Partner Government Agency) requirements lookup feature. The implementation was mostly complete from previous iterations but had a critical bug - the frontend expected API data under `data.requirements` but the API returned it directly at `data` root level. Fixed the data structure alignment in PGALookup.tsx component.
-
-**Implementation Summary:**
-- Page: `/dashboard/compliance/pga` with PGALookup component
-- API: `/api/pga/route.ts` - handles HTS lookup, agency filter, search, flag details
-- Data: `src/data/pgaFlags.ts` - 13 PGA agencies, 30+ flag codes, HTS chapter mappings
-- Features: HTS code input, flag reference table with search/filter, flag detail modals, agency cards with websites, external resource links (ACE PGA Appendix, PGA Message Sets, CBP Portal)
-
-**Patterns Found:**
-- Static data files in `src/data/` for reference data (like PGA flags, ADD/CVD orders)
-- Chapter-level HTS mapping pattern: map 2-digit chapter to list of agencies/flags
-- Agency icons/colors mapping pattern: AGENCY_ICONS and AGENCY_COLORS records for consistent UI
-- API returns flat data structure with type guards (requirementLevel, hasRequirements flags)
-
-**Gotchas:**
-- API and frontend data structure mismatch: Frontend used `data.requirements?.X` but API returned `data.X` directly. Always verify API response shape matches frontend interface.
-- PGA requirements are chapter-level in this implementation, not 10-digit HTS specific. This is a simplification - real ACE PGA appendix has more granular mappings.
-- Agency codes in data may differ from display codes (USDA_APHIS vs USDA/APHIS) - need consistent mapping
-
-**For Next Time:**
-- Data file: `src/data/pgaFlags.ts` has PGA_AGENCIES, PGA_FLAGS, HTS_CHAPTER_PGA_MAP, helper functions
-- Component pattern: APIResponse interface should match actual API response shape
-- External resources: ACE PGA Appendix at cbp.gov/trade/ace/catair/appendix-pga
-- When frontend shows "unknown chapter" or missing data, check if API response structure matches interface
-
-### Iteration 1 - 2026-01-19 18:39
-- Story: P3-006
-- Duration: 211s
-- Status: Completed ✅
 
 ### Iteration 2 - 2026-01-19 18:42
 - Story: P3-007
@@ -700,6 +728,96 @@ If you don't do these, the work is lost and the next iteration won't know what w
 - Story: P3-007
 - Duration: 107s
 - Status: In Progress
+
+### Iteration 4 - 2026-01-19 18:49
+- Story: P3-007
+- Duration: 295s
+- Status: In Progress
+
+### Iteration 5 - 2026-01-19 18:53
+- Story: P3-007
+- Duration: 241s
+- Status: In Progress
+
+### Iteration 6 - 2026-01-19 18:55
+- Story: P3-007
+- Duration: 139s
+- Status: In Progress
+
+### Iteration 7 - 2026-01-19 18:58
+- Story: P3-007
+- Duration: 118s
+- Status: In Progress
+
+### Iteration 8 - 2026-01-19 18:59
+- Story: P3-007
+- Duration: 95s
+- Status: In Progress
+
+### Iteration 9 - 2026-01-19 19:01
+- Story: P3-007
+- Duration: 116s
+- Status: In Progress
+
+### Iteration 10 - 2026-01-19 19:02
+- Story: P3-007
+- Duration: 44s
+- Status: In Progress
+
+### Iteration 1 - 2026-01-22 12:22
+- Story: P1-006
+- Duration: 256s
+- Status: In Progress
+
+### Iteration 2 - 2026-01-22 12:30
+- Story: P1-006
+- Duration: 490s
+- Status: In Progress
+
+### Story P1-006 - 2026-01-22
+**What I Did:** Completed Trade Statistics Dashboard feature. The component and API were already implemented from previous iterations - just needed to create the page route and add navigation.
+
+**Implementation Summary:**
+- Page: `/dashboard/intelligence/trade-stats/page.tsx` - Simple wrapper importing TradeStatsDashboard
+- Navigation: Added "Trade Stats" with BarChart3 icon to DashboardLayout.tsx menu
+- Component: `src/features/intelligence/components/TradeStatsDashboard.tsx` (~670 lines)
+- API: `/api/trade-stats/route.ts` - Returns import stats by country, trends, pie data
+- Service: `src/services/usitcDataWeb.ts` - USITC DataWeb API integration
+
+**Features Implemented:**
+- Top 10 import sources horizontal bar chart (Recharts BarChart)
+- Trade trends area chart with toggle (Recharts AreaChart)
+- Market share pie chart (Recharts PieChart)
+- YoY growth comparison table with country flags
+- HTS chapter dropdown (10 popular chapters: 6109, 8471, 8517, etc.)
+- Multi-select country filter (15 countries)
+- Excel export via exportService
+- Sample data fallback when USITC_DATAWEB_API_KEY not set
+
+**Patterns Found:**
+- Recharts library for React charts (BarChart, PieChart, AreaChart, ResponsiveContainer)
+- Segmented component for chart view toggle (bar vs trend)
+- formatValue helper for currency display ($1.2M, $3.5B)
+- getCountryFlag helper for flag emojis by ISO code
+- Sample data pattern: provide realistic mock data when API key unavailable
+- useMemo for derived chart data transformation
+
+**Gotchas:**
+- Recharts requires ResponsiveContainer wrapper for proper sizing
+- Custom tooltip components need specific prop typing
+- BarChart layout="vertical" swaps X/Y axes for horizontal bars
+- Cell component needed to color each bar individually
+
+**For Next Time:**
+- Trade stats component location: `src/features/intelligence/components/`
+- USITC DataWeb service: `src/services/usitcDataWeb.ts`
+- For new pages: create `page.tsx` + add menu item to DashboardLayout + add getSelectedKey + add title mapping
+- Recharts docs: https://recharts.org/en-US/api
+
+### Iteration 3 - 2026-01-22 12:33
+- Story: P1-006
+- Duration: 198s
+- Status: Completed ✅
 
 ---
 
@@ -775,20 +893,20 @@ If you don't do these, the work is lost and the next iteration won't know what w
 
 ## Your Task This Iteration
 
-**Story:** P3-007 - Index CBP rulings database
+**Story:** P1-007 - Build FTA Rules Engine
 
 **Instructions:**
 1. Read the story's acceptance criteria from prd.json above
 2. Implement the required changes (modify files, create components, etc.)
 3. Run: npm run build
-4. If build passes, update prd.json to set passes: true for story P3-007
+4. If build passes, update prd.json to set passes: true for story P1-007
 5. Append learnings to progress.txt with format:
-   ### Story P3-007 - 2026-01-19
+   ### Story P1-007 - 2026-01-22
    **What I Did:** [summary]
    **Patterns Found:** [patterns]
    **Gotchas:** [gotchas]
    **For Next Time:** [advice]
-6. Commit: git add -A && git commit -m "feat(P3-007): [description]"
+6. Commit: git add -A && git commit -m "feat(P1-007): [description]"
 
 **CRITICAL:** You MUST update progress.txt with learnings and set passes: true in prd.json when done!
 
