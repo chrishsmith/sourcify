@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { Typography, Tabs, Badge, Skeleton, Card } from 'antd';
 import { FolderOpen, Bell, AlertTriangle, BarChart3 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -14,19 +14,27 @@ function MyProductsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     
-    const [activeTab, setActiveTab] = useState('all');
+    // Derive initial tab from URL params
+    const initialTab = useMemo(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['all', 'monitored', 'alerts', 'analysis'].includes(tabParam)) {
+            return tabParam;
+        }
+        return 'all';
+    }, [searchParams]);
+    
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [monitoredCount, setMonitoredCount] = useState(0);
     const [alertCount, setAlertCount] = useState(0);
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     
-    // Handle URL params for tab selection
+    // Sync activeTab when URL params change (e.g., browser back/forward)
     useEffect(() => {
-        const tabParam = searchParams.get('tab');
-        if (tabParam && ['all', 'monitored', 'alerts', 'analysis'].includes(tabParam)) {
-            setActiveTab(tabParam);
+        if (initialTab !== activeTab) {
+            setActiveTab(initialTab);
         }
-    }, [searchParams]);
+    }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps
     
     // Fetch stats for badges
     useEffect(() => {

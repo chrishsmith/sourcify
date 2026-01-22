@@ -94,6 +94,7 @@ export async function saveProductDirect(
         latestClassification?: ClassificationResult;
         isMonitored?: boolean;
         isFavorite?: boolean;
+        sourceSearchId?: string;
     }
 ): Promise<string> {
     const savedProduct = await prisma.savedProduct.create({
@@ -112,6 +113,7 @@ export async function saveProductDirect(
             latestClassification: data.latestClassification ? JSON.parse(JSON.stringify(data.latestClassification)) : null,
             isMonitored: data.isMonitored ?? false,
             isFavorite: data.isFavorite ?? false,
+            sourceSearchId: data.sourceSearchId || null,
         },
     });
 

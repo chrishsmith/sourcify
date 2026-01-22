@@ -147,6 +147,41 @@ export interface ClassifyV10Input {
   useSemanticSearch?: boolean; // Use embedding-based semantic search (faster, more accurate)
 }
 
+// AI Reasoning - explains WHY the classification was chosen
+export interface AIReasoning {
+  summary: string; // One sentence summary
+  chapterReasoning: {
+    chapter: string;
+    description: string;
+    explanation: string;
+  };
+  headingReasoning: {
+    heading: string;
+    description: string;
+    explanation: string;
+  };
+  codeReasoning: {
+    code: string;
+    description: string;
+    explanation: string;
+  };
+  keyFactors: Array<{
+    factor: string; // e.g., "Material", "Use", "Construction"
+    value: string; // e.g., "Cotton"
+    impact: 'positive' | 'neutral' | 'uncertain';
+    explanation: string;
+  }>;
+  exclusions?: Array<{
+    code: string;
+    description: string;
+    reason: string;
+  }>;
+  confidence: {
+    level: 'high' | 'medium' | 'low';
+    explanation: string;
+  };
+}
+
 export interface ClassifyV10Result {
   success: boolean;
   timing: {
@@ -193,6 +228,9 @@ export interface ClassifyV10Result {
   detectedChapters: string[];
   searchTerms: string[];
   
+  // AI Reasoning - explains WHY the classification was chosen
+  aiReasoning?: AIReasoning;
+  
   // Clarification needed when confidence is too low
   needsClarification?: {
     reason: string;
@@ -220,6 +258,8 @@ export interface Alternative {
   duty?: {
     baseMfn: string;
     effective: string;
+    effectiveNumeric?: number; // For sorting
+    breakdown?: Array<{ program: string; rate: number; description?: string }>;
   };
 }
 
@@ -1133,6 +1173,178 @@ function calculateScore(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// AI REASONING GENERATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Generate human-readable AI reasoning for why a classification was chosen.
+ * This explains the decision-making process to help users understand and verify.
+ */
+function generateAIReasoning(
+  productDescription: string,
+  primary: HtsCandidate,
+  path: { codes: string[]; descriptions: string[]; groupings?: string[]; chapterDescription?: string },
+  detectedMaterial: string | null,
+  productType: { type: string | null; headings: string[]; keywords: string[] },
+  searchTerms: string[],
+): AIReasoning {
+  const chapter = primary.code.slice(0, 2);
+  const heading = primary.code.slice(0, 4);
+  const chapterDesc = CHAPTER_DESCRIPTIONS[chapter] || `Chapter ${chapter}`;
+  
+  // Build chapter reasoning
+  let chapterExplanation = '';
+  if (detectedMaterial) {
+    const materialChapters = getMaterialChapters(detectedMaterial);
+    if (materialChapters.includes(chapter)) {
+      chapterExplanation = `Your product is made of ${detectedMaterial}, which is classified in Chapter ${chapter} (${chapterDesc}).`;
+    } else {
+      chapterExplanation = `Chapter ${chapter} covers ${chapterDesc.toLowerCase()}. While your product contains ${detectedMaterial}, its essential character or use places it in this chapter.`;
+    }
+  } else {
+    chapterExplanation = `Based on the product description, this falls under Chapter ${chapter} which covers ${chapterDesc.toLowerCase()}.`;
+  }
+  
+  // Build heading reasoning
+  const headingDesc = path.descriptions[1] || primary.parentDescription || '';
+  let headingExplanation = '';
+  if (productType.type && productType.headings.includes(heading)) {
+    headingExplanation = `Heading ${heading} specifically covers "${headingDesc}". Your product description mentions "${productType.type}" which matches this heading.`;
+  } else {
+    headingExplanation = `Heading ${heading} covers "${headingDesc}". Based on the keywords in your description (${searchTerms.slice(0, 3).join(', ')}), this heading best describes your product.`;
+  }
+  
+  // Build code reasoning
+  let codeExplanation = '';
+  if (primary.isOtherCode) {
+    codeExplanation = `This is an "Other" code under this heading. Your product doesn't match any of the specific carve-out codes, so it falls into this catch-all category.`;
+    if (primary.otherValidation?.excludedSiblings?.length) {
+      codeExplanation += ` We verified it's not: ${primary.otherValidation.excludedSiblings.slice(0, 3).map(s => s.description).join(', ')}.`;
+    }
+  } else if (primary.isSpecificCarveOut) {
+    codeExplanation = `This is a specific code for "${primary.description}". Your product directly matches this description.`;
+  } else {
+    codeExplanation = `Code ${primary.codeFormatted} specifically covers "${primary.description}" under this heading.`;
+  }
+  
+  // Build key factors
+  const keyFactors: AIReasoning['keyFactors'] = [];
+  
+  // Material factor
+  if (detectedMaterial) {
+    const materialChapters = getMaterialChapters(detectedMaterial);
+    const materialMatches = materialChapters.includes(chapter);
+    keyFactors.push({
+      factor: 'Material',
+      value: detectedMaterial.charAt(0).toUpperCase() + detectedMaterial.slice(1),
+      impact: materialMatches ? 'positive' : 'neutral',
+      explanation: materialMatches 
+        ? `${detectedMaterial} is typically classified in Chapter ${chapter}.`
+        : `Material noted, but classification is based on product's essential character.`,
+    });
+  }
+  
+  // Product type factor
+  if (productType.type) {
+    const typeMatches = productType.headings.includes(heading);
+    keyFactors.push({
+      factor: 'Product Type',
+      value: productType.type.charAt(0).toUpperCase() + productType.type.slice(1),
+      impact: typeMatches ? 'positive' : 'uncertain',
+      explanation: typeMatches
+        ? `"${productType.type}" products are classified under heading ${heading}.`
+        : `Product type identified, but heading may vary based on other factors.`,
+    });
+  }
+  
+  // Parent groupings factor (e.g., "Men's or boys'")
+  if (primary.parentGroupings && primary.parentGroupings.length > 0) {
+    const relevantGroupings = primary.parentGroupings.filter(g => g.toLowerCase() !== 'other');
+    if (relevantGroupings.length > 0) {
+      keyFactors.push({
+        factor: 'Category',
+        value: relevantGroupings[0],
+        impact: 'positive',
+        explanation: `Your product falls under the "${relevantGroupings[0]}" category within this heading.`,
+      });
+    }
+  }
+  
+  // Keyword match factor
+  if (primary.factors.keywordMatch >= 30) {
+    keyFactors.push({
+      factor: 'Description Match',
+      value: 'Strong',
+      impact: 'positive',
+      explanation: `Key terms from your description closely match the HTS code description.`,
+    });
+  } else if (primary.factors.keywordMatch >= 15) {
+    keyFactors.push({
+      factor: 'Description Match',
+      value: 'Moderate',
+      impact: 'neutral',
+      explanation: `Some terms from your description match the HTS code description.`,
+    });
+  }
+  
+  // Build exclusions (for "Other" codes)
+  let exclusions: AIReasoning['exclusions'] | undefined;
+  if (primary.isOtherCode && primary.otherValidation?.excludedSiblings?.length) {
+    exclusions = primary.otherValidation.excludedSiblings.map(sibling => ({
+      code: sibling.code,
+      description: sibling.description,
+      reason: sibling.reason,
+    }));
+  }
+  
+  // Confidence explanation
+  const confidence = primary.score;
+  let confidenceLevel: 'high' | 'medium' | 'low';
+  let confidenceExplanation: string;
+  
+  if (confidence >= 70) {
+    confidenceLevel = 'high';
+    confidenceExplanation = 'Strong match based on material, product type, and description keywords.';
+  } else if (confidence >= 45) {
+    confidenceLevel = 'medium';
+    confidenceExplanation = 'Reasonable match, but consider reviewing alternatives if your product has unusual characteristics.';
+  } else {
+    confidenceLevel = 'low';
+    confidenceExplanation = 'Limited match - please provide more details about material, use, or construction for better accuracy.';
+  }
+  
+  // Build summary
+  const summary = `Classified as ${primary.codeFormatted} (${chapterDesc}) ${
+    detectedMaterial ? `based on ${detectedMaterial} material` : ''
+  }${productType.type ? `${detectedMaterial ? ' and' : 'based on'} "${productType.type}" product type` : ''}.`;
+  
+  return {
+    summary: summary.trim(),
+    chapterReasoning: {
+      chapter,
+      description: chapterDesc,
+      explanation: chapterExplanation,
+    },
+    headingReasoning: {
+      heading,
+      description: headingDesc,
+      explanation: headingExplanation,
+    },
+    codeReasoning: {
+      code: primary.codeFormatted,
+      description: primary.description,
+      explanation: codeExplanation,
+    },
+    keyFactors,
+    exclusions,
+    confidence: {
+      level: confidenceLevel,
+      explanation: confidenceExplanation,
+    },
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN CLASSIFICATION FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1619,7 +1831,7 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
   
   // Build alternatives with DIVERSITY: prefer candidates from different chapters/headings
   // This ensures users see multiple interpretations, not just variations of the same code
-  const buildDiverseAlternatives = (): Alternative[] => {
+  const buildDiverseAlternatives = (): HtsCandidate[] => {
     const result: HtsCandidate[] = [];
     const usedChapters = new Set<string>([primary.chapter]);
     const usedHeadings = new Set<string>([primary.code.substring(0, 4)]);
@@ -1654,38 +1866,117 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     // Sort by confidence (score) descending - highest confidence first
     result.sort((a, b) => b.score - a.score);
     
-    // Map to Alternative format with ranks reflecting the sorted order
-    return result.map((c, i) => {
-      // Generate material note if different chapter
-      let materialNote: string | undefined;
-      if (c.chapter !== primary.chapter) {
-        const chapterMaterial = Object.entries(MATERIAL_CHAPTERS)
-          .find(([_, chapters]) => chapters.includes(c.chapter))?.[0];
-        if (chapterMaterial) {
-          materialNote = `If your product is ${chapterMaterial}`;
+    return result;
+  };
+  
+  const diverseAlternatives = buildDiverseAlternatives();
+  
+  // ─────────────────────────────────────────────────────────────────────────────
+  // FETCH DUTY RATES FOR TOP 5 ALTERNATIVES
+  // This enables duty comparison in the UI
+  // ─────────────────────────────────────────────────────────────────────────────
+  
+  const alternativeDuties = new Map<string, Alternative['duty']>();
+  
+  if (origin) {
+    // Fetch duty rates for top 5 alternatives (parallel for speed)
+    const topAltsForDuty = diverseAlternatives.slice(0, 5);
+    
+    try {
+      const dutyPromises = topAltsForDuty.map(async (alt) => {
+        try {
+          // Get the general rate for this alternative
+          let effectiveGeneralRate = alt.generalRate;
+          
+          if (!effectiveGeneralRate && alt.parentCode) {
+            const parentCode = await prisma.htsCode.findFirst({
+              where: { code: alt.parentCode },
+              select: { generalRate: true },
+            });
+            effectiveGeneralRate = parentCode?.generalRate || null;
+          }
+          
+          const tariff = await getEffectiveTariff(origin, alt.code, {
+            baseMfnRate: effectiveGeneralRate ? parseFloat(effectiveGeneralRate) || 0 : 0,
+          });
+          
+          // Build breakdown for detailed display
+          const breakdown: Array<{ program: string; rate: number; description?: string }> = [];
+          
+          if (tariff.ieepaBreakdown.baseline > 0) {
+            breakdown.push({ program: 'IEEPA Baseline', rate: tariff.ieepaBreakdown.baseline });
+          }
+          if (tariff.ieepaBreakdown.fentanyl > 0) {
+            breakdown.push({ program: 'Fentanyl Tariff', rate: tariff.ieepaBreakdown.fentanyl });
+          }
+          if (tariff.ieepaBreakdown.reciprocal > 0) {
+            breakdown.push({ program: 'Reciprocal Tariff', rate: tariff.ieepaBreakdown.reciprocal });
+          }
+          if (tariff.section301Rate > 0) {
+            breakdown.push({ program: 'Section 301', rate: tariff.section301Rate });
+          }
+          if (tariff.section232Rate > 0) {
+            breakdown.push({ program: 'Section 232', rate: tariff.section232Rate });
+          }
+          
+          return {
+            code: alt.code,
+            duty: {
+              baseMfn: effectiveGeneralRate || 'N/A',
+              effective: `${tariff.effectiveRate.toFixed(1)}%`,
+              effectiveNumeric: tariff.effectiveRate,
+              breakdown: breakdown.length > 0 ? breakdown : undefined,
+            },
+          };
+        } catch (err) {
+          console.log(`[V10] Failed to get duty for alternative ${alt.code}:`, err);
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(dutyPromises);
+      for (const r of results) {
+        if (r) {
+          alternativeDuties.set(r.code, r.duty);
         }
       }
       
-      // Get heading description from the map we already built
-      const heading = c.code.substring(0, 4);
-      const headingDesc = headingMap.get(heading) || '';
-      
-      return {
-        rank: i + 2,
-        htsCode: c.code,
-        htsCodeFormatted: c.codeFormatted,
-        confidence: c.score,
-        description: c.description,
-        fullDescription: c.fullDescription,
-        chapter: c.chapter,
-        chapterDescription: CHAPTER_DESCRIPTIONS[c.chapter] || `Chapter ${c.chapter}`,
-        headingDescription: headingDesc,
-        materialNote,
-      };
-    });
-  };
+      console.log(`[V10] Fetched duty rates for ${alternativeDuties.size} alternatives`);
+    } catch (err) {
+      console.error('[V10] Error fetching alternative duties:', err);
+    }
+  }
   
-  const alternatives = buildDiverseAlternatives();
+  // Map to Alternative format with duty info
+  const alternatives: Alternative[] = diverseAlternatives.map((c, i) => {
+    // Generate material note if different chapter
+    let materialNote: string | undefined;
+    if (c.chapter !== primary.chapter) {
+      const chapterMaterial = Object.entries(MATERIAL_CHAPTERS)
+        .find(([_, chapters]) => chapters.includes(c.chapter))?.[0];
+      if (chapterMaterial) {
+        materialNote = `If your product is ${chapterMaterial}`;
+      }
+    }
+    
+    // Get heading description from the map we already built
+    const heading = c.code.substring(0, 4);
+    const headingDesc = headingMap.get(heading) || '';
+    
+    return {
+      rank: i + 2,
+      htsCode: c.code,
+      htsCodeFormatted: c.codeFormatted,
+      confidence: c.score,
+      description: c.description,
+      fullDescription: c.fullDescription,
+      chapter: c.chapter,
+      chapterDescription: CHAPTER_DESCRIPTIONS[c.chapter] || `Chapter ${c.chapter}`,
+      headingDescription: headingDesc,
+      materialNote,
+      duty: alternativeDuties.get(c.code),
+    };
+  });
   
   // Count remaining candidates
   const showMore = Math.max(0, uniqueCandidates.length - 11);
@@ -1810,6 +2101,19 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     console.log('[V10] Error detecting conditional siblings:', err);
   }
   
+  // ─────────────────────────────────────────────────────────────────────────────
+  // AI REASONING: Generate human-readable explanation for the classification
+  // ─────────────────────────────────────────────────────────────────────────────
+  
+  const aiReasoning = generateAIReasoning(
+    description,
+    primary,
+    primaryDesc.path,
+    detectedMaterial,
+    productTypeHints,
+    searchTerms,
+  );
+  
   return {
     success: true,
     timing: {
@@ -1836,6 +2140,7 @@ export async function classifyV10(input: ClassifyV10Input): Promise<ClassifyV10R
     detectedMaterial,
     detectedChapters: materialChapters,
     searchTerms,
+    aiReasoning,
     needsClarification,
     conditionalClassification,
   };

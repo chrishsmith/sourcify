@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Table, Tag, Button, Typography, Empty, Input, Dropdown, message, Skeleton, Modal } from 'antd';
+import { Table, Tag, Button, Typography, Input, Dropdown, message, Modal } from 'antd';
+import { LoadingState, EmptyState, SearchEmptyState } from '@/components/shared';
 import type { MenuProps } from 'antd';
 import { Search, RefreshCw, Clock, Globe, MoreHorizontal, Eye, Trash2, Star, Bell, Plus } from 'lucide-react';
 import { ClassificationResultDisplay } from './ClassificationResult';
@@ -383,57 +384,55 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
     ];
 
     if (loading && products.length === 0) {
-        return <Skeleton active paragraph={{ rows: 6 }} />;
+        return <LoadingState message="Loading your products..." />;
     }
 
     return (
         <div>
             {/* Search and Refresh Bar */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between mb-4">
                 <Input
                     placeholder="Search by HTS code, description, or product..."
                     prefix={<Search size={16} className="text-slate-400" />}
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     allowClear
-                    className="max-w-md"
+                    className="w-full sm:max-w-md"
                 />
                 <Button
                     icon={<RefreshCw size={14} />}
                     onClick={() => fetchProducts(page, searchQuery)}
                     loading={loading}
+                    className="flex-shrink-0"
                 >
                     Refresh
                 </Button>
             </div>
 
             {products.length === 0 && !loading ? (
-                <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                        searchQuery
-                            ? "No products match your search"
-                            : "No products saved yet"
-                    }
-                >
-                    {!searchQuery && (
-                        <div className="flex flex-col items-center gap-3">
-                            <Text type="secondary" className="block">
-                                Save products from your classifications to track them here
-                            </Text>
-                            <Link href="/dashboard/classify">
-                                <Button type="primary" icon={<Plus size={14} />}>
-                                    Classify a Product
-                                </Button>
-                            </Link>
-                        </div>
-                    )}
-                </Empty>
+                searchQuery ? (
+                    <SearchEmptyState 
+                        searchTerm={searchQuery} 
+                        onClear={() => handleSearch('')} 
+                    />
+                ) : (
+                    <EmptyState
+                        icon="products"
+                        title="No products saved yet"
+                        description="Save products from your classifications to track them here."
+                        action={{
+                            label: "Classify a Product",
+                            href: "/dashboard/classify",
+                            icon: <Plus size={16} />,
+                        }}
+                    />
+                )
             ) : (
                 <Table
                     dataSource={products.map(p => ({ ...p, key: p.id }))}
                     columns={columns}
                     loading={loading}
+                    scroll={{ x: 800 }}
                     pagination={{
                         current: page,
                         pageSize,
@@ -441,7 +440,8 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
                         onChange: setPage,
                         showSizeChanger: true,
                         pageSizeOptions: ['5', '10', '25', '50'],
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} products`
+                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} products`,
+                        responsive: true,
                     }}
                     className="border border-slate-100 rounded-xl overflow-hidden"
                     rowClassName="hover:bg-slate-50 cursor-pointer"
@@ -468,7 +468,7 @@ export const ClassificationsTable: React.FC<ClassificationsTableProps> = ({ onVi
                 }
             >
                 {detailLoading ? (
-                    <Skeleton active paragraph={{ rows: 10 }} />
+                    <LoadingState message="Loading product details..." />
                 ) : selectedProduct?.latestClassification ? (
                     <ClassificationResultDisplay 
                         result={selectedProduct.latestClassification as never}

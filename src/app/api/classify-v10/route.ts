@@ -83,9 +83,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Save to history if user is logged in
+    let searchHistoryId: string | undefined;
     if (saveToHistory && userId && result.primary) {
       try {
-        await prisma.searchHistory.create({
+        const historyRecord = await prisma.searchHistory.create({
           data: {
             userId,
             productDescription: description,
@@ -102,9 +103,11 @@ export async function POST(request: NextRequest) {
               primary: result.primary,
               alternatives: result.alternatives,
               detectedMaterial: result.detectedMaterial,
+              aiReasoning: result.aiReasoning,
             })),
           },
         });
+        searchHistoryId = historyRecord.id;
       } catch (err) {
         console.error('[API V10] Failed to save history:', err);
         // Don't fail the request for history errors
@@ -150,6 +153,9 @@ export async function POST(request: NextRequest) {
       detectedChapters: result.detectedChapters,
       searchTerms: result.searchTerms,
       
+      // AI Reasoning - explains WHY the classification was chosen
+      aiReasoning: result.aiReasoning,
+      
       // Clarification needed (low confidence)
       needsClarification: result.needsClarification,
       
@@ -158,6 +164,9 @@ export async function POST(request: NextRequest) {
       
       // Justification (if requested)
       justification,
+      
+      // Search history ID for linking saved products
+      searchHistoryId,
     });
     
   } catch (error) {

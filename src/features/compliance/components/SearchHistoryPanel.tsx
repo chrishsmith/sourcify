@@ -37,6 +37,7 @@ import {
     X,
     CheckCircle,
     Hash,
+    RotateCcw,
 } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import { ClassificationResultDisplay } from './ClassificationResult';
@@ -142,7 +143,17 @@ interface SearchStats {
     searchesThisMonth: number;
 }
 
-export const SearchHistoryPanel: React.FC = () => {
+export interface ReClassifyInput {
+    description: string;
+    countryOfOrigin: string;
+    materialComposition?: string;
+}
+
+interface SearchHistoryPanelProps {
+    onReClassify?: (input: ReClassifyInput) => void;
+}
+
+export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({ onReClassify }) => {
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<SearchHistoryItem[]>([]);
     const [stats, setStats] = useState<SearchStats | null>(null);
@@ -230,6 +241,17 @@ export const SearchHistoryPanel: React.FC = () => {
             message.error('Failed to delete search');
         }
     }, []);
+
+    const handleReClassify = useCallback((item: SearchHistoryItem) => {
+        if (onReClassify) {
+            setShowDetailModal(false);
+            onReClassify({
+                description: item.productDescription,
+                countryOfOrigin: item.countryOfOrigin || 'CN',
+                materialComposition: item.materialComposition || undefined,
+            });
+        }
+    }, [onReClassify]);
 
     // Bulk action: Monitor selected items
     const handleMonitorSelected = useCallback(async () => {
@@ -455,7 +477,16 @@ export const SearchHistoryPanel: React.FC = () => {
                             handleViewDetail(record.id);
                         },
                     },
-                    { type: 'divider' },
+                    ...(onReClassify ? [{
+                        key: 'reclassify',
+                        label: 'Re-classify',
+                        icon: <RotateCcw size={14} />,
+                        onClick: (e: { domEvent: { stopPropagation: () => void } }) => {
+                            e.domEvent.stopPropagation();
+                            handleReClassify(record);
+                        },
+                    }] : []),
+                    { type: 'divider' as const },
                     {
                         key: 'delete',
                         label: 'Delete',
@@ -623,6 +654,7 @@ export const SearchHistoryPanel: React.FC = () => {
                             rowKey="id"
                             loading={loading}
                             rowSelection={rowSelection}
+                            scroll={{ x: 800 }}
                             pagination={{
                                 current: page,
                                 pageSize,
@@ -630,6 +662,7 @@ export const SearchHistoryPanel: React.FC = () => {
                                 onChange: setPage,
                                 showSizeChanger: false,
                                 showTotal: (total) => `${total} searches`,
+                                responsive: true,
                             }}
                             size="middle"
                             rowClassName="hover:bg-slate-50/50 cursor-pointer"
@@ -663,7 +696,19 @@ export const SearchHistoryPanel: React.FC = () => {
                     <div className="space-y-6">
                         {/* Input Summary */}
                         <Card size="small" className="bg-slate-50 border-slate-200">
-                            <Title level={5} className="mb-4">Search Input</Title>
+                            <div className="flex justify-between items-start mb-4">
+                                <Title level={5} className="mb-0">Search Input</Title>
+                                {onReClassify && (
+                                    <Button
+                                        type="primary"
+                                        icon={<RotateCcw size={14} />}
+                                        onClick={() => handleReClassify(selectedSearch)}
+                                        className="bg-teal-600 hover:bg-teal-700"
+                                    >
+                                        Re-classify
+                                    </Button>
+                                )}
+                            </div>
                             <Descriptions column={{ xs: 1, sm: 2 }} size="small">
                                 <Descriptions.Item label="Product Name">
                                     {selectedSearch.productName || '—'}

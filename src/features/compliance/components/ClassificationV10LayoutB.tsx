@@ -197,16 +197,67 @@ const ConfidenceBar: React.FC<{ confidence: number }> = ({ confidence }) => {
 // LAYOUT B: DASHBOARD GRID
 // ═══════════════════════════════════════════════════════════════════════════
 
-export default function ClassificationV10LayoutB() {
-    const [description, setDescription] = useState('');
-    const [origin, setOrigin] = useState('CN');
-    const [material, setMaterial] = useState<string | undefined>(undefined);
+export interface ClassificationV10LayoutBProps {
+    initialDescription?: string;
+    initialOrigin?: string;
+    initialMaterial?: string;
+    autoClassify?: boolean;
+    onClassifyComplete?: () => void;
+}
+
+export default function ClassificationV10LayoutB({
+    initialDescription = '',
+    initialOrigin = 'CN',
+    initialMaterial,
+    autoClassify = false,
+    onClassifyComplete,
+}: ClassificationV10LayoutBProps) {
+    const [description, setDescription] = useState(initialDescription);
+    const [origin, setOrigin] = useState(initialOrigin);
+    const [material, setMaterial] = useState<string | undefined>(initialMaterial);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<V10Response | null>(null);
     const [selectedAltIndex, setSelectedAltIndex] = useState<number | null>(null); // null = original primary
     const [messageApi, contextHolder] = message.useMessage();
     const [optimizerTeaser, setOptimizerTeaser] = useState<OptimizerTeaser | null>(null);
     const [loadingTeaser, setLoadingTeaser] = useState(false);
+    const [hasAutoClassified, setHasAutoClassified] = useState(false);
+
+    // Update state when initial values change (for re-classify)
+    useEffect(() => {
+        if (initialDescription) {
+            setDescription(initialDescription);
+            setResult(null);
+            setSelectedAltIndex(null);
+        }
+    }, [initialDescription]);
+
+    useEffect(() => {
+        if (initialOrigin) {
+            setOrigin(initialOrigin);
+        }
+    }, [initialOrigin]);
+
+    useEffect(() => {
+        setMaterial(initialMaterial);
+    }, [initialMaterial]);
+
+    // Auto-classify when requested (for re-classify from history)
+    useEffect(() => {
+        if (autoClassify && initialDescription && !hasAutoClassified && !loading) {
+            setHasAutoClassified(true);
+            // Slight delay to ensure state is updated
+            const timer = setTimeout(() => {
+                handleClassifyAuto();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [autoClassify, initialDescription, hasAutoClassified, loading]);
+
+    // Reset hasAutoClassified when initialDescription changes
+    useEffect(() => {
+        setHasAutoClassified(false);
+    }, [initialDescription]);
 
     // Fetch optimizer teaser when classification completes
     useEffect(() => {
@@ -252,6 +303,16 @@ export default function ClassificationV10LayoutB() {
             return;
         }
 
+        await performClassification();
+    };
+
+    // Auto-classify function (called from useEffect)
+    const handleClassifyAuto = async () => {
+        if (!description.trim()) return;
+        await performClassification();
+    };
+
+    const performClassification = async () => {
         setLoading(true);
         setResult(null);
         setSelectedAltIndex(null);
@@ -276,6 +337,7 @@ export default function ClassificationV10LayoutB() {
 
             if (data.success && data.primary) {
                 messageApi.success('Classification complete');
+                onClassifyComplete?.();
             } else {
                 messageApi.warning('No classification found');
             }

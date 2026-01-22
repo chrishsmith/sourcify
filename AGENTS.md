@@ -114,6 +114,75 @@ const result = await prisma.searchHistory.findMany({
 | `src/components/layouts/DashboardLayout.tsx` | Main layout |
 | `src/features/compliance/components/ClassificationV10.tsx` | Classification UI |
 | `src/features/compliance/components/TariffBreakdown.tsx` | Duty display |
+| `src/services/ofacService.ts` | OFAC SDN list ingestion & search |
+| `src/services/exportService.ts` | Excel/CSV export utilities |
+| `src/services/pdfExportService.ts` | PDF report generation |
+
+## Compliance Tools
+
+### Denied Party Screening (Phase 3)
+- **Database:** `DeniedParty` model stores entries from OFAC, BIS, etc.
+- **Enums:** `DeniedPartyList` (ofac_sdn, bis_entity_list, bis_denied, etc.), `DeniedPartyType` (individual, entity, vessel, aircraft)
+- **Services:** 
+  - `src/services/ofacService.ts` - OFAC SDN list sync and search
+  - `src/services/bisService.ts` - BIS Entity List and Denied Persons sync
+- **API:** `/api/denied-party/sync` (POST to sync, GET for status), `/api/denied-party` (GET to search/list)
+
+### OFAC SDN Data Sources
+- Main list: https://www.treasury.gov/ofac/downloads/sdn.csv
+- Alternate names: https://www.treasury.gov/ofac/downloads/alt.csv
+- Addresses: https://www.treasury.gov/ofac/downloads/add.csv
+
+### BIS Restricted Party Lists
+- **Entity List:** Companies/individuals subject to export restrictions
+- **Denied Persons List:** Persons denied export privileges
+- **Data Source:** Trade.gov Consolidated Screening List API (includes BIS data)
+- **API URL:** https://api.trade.gov/static/consolidated_screening_list/consolidated.json
+- **Sync Functions:**
+  - `syncBISEntityList()` - Syncs BIS Entity List entries
+  - `syncBISDeniedPersons()` - Syncs BIS Denied Persons entries
+  - `syncAllBISLists()` - Syncs both BIS lists in parallel
+
+### Denied Party Sync API Usage
+```bash
+# Sync specific list
+POST /api/denied-party/sync?list=ofac_sdn
+POST /api/denied-party/sync?list=bis_entity_list
+POST /api/denied-party/sync?list=bis_denied
+
+# Sync all lists
+POST /api/denied-party/sync?list=all
+
+# Get sync status
+GET /api/denied-party/sync
+GET /api/denied-party/sync?list=bis_entity_list
+
+# Search/list denied parties
+GET /api/denied-party?q=searchterm
+GET /api/denied-party?sourceList=bis_entity_list&countryCode=CN
+```
+
+### ADD/CVD (Antidumping & Countervailing Duty) Lookup
+- **Data File:** `src/data/adcvdOrders.ts` - Static data for 20+ product categories
+- **API:** `/api/adcvd` (GET with ?htsCode, ?countryCode, ?search params)
+- **Page:** `/dashboard/compliance/addcvd`
+- **Component:** `src/features/compliance/components/ADCVDLookup.tsx`
+- **Key Functions:**
+  - `checkADCVDWarning(htsCode, countryCode)` - Returns warning if HTS may have ADD/CVD exposure
+  - `getAllADCVDOrders()` - Returns all known ADD/CVD orders
+  - `getADCVDOrdersByHTS(htsCode)` - Orders matching HTS prefix
+  - `getADCVDOrdersByCountry(countryCode)` - Orders affecting a country
+
+### ADD/CVD Risk Levels
+- **High Risk:** Chapters 72, 73 (Iron & Steel) - Most orders
+- **Medium Risk:** Chapters 76 (Aluminum), 85 (Electrical), 40 (Rubber), 44 (Wood), 48 (Paper)
+- **Low Risk:** Other products with known orders
+- **None:** No known ADD/CVD exposure
+
+### ADD/CVD Data Sources
+- CBP AD/CVD Search: https://aceservices.cbp.dhs.gov/adcvdweb
+- ITC Orders List: https://www.usitc.gov/trade_remedy/documents/orders.xls
+- ITA Searchable Database: https://www.trade.gov/data-visualization/adcvd-orders-searchable-database
 
 ## Gotchas
 

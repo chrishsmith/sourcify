@@ -1,0 +1,10 @@
+--- cursor-agent output start ---
+There are still 5 stories remaining with `passes: false`:
+- P2-003: Save and compare scenarios
+- P3-004: Batch denied party screening
+- P3-006: Build PGA requirements lookup
+- P3-007: Index CBP rulings database
+- P3-008: Build CBP rulings search UI
+
+Story P3-005 (ADD/CVD lookup) is now complete. The next iteration should pick up the next priority-1 incomplete story.
+--- cursor-agent output end ---

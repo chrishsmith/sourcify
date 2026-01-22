@@ -103,13 +103,71 @@ When all stories have `passes: true`, output:
 <promise>COMPLETE</promise>
 ```
 
-## AGENTS.md Updates
+## Self-Documentation & Learning (CRITICAL)
 
-After completing a story, update relevant AGENTS.md files with:
-- Patterns discovered
-- Gotchas found
-- Useful context for future work
+Ralph's power comes from **learning across iterations**. You MUST do this after EVERY story:
+
+### 1. Update progress.txt
+Append to `progress.txt` with this format:
+```
+### Story [ID] - [Date]
+**What I Did:** [Summary of implementation]
+**Patterns Found:** [Reusable patterns discovered]
+**Gotchas:** [Things that didn't work or were tricky]
+**For Next Time:** [Advice for future iterations]
+```
+
+### 2. Update AGENTS.md
+Add permanent learnings to `AGENTS.md`:
+- New coding patterns specific to this codebase
+- API quirks or undocumented behavior
+- File locations that were hard to find
+- Dependencies between components
+
+### 3. Add Notes to prd.json
+Update the story's `notes` field with implementation details:
+```json
+{
+  "id": "P0-001",
+  "passes": true,
+  "notes": "Used ClassificationsTable component. formatHtsCode() is in src/utils/htsFormatting.ts"
+}
+```
+
+## Guardrails (Signs)
+
+Before taking action, check `.ralph/guardrails.md` for lessons from past work.
+
+**Add a Sign ONLY when you discover something that would save future iterations significant time or prevent bugs:**
+- A pattern that wasn't obvious but is critical
+- A gotcha that caused you to backtrack or debug
+- A "wrong path" that future iterations should avoid
+
+**Don't add Signs for:**
+- Routine patterns already documented in AGENTS.md
+- One-off issues unlikely to recur
+- Obvious best practices
+
+Format for new Signs (add to "## Learned Signs" section):
+```markdown
+### Sign: [Short Name]
+- **Trigger:** [When this applies]
+- **Instruction:** [What to do instead]
+- **Added after:** Story [ID]
+```
 
 ---
 
-**Remember:** You are building the world's best trade intelligence platform. Quality over speed. Each feature should delight users.
+## ⚠️ MANDATORY ACTIONS BEFORE FINISHING
+
+You MUST complete ALL of these before your session ends:
+
+1. **Update prd.json** - Set `"passes": true` for the completed story
+2. **Update progress.txt** - Add learnings with the format above
+3. **Commit changes** - `git add -A && git commit -m "feat(STORY-ID): description"`
+
+If you don't do these, the work is lost and the next iteration won't know what was done!
+
+---
+
+**Remember:** You are building the world's best trade intelligence platform. Quality over speed. Each feature should delight users. And ALWAYS document what you learn!

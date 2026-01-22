@@ -20,6 +20,10 @@ import {
     Crown,
     FlaskConical,
     Scale,
+    Calculator,
+    Shield,
+    AlertTriangle,
+    FileCheck,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
@@ -96,6 +100,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             label: 'Classify',
         },
         {
+            key: '/dashboard/duties/calculator',
+            icon: <Calculator size={18} />,
+            label: 'Landed Cost',
+        },
+        {
             key: '/dashboard/optimizer',
             icon: <Scale size={18} />,
             label: (
@@ -121,6 +130,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             ),
         },
         {
+            key: '/dashboard/compliance/denied-party',
+            icon: <Shield size={18} />,
+            label: 'Screening',
+        },
+        {
+            key: '/dashboard/compliance/addcvd',
+            icon: <AlertTriangle size={18} />,
+            label: 'ADD/CVD',
+        },
+        {
+            key: '/dashboard/compliance/pga',
+            icon: <FileCheck size={18} />,
+            label: 'PGA',
+        },
+        {
             type: 'divider',
         },
         {
@@ -137,15 +161,30 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
     // Get selected key - handle route variations
     const getSelectedKey = () => {
+        // Bulk classify should also highlight Classify menu item
         if (pathname.startsWith('/dashboard/classify')) {
             return '/dashboard/classifications';
         }
         if (pathname.startsWith('/dashboard/monitoring')) {
             return '/dashboard/products';
         }
+        // Landed cost calculator
+        if (pathname.startsWith('/dashboard/duties')) {
+            return '/dashboard/duties/calculator';
+        }
         // Handle old suppliers route - redirect to sourcing
         if (pathname.startsWith('/dashboard/suppliers')) {
             return '/dashboard/sourcing';
+        }
+        // Compliance tools - denied party screening, ADD/CVD, and PGA
+        if (pathname === '/dashboard/compliance/addcvd') {
+            return '/dashboard/compliance/addcvd';
+        }
+        if (pathname === '/dashboard/compliance/pga') {
+            return '/dashboard/compliance/pga';
+        }
+        if (pathname.startsWith('/dashboard/compliance')) {
+            return '/dashboard/compliance/denied-party';
         }
         return pathname;
     };
@@ -249,11 +288,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             'dashboard': 'Overview',
             'classifications': 'Classify',
             'classify': 'Classify Product',
+            'bulk': 'Bulk Classification',
             'optimizer': 'Strategic Classification',
             'products': 'My Products',
             'sourcing': 'Sourcing Intelligence',
             'roadmap': 'Feature Lab',
             'settings': 'Settings',
+            'calculator': 'Landed Cost Calculator',
+            'duties': 'Landed Cost Calculator',
+            'denied-party': 'Denied Party Screening',
+            'addcvd': 'ADD/CVD Lookup',
+            'pga': 'PGA Requirements',
+            'compliance': 'Compliance Tools',
         };
         return titles[segment] || segment.replace('-', ' ');
     };

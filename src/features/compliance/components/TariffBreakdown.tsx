@@ -55,7 +55,7 @@ export const TariffBreakdown: React.FC<TariffBreakdownProps> = ({
     return (
         <Card className="border border-slate-200 shadow-sm" style={{ marginBottom: 24 }}>
             {/* Compact Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
                     <Text className="text-slate-600 text-sm">
                         {countryFlag} {countryName} → 🇺🇸 US
@@ -69,17 +69,17 @@ export const TariffBreakdown: React.FC<TariffBreakdownProps> = ({
             {/* Compact Tariff Stack */}
             <div className="divide-y divide-slate-100">
                 {/* Base Rate */}
-                <div className="flex items-center justify-between py-2.5">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 py-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Tag 
-                            className="font-mono text-xs border-0"
+                            className="font-mono text-xs border-0 max-w-[120px] truncate sm:max-w-none"
                             style={{ backgroundColor: '#CCFBF1', color: '#0F766E' }}
                         >
                             {effectiveTariff.baseHtsCode}
                         </Tag>
-                        <Text strong className="text-slate-700">Base MFN Rate</Text>
+                        <Text strong className="text-slate-700 text-sm sm:text-base">Base MFN Rate</Text>
                     </div>
-                    <Text strong className="text-slate-700">
+                    <Text strong className="text-slate-700 pl-2 sm:pl-0">
                         {effectiveTariff.baseMfnRate.rate}
                     </Text>
                 </div>
@@ -97,16 +97,16 @@ export const TariffBreakdown: React.FC<TariffBreakdownProps> = ({
                     return (
                         <div 
                             key={idx} 
-                            className="flex items-center justify-between py-2.5"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 py-2.5"
                         >
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Tag 
-                                    className="font-mono text-xs border-0"
+                                    className="font-mono text-xs border-0 max-w-[120px] truncate sm:max-w-none"
                                     style={{ backgroundColor: '#CCFBF1', color: '#0F766E' }}
                                 >
                                     {duty.htsCode}
                                 </Tag>
-                                <Text strong className="text-slate-700">{duty.programName}</Text>
+                                <Text strong className="text-slate-700 text-sm sm:text-base">{duty.programName}</Text>
                                 {programInfo && (
                                     <Tooltip 
                                         title={
@@ -121,7 +121,7 @@ export const TariffBreakdown: React.FC<TariffBreakdownProps> = ({
                                     </Tooltip>
                                 )}
                             </div>
-                            <Text strong className="text-slate-700">
+                            <Text strong className="text-slate-700 pl-2 sm:pl-0">
                                 {numericRate}
                             </Text>
                         </div>
@@ -132,14 +132,14 @@ export const TariffBreakdown: React.FC<TariffBreakdownProps> = ({
             {/* Total - Color coded based on severity */}
             {hasAdditionalDuties && (
                 <div 
-                    className="flex items-center justify-between py-3 px-3 rounded-lg mt-4"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 px-3 rounded-lg mt-4"
                     style={{ backgroundColor: severityColor + '12', border: `1px solid ${severityColor}30` }}
                 >
                     <div className="flex items-center gap-2">
                         <TrendingUp size={18} style={{ color: severityColor }} />
-                        <Text strong className="text-slate-800">Total Effective Rate</Text>
+                        <Text strong className="text-slate-800 text-sm sm:text-base">Total Effective Rate</Text>
                     </div>
-                    <Text className="text-xl font-bold" style={{ color: severityColor }}>
+                    <Text className="text-lg sm:text-xl font-bold pl-2 sm:pl-0" style={{ color: severityColor }}>
                         {totalRate}%
                     </Text>
                 </div>

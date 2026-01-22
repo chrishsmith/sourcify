@@ -13,12 +13,12 @@
 - Supplier database schema (needs data population)
 
 **What Needs Work:**
-- Saved products functionality (schema exists, UI incomplete)
-- Search history (schema exists, UI incomplete)
-- Bulk classification (API exists, no UI)
-- Export functionality (not implemented)
-- Compliance tools (not implemented)
-- Mobile responsiveness (partial)
+- ~~Saved products functionality (schema exists, UI incomplete)~~ ✅ P0-001 Complete
+- ~~Search history (schema exists, UI incomplete)~~ ✅ P0-003 Complete
+- ~~Bulk classification (API exists, no UI)~~ ✅ P1-002 Complete
+- ~~Mobile responsiveness (partial)~~ ✅ P0-005 Complete
+- ~~Export functionality (partial - Excel export in bulk, needs general service)~~ ✅ P0-006 Complete
+- ~~Compliance tools (not implemented)~~ 🟡 Partial - Denied party screening complete (P3-001, P3-002, P3-003), batch screening and ADD/CVD pending
 
 **Tech Stack:**
 - Next.js 14 App Router
@@ -33,7 +33,68 @@
 
 ## Learnings Log
 
-(Add learnings here as stories are completed)
+### Story P0-001 - January 19, 2026
+**What I Did:** Verified saved products list page implementation. All acceptance criteria were already met by existing code.
+
+**Implementation Details:**
+- Page: `src/app/(dashboard)/dashboard/products/page.tsx` - Main page with tabs
+- Table: `src/features/compliance/components/ClassificationsTable.tsx` - List component with search, pagination, actions
+- Drawer: `src/features/sourcing/components/ProductDetailDrawer.tsx` - Full product details view
+- API: `/api/saved-products` (GET list, POST create), `/api/saved-products/[id]` (GET detail, PATCH update, DELETE)
+- Service: `src/services/savedProducts.ts` - All database operations
+
+**Patterns Found:**
+- Ant Design Table with custom columns pattern
+- Debounced search input (300ms) using useRef for timer cleanup
+- Dropdown menu for row actions (view, favorite, monitor, delete)
+- Modal.confirm for delete confirmation
+- ProductDetailDrawer accepts `onViewClassification` callback to support both internal modal and external drawer patterns
+
+**Gotchas:**
+- The page uses tab-based navigation with URL sync (`?tab=all|monitored|alerts|analysis`)
+- ClassificationsTable can work with either ProductDetailDrawer (via `onViewClassification` prop) or internal Modal
+- `formatHtsCode()` in `src/utils/htsFormatting.ts` formats codes for display (with dots)
+- API returns `items` array and `total` count for pagination
+
+**For Next Time:**
+- Check existing implementation before building - functionality may already exist
+- The Products page has 4 tabs: All Products, Monitored, Alerts, Portfolio Analysis
+- Tariff enrichment is optional via `includeTariffData=true` query param
+
+---
+
+### Story P0-002 - January 19, 2026
+**What I Did:** Added "Save to My Products" functionality to the ClassificationV10 component.
+
+**Implementation Details:**
+- Modified: `src/features/compliance/components/ClassificationV10.tsx` - Added save button, modal, and handlers
+- Modified: `src/services/savedProducts.ts` - Added `sourceSearchId` parameter to `saveProductDirect`
+- Modified: `src/app/api/saved-products/route.ts` - Pass `sourceSearchId` to service
+
+**Changes Made:**
+1. Added state for save modal, product name, saving status, and saved flag
+2. Added `openSaveModal()` function that pre-populates product name from description
+3. Added `handleSaveProduct()` function that POSTs to `/api/saved-products` with all classification data
+4. Added Modal with Form for editing product name before save
+5. Added "Save to My Products" button (teal gradient) that changes to "Saved ✓" (green) after success
+6. Links saved product to search history via `sourceSearchId` field
+
+**Patterns Found:**
+- Use `Form.useForm()` hook to control form state externally (for pre-populating values)
+- Use `message.useMessage()` for toast notifications with JSX content (includes links)
+- Conditional button rendering: show save button when not saved, show disabled "Saved ✓" when saved
+- The `searchHistoryId` is returned in V10 API response and used to link SavedProduct to SearchHistory
+
+**Gotchas:**
+- The V10 response already includes `searchHistoryId` - no API changes needed to get it
+- SavedProduct schema has `sourceSearchId` (unique) that links to SearchHistory
+- Effective duty rate needs to be parsed from string (e.g., "25.3%") to float for storage
+- Need to reset `isSaved` state when user starts a new classification
+
+**For Next Time:**
+- ClassificationResult.tsx has similar save functionality but with monitoring options
+- Consider consolidating save logic into a shared hook if more components need it
+- The Products page (/dashboard/products) will show newly saved products
 
 ---
 
@@ -66,3 +127,1159 @@ npx ts-node prisma/seed-hts.ts
 ```
 
 ---
+
+### Iteration 1 - 2026-01-19 15:17
+- Story: P0-002
+- Duration: 214s
+- Status: Completed ✅
+
+### Iteration 2 - 2026-01-19 15:20
+- Story: P1-001
+- Duration: 207s
+- Status: Completed ✅
+
+---
+
+### Story P1-001 - January 19, 2026
+**What I Did:** Added AI Reasoning display section to the ClassificationV10 component. Backend already generated the reasoning; only needed UI implementation.
+
+**Implementation Details:**
+- Modified: `src/features/compliance/components/ClassificationV10.tsx` - Added collapsible AI Reasoning panel
+- Modified: `src/app/api/classify-v10/route.ts` - Added searchHistoryId to response, included aiReasoning in fullResult
+
+**Changes Made:**
+1. Added ~160 lines of UI code for the AI Reasoning section after HTS Path
+2. Collapsible panel using Ant Design Collapse with defaultActiveKey (expanded by default)
+3. Three numbered steps showing Chapter → Heading → Code reasoning with explanations
+4. Key Factors grid (2-column on desktop) with impact indicators (positive=green, uncertain=amber, neutral=slate)
+5. Exclusions section for "Other" codes showing what was excluded and why
+6. Confidence Assessment with colored background based on level (high/medium/low)
+7. API now returns searchHistoryId after creating history record
+
+**Patterns Found:**
+- Backend already had `generateAIReasoning()` function (lines 1181-1343) in classificationEngineV10.ts
+- AIReasoning interface already defined in both backend and frontend (matching structure)
+- Use numbered step indicators with colored circles for visual hierarchy
+- Impact-based styling: 'positive'→green, 'uncertain'→amber, 'neutral'→slate backgrounds
+- Collapse component with defaultActiveKey for expanded-by-default behavior
+
+**Gotchas:**
+- The classification engine already generates aiReasoning - check backend before implementing
+- Icons from lucide-react: Brain (for AI section header), CheckCircle2, HelpCircle, XCircle for impact indicators
+- The API was NOT returning searchHistoryId previously - had to modify route.ts to capture and return it
+- fullResult in SearchHistory now includes aiReasoning for history replay
+
+**For Next Time:**
+- Always read existing backend code first - it may already have the feature implemented
+- The AIReasoning interface has: summary, chapterReasoning, headingReasoning, codeReasoning, keyFactors, exclusions, confidence
+- Chapter descriptions are hardcoded in CHAPTER_DESCRIPTIONS constant (lines 37-136 of engine)
+- The reasoning quality depends on detected material, product type, and keyword matches
+
+### Iteration 3 - 2026-01-19 15:24
+- Story: P1-001
+- Duration: 217s
+- Status: Completed ✅
+
+---
+
+### Story P1-002 - January 19, 2026
+**What I Did:** Built complete bulk classification UI with dedicated page, CSV upload, preview, progress tracking, results table, and Excel export.
+
+**Implementation Details:**
+- Created: `src/app/(dashboard)/dashboard/classify/bulk/page.tsx` - Dedicated bulk page
+- Created: `src/features/compliance/components/BulkClassificationContent.tsx` - Full bulk classification component (~740 lines)
+- Modified: `src/features/compliance/components/ClassificationsPageContent.tsx` - Changed Bulk Import button to navigate to bulk page
+- Modified: `src/components/layouts/DashboardLayout.tsx` - Added 'bulk' to page title mapping
+
+**Key Features:**
+1. **4-stage workflow**: idle → preview → processing → complete
+2. **CSV Upload**: Drag-drop with Ant Design Dragger, accepts .csv files
+3. **Template Download**: CSV template with 5 sample products and all columns
+4. **Preview**: Shows first 5 rows in table before processing starts
+5. **Processing**: Circular progress indicator, live success/failed counts, cancel button
+6. **Results Table**: Row status, HTS code (formatted), confidence, duty rate, error column
+7. **Excel Export**: Uses xlsx library with proper column widths and formatted data
+8. **Abort Support**: useRef with AbortController to cancel in-flight requests
+
+**Patterns Found:**
+- Use `useRef<AbortController | null>(null)` for cancellable fetch operations
+- Process rows sequentially with state updates for live feedback (better UX than batch)
+- CSV parsing handles quoted values correctly (track `inQuotes` flag)
+- Table with `scroll={{ x: 1200 }}` for horizontal scroll on mobile
+- State machine pattern (ProcessingState type) for complex UI workflows
+- `message.useMessage()` hook returns [messageApi, contextHolder] - must render contextHolder
+
+**Gotchas:**
+- Used V10 API directly (`/api/classify-v10`) instead of old bulk endpoint for better results
+- The xlsx library export: `XLSX.utils.json_to_sheet()` then `XLSX.writeFile()`
+- Ant Design Upload's beforeUpload receives file object, return false to prevent default upload
+- AbortController.signal passed to fetch, check `signal.aborted` in loop to stop early
+
+**For Next Time:**
+- Bulk processing could be optimized with batching (currently sequential for better UX feedback)
+- The old `/api/classify/bulk` endpoint uses streaming - consider keeping for background jobs
+- xlsx library is already in package.json dependencies
+- Consider adding batch size limit warning (500+ products = long wait)
+
+### Iteration 4 - 2026-01-19 15:29
+- Story: P1-002
+- Duration: 295s
+- Status: Completed ✅
+
+---
+
+### Story P0-003 - January 19, 2026
+**What I Did:** Added re-classify capability to the search history panel. Most of the history functionality was already complete; added the missing re-run feature.
+
+**Implementation Details:**
+- Modified: `src/features/compliance/components/SearchHistoryPanel.tsx`
+  - Added `ReClassifyInput` interface (exported)
+  - Added `SearchHistoryPanelProps` with optional `onReClassify` callback
+  - Added `handleReClassify` function that calls the callback with search inputs
+  - Added "Re-classify" option to actions dropdown (RotateCcw icon)
+  - Added "Re-classify" button in detail modal header
+- Modified: `src/features/compliance/components/ClassificationV10LayoutB.tsx`
+  - Added `ClassificationV10LayoutBProps` interface
+  - Added props: `initialDescription`, `initialOrigin`, `initialMaterial`, `autoClassify`, `onClassifyComplete`
+  - Added useEffect hooks to update state when initial values change
+  - Added auto-classify logic with `hasAutoClassified` flag to prevent infinite loops
+  - Refactored `handleClassify` to use shared `performClassification` function
+- Modified: `src/features/compliance/components/ClassificationsPageContent.tsx`
+  - Added `reClassifyInput` and `autoClassify` state
+  - Added `handleReClassify` callback that sets state and switches to classify tab
+  - Added `handleClassifyComplete` to reset auto-classify flag
+  - Passed props to `ClassificationV10LayoutB` and `onReClassify` to `SearchHistoryPanel`
+
+**Patterns Found:**
+- Export interfaces from child components when parent needs them (ReClassifyInput)
+- Use callback props to communicate from child to parent for cross-component actions
+- Use `autoClassify` flag + `hasAutoClassified` to prevent infinite re-classification loops
+- Refactor shared logic into helper functions (performClassification) for reuse
+- Use setTimeout with cleanup in useEffect for delayed actions after state updates
+
+**Gotchas:**
+- SearchHistoryPanel was already mostly complete - just needed re-classify
+- useEffect with auto-classify needs careful dependency management to avoid loops
+- TypeScript requires explicit type annotation for spread array items in menu: `as const`
+- Detail modal's handleReClassify needs to pass selectedSearch which extends SearchHistoryItem
+
+**For Next Time:**
+- The SearchHistoryPanel is feature-complete (view, delete, re-classify, bulk monitor)
+- ClassificationV10LayoutB can now be controlled externally via props
+- Consider adding keyboard shortcuts for re-classify (e.g., Ctrl+R)
+- Could add "Re-classify with changes" option that pre-fills but doesn't auto-submit
+
+### Iteration 5 - 2026-01-19
+- Story: P0-003
+- Status: Completed ✅
+
+### Iteration 5 - 2026-01-19 15:33
+- Story: P2-001
+- Duration: 266s
+- Status: Completed ✅
+
+---
+
+### Story P0-004 - January 19, 2026
+**What I Did:** Created reusable loading, error, and empty state components for consistent UI across the application.
+
+**Implementation Details:**
+- Created: `src/components/shared/LoadingState.tsx` - Reusable loading spinner with message
+- Created: `src/components/shared/ErrorState.tsx` - Error display with retry button
+- Created: `src/components/shared/EmptyState.tsx` - Empty state with preset icons and actions
+- Modified: `src/components/shared/index.ts` - Export all new components and types
+- Modified: `src/features/compliance/components/ClassificationsTable.tsx` - Use new components
+
+**Key Components:**
+
+1. **LoadingState**
+   - Props: `message`, `size` (small/default/large), `card`, `fullHeight`
+   - Teal-colored spinner with custom icon (Loader2 from lucide-react)
+   - `InlineSpinner` helper for simple inline use
+
+2. **ErrorState**
+   - Props: `title`, `message`, `onRetry`, `retryText`, `onBack`, `type` (error/warning/info)
+   - Supports card and fullHeight modes
+   - `InlineError` helper using Ant Design Alert for inline errors
+
+3. **EmptyState**
+   - Props: `title`, `description`, `icon` (preset or custom), `action`, `secondaryAction`
+   - Preset icons: products, search, folder, notifications, analytics, default
+   - Actions support both onClick and href (uses Next.js Link)
+   - `SearchEmptyState` helper for search-specific empty states
+
+**Patterns Found:**
+- Use preset icon types (`EmptyIconType`) for common use cases (products, search, etc.)
+- Support both `onClick` and `href` in action configs for flexibility
+- `InlineSpinner` and `InlineError` helpers for simpler use cases
+- Consistent styling: teal accent for loading, red/amber/blue for errors, slate for empty
+- All components support `card` and `fullHeight` props for layout flexibility
+
+**Gotchas:**
+- Import from `@/components/shared` for cleaner imports
+- The `icon` prop in EmptyState accepts either preset string or React node
+- `SearchEmptyState` is a pre-configured wrapper for search results empty state
+- Action buttons default to type="primary" for main action
+
+**For Next Time:**
+- Components are exported from `src/components/shared/index.ts`
+- Use `LoadingState` for page/section loading, `InlineSpinner` for inline
+- Use `ErrorState` for full errors, `InlineError` for form/inline errors
+- Preset icons: 'products', 'search', 'folder', 'notifications', 'analytics', 'default'
+- Components can be progressively adopted - not all existing pages need immediate update
+
+### Iteration 6 - 2026-01-19
+- Story: P0-004
+- Status: Completed ✅
+
+### Iteration 6 - 2026-01-19 15:37
+- Story: P2-001
+- Duration: 220s
+- Status: Completed ✅
+
+---
+
+### Story P0-005 - January 19, 2026
+**What I Did:** Implemented comprehensive mobile responsiveness across all major components and pages.
+
+**Implementation Details:**
+- Modified: `src/app/globals.css` - Added extensive mobile utility CSS
+- Modified: `src/features/compliance/components/ClassificationV10.tsx` - Made form and results responsive
+- Modified: `src/features/compliance/components/ClassificationsTable.tsx` - Added horizontal scroll, responsive search bar
+- Modified: `src/features/compliance/components/SearchHistoryPanel.tsx` - Added table scroll
+- Modified: `src/features/compliance/components/TariffBreakdown.tsx` - Responsive tariff rows
+- Modified: `src/features/compliance/components/BulkClassificationContent.tsx` - Responsive preview and buttons
+
+**Key Changes:**
+
+1. **globals.css Mobile Utilities:**
+   - Overflow prevention: `overflow-x: hidden; max-width: 100vw` on html/body
+   - Touch-friendly inputs: `min-height: 44px`, `font-size: 16px` (prevents iOS zoom)
+   - Card/modal padding adjustments at `@media (max-width: 640px)`
+   - Table wrapper overflow-x: auto with `-webkit-overflow-scrolling: touch`
+   - Pagination responsive (hides size changer on mobile)
+   - `.mobile-scroll-x` helper class for horizontal scroll containers
+
+2. **ClassificationV10.tsx:**
+   - Form inputs: `flex-col sm:flex-row` for country/material selects
+   - Duty grid: `grid-cols-1 sm:grid-cols-3` for responsive layout
+   - HTS code: `text-2xl sm:text-4xl` with `break-all` for overflow
+   - Decision questions: `grid-cols-1 sm:grid-cols-2`
+   - Alternatives: compact padding `p-3 sm:p-4`
+
+3. **Tables (ClassificationsTable, SearchHistoryPanel):**
+   - Added `scroll={{ x: 800 }}` for horizontal scrolling
+   - Added `responsive: true` to pagination
+   - Search bar stacks on mobile: `flex-col sm:flex-row`
+
+4. **TariffBreakdown:**
+   - Tariff rows: `flex-col sm:flex-row` for label + value stacking
+   - HTS code tags: `max-w-[120px] truncate sm:max-w-none`
+   - Text sizes adjust: `text-sm sm:text-base`
+
+**Patterns Found:**
+- Use `sm:` breakpoint (640px) consistently as mobile threshold
+- Use `flex-col sm:flex-row` for elements that should stack on mobile
+- Use `scroll={{ x: NUMBER }}` on Ant Design tables for horizontal scroll
+- Use `text-sm sm:text-base` for font sizes that should be smaller on mobile
+- Set min-height: 44px on touch targets (Apple HIG recommendation)
+- Font size 16px on inputs prevents iOS auto-zoom on focus
+
+**Gotchas:**
+- iOS Safari auto-zooms on input focus if font-size < 16px
+- Ant Design Table needs explicit scroll.x for horizontal scrolling
+- overflow-x on parent containers can clip fixed/sticky positioned children
+- The responsive: true pagination option was added in newer Ant Design versions
+- Use `break-all` not `break-words` for long alphanumeric strings (HTS codes)
+
+**For Next Time:**
+- Mobile CSS utilities are in globals.css, ~120 lines of mobile-specific rules
+- Standard breakpoint: 640px (sm:) for mobile → desktop transition
+- Test with Chrome DevTools: iPhone SE (375px), iPhone 12 Pro (390px), iPad (768px)
+- Touch targets: 44x44px minimum for buttons and interactive elements
+- Consider adding safe-area-inset for notched devices if needed
+
+### Iteration 7 - 2026-01-19
+- Story: P0-005
+- Status: Completed ✅
+
+### Iteration 7 - 2026-01-19 15:42
+- Story: P2-001
+- Duration: 317s
+- Status: Completed ✅
+
+---
+
+### Story P0-006 - January 19, 2026
+**What I Did:** Created a comprehensive reusable export service for Excel and CSV downloads.
+
+**Implementation Details:**
+- Created: `src/services/exportService.ts` - Full export service (~350 lines)
+- Modified: `src/features/compliance/components/BulkClassificationContent.tsx` - Updated to use the new export service
+
+**Key Features:**
+
+1. **Excel Export Functions:**
+   - `exportToExcel(data, columns, options)` - Full control with column configuration
+   - `exportToExcelSimple(data, options)` - Auto-detect columns from data keys
+   - Column config supports: key, header, width, transform function
+
+2. **CSV Export Functions:**
+   - `exportToCSV(data, options)` - Simple CSV with auto-detected headers
+   - `exportToCSVWithColumns(data, columns, options)` - CSV with column transforms
+   - Proper CSV escaping for quotes, commas, newlines
+
+3. **Presets (ExportPresets):**
+   - `classificationResults` - For bulk classification exports
+   - `savedProducts` - For saved products list
+   - `searchHistory` - For classification history
+   - `landedCost` - For landed cost scenarios
+
+4. **QuickExport Helper:**
+   - One-liner exports: `QuickExport.classificationResults(data)`
+   - Pre-configured with presets and default filenames
+
+5. **Options:**
+   - `filename` - Base filename (default: 'export')
+   - `includeTimestamp` - Add date to filename (default: true)
+   - `sheetName` - Excel sheet name (default: 'Sheet1')
+   - `delimiter` - CSV delimiter (default: ',')
+
+**Patterns Found:**
+- Use `XLSX.utils.json_to_sheet()` for converting array to worksheet
+- Use `worksheet['!cols']` array for column widths in characters
+- Trigger download: create Blob → createObjectURL → create/click link → revokeObjectURL
+- CSV escaping: wrap in quotes if value contains comma/quote/newline, double-escape quotes
+- Transform functions allow formatting during export (e.g., percentages, dates)
+
+**Gotchas:**
+- `XLSX.writeFile()` handles Excel download automatically (no manual blob needed)
+- For CSV, must handle BOM for Excel compatibility with special characters
+- Transform functions receive (value, row) to allow cross-field calculations
+- Column width in XLSX is in "characters" not pixels (`wch` property)
+
+**For Next Time:**
+- Import from `@/services/exportService` for all export needs
+- Use `ExportPresets.classificationResults` etc. for standard data types
+- Use `QuickExport.savedProducts(data)` for one-liner exports
+- Transform functions are useful for: date formatting, percentage display, boolean→Yes/No
+- The service is client-side only (uses document for download trigger)
+
+### Iteration 8 - 2026-01-19
+- Story: P0-006
+- Status: Completed ✅
+
+### Iteration 8 - 2026-01-19 15:46
+- Story: P2-001
+- Duration: 194s
+- Status: Completed ✅
+
+---
+
+### Story P1-003 - January 19, 2026
+**What I Did:** Created PDF export service and added "Export PDF Report" button to classification results.
+
+**Implementation Details:**
+- Created: `src/services/pdfExportService.ts` - PDF generation service using @react-pdf/renderer (~400 lines)
+- Modified: `src/features/compliance/components/ClassificationV10.tsx` - Added export button, handler, and state
+- Modified: `package.json` - Added @react-pdf/renderer dependency
+
+**Key Features:**
+
+1. **PDF Structure (Page 1 - Classification Report):**
+   - Sourcify branding header with teal accent
+   - Product information section (description, country, material)
+   - HTS code display with confidence badge
+   - Full HTS classification path (Chapter → Heading → Subheading → Tariff → Statistical)
+   - Duty breakdown grid (Base MFN, Additional, Effective rate)
+   - Legal disclaimer
+
+2. **PDF Structure (Page 2 - AI Reasoning, if available):**
+   - Classification summary
+   - Step-by-step reasoning (Chapter → Heading → Code)
+   - Key classification factors with impact indicators
+   - Confidence assessment
+
+3. **Styling:**
+   - Professional appearance with styled components
+   - Color-coded confidence badges (green/amber/orange)
+   - Structured layout with section headers
+   - Footer with page numbers
+
+4. **Export Features:**
+   - `exportClassificationPDF(data)` - Generate and download PDF
+   - `generateClassificationPDFBlob(data)` - Get blob for preview/attachment
+   - Sensible filename: `sourcify-classification-{hts}-{product}-{date}.pdf`
+
+**Patterns Found:**
+- Use `createElement` pattern instead of JSX for @react-pdf/renderer (better SSR/bundling compatibility)
+- StyleSheet.create() for defining reusable styles
+- `pdf(doc).toBlob()` for generating PDF blob
+- Conditional page rendering for optional sections (AI reasoning)
+- Download trigger: createObjectURL → click link → revokeObjectURL
+
+**Gotchas:**
+- @react-pdf/renderer requires React 18+ compatibility
+- Use 'Helvetica' and 'Helvetica-Bold' for built-in fonts (no custom font loading)
+- Page 2 only renders if aiReasoning exists
+- The `fixed` prop on View for footer keeps it at bottom of each page
+- Must use `render` prop function for dynamic content like page numbers
+
+**For Next Time:**
+- Import from `@/services/pdfExportService`
+- ClassificationPDFData interface defines required data structure
+- PDF service is client-side only (uses document for download)
+- Consider adding watermark for unofficial reports
+- Could extend to batch PDF export for multiple classifications
+
+### Iteration 9 - 2026-01-19
+- Story: P1-003
+- Status: Completed ✅
+
+### Iteration 9 - 2026-01-19 15:50
+- Story: P2-001
+- Duration: 266s
+- Status: Completed ✅
+
+---
+
+### Story P1-004 - January 19, 2026
+**What I Did:** Added duty rate comparison for alternative classifications with visual indicators, sorting controls, and detailed breakdown modals.
+
+**Implementation Details:**
+- Modified: `src/services/classificationEngineV10.ts`
+  - Updated Alternative interface to include `effectiveNumeric` and `breakdown` fields
+  - Added parallel duty fetching for top 5 alternatives using Promise.all
+  - Duty breakdown includes IEEPA (baseline/fentanyl/reciprocal), Section 301, Section 232
+- Modified: `src/features/compliance/components/ClassificationV10.tsx`
+  - Added `alternativeSortBy`, `selectedAlternative`, `dutyModalOpen` state
+  - Added sort controls (by confidence or by duty rate)
+  - Added "Lower Duty" badge when alternative has lower rate than primary
+  - Added clickable duty buttons that open detailed breakdown modal
+  - Green highlighting for alternatives with lower duty rates
+
+**Key Features:**
+
+1. **Duty Rate Fetching (Backend):**
+   - Parallel fetching for top 5 alternatives using Promise.all
+   - Inherits generalRate from parent code if not on leaf node
+   - Includes full breakdown (IEEPA, Section 301, Section 232)
+   - effectiveNumeric field enables sorting
+
+2. **Sort Controls (UI):**
+   - Button.Group with confidence vs duty rate options
+   - Sorting by duty shows lowest rate first
+   - Icons: BarChart3 for confidence, DollarSign for duty
+   - Responsive (icon-only on mobile, with labels on desktop)
+
+3. **Lower Duty Indicator:**
+   - Green "Lower Duty" badge with ArrowDownCircle icon
+   - Tooltip shows exact savings percentage
+   - Card highlighted with green background/border
+   - Helps users find cost-saving alternatives quickly
+
+4. **Duty Breakdown Modal:**
+   - Opens on clicking duty rate button
+   - Shows: HTS code, description, base MFN rate
+   - Lists all additional duties with program names
+   - Total effective rate with amber styling
+   - Comparison vs primary (green for savings, red for additional)
+   - Copy HTS code button in footer
+
+**Patterns Found:**
+- Use IIFE with return to handle complex inline rendering: `{(() => { ... })()}`
+- Sort alternatives with spread to avoid mutating original: `[...arr].sort()`
+- Use effectiveNumeric ?? 999 for sorting so N/A goes to end
+- Button.Group for toggle-style radio selection
+- Parallel Promise.all for fetching multiple duty rates efficiently
+
+**Gotchas:**
+- Must spread result.alternatives before sorting to avoid mutation
+- parseFloat on effective rate string (e.g., "25.3%") needs .replace('%', '')
+- alternativeDuties Map uses code as key, populated by parallel fetches
+- Duty breakdown only populated for top 5 alternatives (performance)
+- Green styling only when altRate < primaryRate (strictly less than)
+
+**For Next Time:**
+- Alternative interface now has: effectiveNumeric, breakdown (for sorting/display)
+- Duty comparison works automatically when both primary and alternative have duty
+- Consider adding "Apply Alternative" button to switch primary classification
+- Could extend to country comparison (P1-005) using similar pattern
+- The sorting preserves rank numbers (#{idx + 2}) which may confuse users
+
+### Iteration 10 - 2026-01-19
+- Story: P1-004
+- Status: Completed ✅
+
+### Iteration 10 - 2026-01-19 15:55
+- Story: P2-001
+- Duration: 286s
+- Status: Completed ✅
+
+### Iteration 11 - 2026-01-19 16:01
+- Story: P2-001
+- Duration: 351s
+- Status: In Progress
+
+---
+
+### Story P1-005 - January 19, 2026
+**What I Did:** Added country comparison modal to ClassificationV10.tsx for comparing duty rates across different sourcing countries.
+
+**Implementation Details:**
+- Modified: `src/features/compliance/components/ClassificationV10.tsx` - Added country comparison modal (~250 lines)
+- Used existing: `src/app/api/duty-comparison/route.ts` - API endpoint already existed with full functionality
+
+**Key Features:**
+
+1. **Compare Countries Button:**
+   - Purple-themed button in action buttons section after classification
+   - Opens modal and triggers comparison fetch
+
+2. **Country Selection:**
+   - Default countries: CN, VN, IN, MX, TH (top 5 sourcing countries)
+   - 18 countries available from COMPARISON_COUNTRIES array in API
+   - Add countries via Select dropdown
+   - Remove countries via Tag's closable X button
+   - Update Comparison button re-fetches with new country list
+
+3. **Comparison Display:**
+   - Countries sorted by effective rate (lowest first)
+   - Best option highlighted with green background + Award badge
+   - Current selection (user's origin) marked with purple tag
+   - Each country card shows: flag, name, effective rate, FTA status
+
+4. **Duty Breakdown Tags:**
+   - Base MFN (cyan)
+   - FTA discount (green, negative)
+   - IEEPA (orange)
+   - Section 301 (red)
+   - Section 232 (magenta)
+
+5. **Savings Comparison:**
+   - Green highlight when country has lower duty than current
+   - Red highlight when higher
+   - Shows exact percentage difference
+
+**Patterns Found:**
+- API endpoint at `/api/duty-comparison` handles all calculation via tariffRegistry service
+- GET returns available countries, POST compares specific countries
+- Modal can manage its own state for country selection without affecting main component
+- Spread and sort pattern: `[...countryComparisons].sort((a, b) => a.effectiveRate - b.effectiveRate)`
+- Use conditional styling with ternary chains for multiple states (best/current/default)
+
+**Gotchas:**
+- The `handleCompareCountries` function is called on button click, NOT on modal open
+- Need to call `fetchAvailableCountries()` first time to populate dropdown
+- `handleRefreshComparison` re-uses `handleCompareCountries` but checks if modal is open
+- CountryDutyComparison interface was already defined in ClassificationV10.tsx (lines 154-173)
+- The API calculates `savingsVsCurrent` based on `currentCountry` and `currentRate` params
+
+**For Next Time:**
+- The duty-comparison API supports any country with a CountryTariffProfile in the database
+- COMPARISON_COUNTRIES constant in the API file lists all supported countries
+- Consider adding "Use This Country" button to switch the origin in the classification form
+- Country comparison works best when base MFN rate is known (passed from classification result)
+- Modal width of 800px works well for desktop; cards stack on mobile
+
+### Iteration 12 - 2026-01-19
+- Story: P1-005
+- Status: Completed ✅
+
+### Iteration 12 - 2026-01-19 16:07
+- Story: P2-001
+- Duration: 356s
+- Status: Completed ✅
+
+---
+
+### Story P2-001 & P2-002 - January 19, 2026
+**What I Did:** Built comprehensive landed cost calculator with page, API, and full customs fees calculation (also completing P2-002).
+
+**Implementation Details:**
+- Created: `src/app/(dashboard)/dashboard/duties/calculator/page.tsx` - Page wrapper
+- Created: `src/features/compliance/components/LandedCostCalculator.tsx` - Full calculator (~530 lines)
+- Created: `src/app/api/landed-cost/route.ts` - POST API for calculations (~220 lines)
+- Modified: `src/components/layouts/DashboardLayout.tsx` - Added Calculator menu item, updated getSelectedKey/getPageTitle
+
+**Key Features:**
+
+1. **Form Inputs:**
+   - HTS code (font-mono, validates digits/dots)
+   - Country of origin (18 countries with flags)
+   - Product value and quantity (number formatters with comma separators)
+   - Shipping and insurance costs (optional)
+   - Ocean/Air toggle (Switch with Anchor/Plane icons) - affects HMF
+
+2. **API Calculation:**
+   - Uses existing tariffRegistry.getEffectiveTariff() for duty rates
+   - MPF: 0.3464% with $31.67 min, $614.35 max
+   - HMF: 0.125% for ocean shipments only
+   - Looks up HTS description from database
+   - Returns full tariffBreakdown for TariffBreakdown component
+
+3. **Results Display:**
+   - Summary card with HTS code, country, description
+   - Duties section (amber): Base MFN + Additional Duties + Effective Rate
+   - Fees section (slate): MPF and HMF as separate line items with info tooltips
+   - Total landed cost (teal gradient): Big number + per-unit when qty>1
+   - Reuses existing TariffBreakdown component for detailed duty display
+   - Disclaimer alert at bottom
+
+4. **Navigation:**
+   - Menu item: Calculator icon under "Landed Cost" label
+   - Routes: /dashboard/duties/calculator
+   - Page title: "Landed Cost Calculator"
+
+**Patterns Found:**
+- Reuse existing tariffRegistry service - no need to duplicate tariff logic
+- convertToLegacyFormat() in tariffRegistry converts new format to EffectiveTariffRate for TariffBreakdown
+- InputNumber with formatter/parser for currency and quantity formatting
+- Form validation with Ant Design rules + min/max on InputNumber
+- Two-column responsive layout: form on left, results on right (stacks on mobile)
+
+**Gotchas:**
+- MPF min/max values updated: $31.67/$614.35 (were $27.75/$538.40 in landedCost.ts)
+- HTS lookup tries multiple lengths (10→8→6) to find best match
+- API returns tariffBreakdown for TariffBreakdown component compatibility
+- Form initial values must include isOceanShipment: true for switch default
+- Switch component needs valuePropName="checked" in Form.Item
+
+**For Next Time:**
+- Landed cost calculator at /dashboard/duties/calculator
+- API: POST /api/landed-cost with htsCode, countryCode, productValue, quantity, shippingCost, insuranceCost, isOceanShipment
+- P2-003 (save/compare scenarios) can build on this foundation using localStorage or DB
+- Consider adding "Use HTS from Classification" button to auto-fill from recent classifications
+- Could add export to PDF for landed cost estimates
+
+### Iteration 13 - 2026-01-19
+- Story: P2-001 & P2-002 (combined)
+- Status: Completed ✅
+
+### Iteration 13 - 2026-01-19 16:11
+- Story: P2-001
+- Duration: 240s
+- Status: Completed ✅
+
+---
+
+### Story P3-001 - January 19, 2026
+**What I Did:** Built OFAC SDN list ingestion service with database models, parsing logic, and API endpoints for syncing and querying.
+
+**Implementation Details:**
+- Added to: `prisma/schema.prisma` - DeniedParty and DeniedPartySyncLog models with enums
+- Created: `src/services/ofacService.ts` - Full OFAC SDN sync and search service (~500 lines)
+- Created: `src/app/api/denied-party/sync/route.ts` - POST to sync, GET for status
+- Created: `src/app/api/denied-party/route.ts` - GET for listing/searching denied parties
+
+**Database Models:**
+
+1. **DeniedParty:**
+   - `name`, `aliases` (string[]), `entityType` (individual/entity/vessel/aircraft/unknown)
+   - `countryCode`, `countryName`, `addresses` (string[])
+   - `identifiers` (Json) - parsed from OFAC remarks (DOB, Passport, IDs)
+   - `sourceList` (ofac_sdn, bis_entity_list, etc.), `sourceId`, `sourcePrograms`
+   - `remarks`, `isActive`, `listedDate`, `delistedDate`
+   - Unique constraint on [sourceList, sourceId]
+
+2. **DeniedPartySyncLog:**
+   - Tracks sync operations: status, totalRecords, created/updated/deleted counts
+   - fileChecksum, lastModified for change detection
+   - errors (Json) for tracking parsing issues
+
+**Service Functions:**
+- `syncOFACSDNList()` - Downloads 3 CSVs in parallel, parses and upserts ~15K+ entries
+- `getLastSyncInfo()` - Returns last sync + active entry count
+- `getSyncHistory(limit)` - Returns recent sync logs
+- `searchDeniedParties(query, options)` - Fuzzy search by name/alias
+- `getDeniedParties(options)` - Paginated listing with filters
+
+**Key Features:**
+1. Downloads sdn.csv, alt.csv (aliases), add.csv (addresses) in parallel
+2. Parses OFAC CSV format with quoted value handling
+3. Merges aliases and addresses by entry number
+4. Extracts identifiers (DOB, Passport, National ID) from remarks field
+5. Maps country names to ISO codes for common countries
+6. Batch processing (100 entries at a time) for performance
+7. Marks entries not in latest download as inactive (soft delete)
+
+**Patterns Found:**
+- Use unique composite index for upsert: `@@unique([sourceList, sourceId])`
+- Store structured data as Json (identifiers) for flexibility
+- Parse CSV with `inQuotes` flag for proper handling of embedded commas
+- Download files in parallel with Promise.all for speed
+- Track sync history for audit trail and debugging
+- Soft-delete pattern: set `isActive: false` instead of deleting
+
+**Gotchas:**
+- OFAC CSV files don't have consistent headers - skip based on content
+- Entry numbers (ent_num) link records across sdn.csv, alt.csv, add.csv
+- Remarks field contains structured data (IDs) in semi-structured format
+- Some entities have no country - need to handle null gracefully
+- Need to run `npx prisma generate` and `npx prisma db push` after schema change
+
+**For Next Time:**
+- The service is ready for P3-002 (BIS lists) - same DeniedParty model, different sourceList enum
+- API at /api/denied-party/sync - POST to trigger, GET for status
+- API at /api/denied-party - GET with optional ?q=search&countryCode=RU&entityType=individual
+- Consider adding background job for sync (currently synchronous, can take 1-2 minutes)
+- P3-003 (UI) can use the existing /api/denied-party endpoint
+
+### Iteration 14 - 2026-01-19
+- Story: P3-001
+- Status: Completed ✅
+
+### Iteration 14 - 2026-01-19 16:15
+- Story: P3-001
+- Duration: 233s
+- Status: Completed ✅
+
+---
+
+### Story P3-002 - January 19, 2026
+**What I Did:** Built BIS restricted party lists ingestion service (Entity List and Denied Persons) with API support for syncing both lists.
+
+**Implementation Details:**
+- Created: `src/services/bisService.ts` - Full BIS list sync service (~740 lines)
+- Updated: `src/app/api/denied-party/sync/route.ts` - Extended to support multiple list types (ofac_sdn, bis_entity_list, bis_denied, all)
+- Updated: `src/app/api/denied-party/route.ts` - Now queries across all lists with meta info about each list
+- Updated: `AGENTS.md` - Added BIS service documentation
+
+**Service Functions:**
+- `syncBISEntityList()` - Syncs BIS Entity List from Trade.gov CSL
+- `syncBISDeniedPersons()` - Syncs BIS Denied Persons from Trade.gov CSL
+- `syncAllBISLists()` - Syncs both lists in parallel
+- `getLastBISSyncInfo(sourceList)` - Returns last sync + count for specific list
+- `getBISSyncHistory(sourceList, limit)` - Returns sync history for specific list
+
+**Data Source:**
+- Trade.gov Consolidated Screening List API: https://api.trade.gov/static/consolidated_screening_list/consolidated.json
+- This JSON includes data from multiple government lists including both BIS Entity List and Denied Persons
+- More reliable than scraping BIS website directly (which changes format frequently)
+
+**Key Features:**
+1. Filters consolidated list by source name to extract BIS-specific entries
+2. Generates stable sourceId using name hash when ID not provided
+3. Parses alt_names (pipe/semicolon separated) and addresses arrays
+4. Maps country names to ISO codes for 40+ common countries
+5. Parses dates from multiple formats (ISO, MM/DD/YYYY)
+6. Reuses processEntries() helper for DRY code
+7. Both lists use same DeniedParty table with different sourceList enum value
+
+**Patterns Found:**
+- Trade.gov CSL API is the authoritative consolidation of government screening lists
+- Filter by `source` field to extract specific list (contains "Entity List" or "Denied Persons")
+- Generate deterministic sourceId with MD5 hash when source doesn't provide one: `bis_el_${hash.slice(0,12)}`
+- Shared `processEntries()` function handles batch upsert logic for both OFAC and BIS
+
+**Gotchas:**
+- BIS website URLs change frequently - Trade.gov API is more stable
+- Entity List entries are mostly entities (companies), Denied Persons are mostly individuals
+- Some entries lack country info - must handle null gracefully
+- The consolidated.json file can be large (10+ MB) - may want to add caching
+- API response structure: either `data.results[]` or just `[]` depending on endpoint
+
+**For Next Time:**
+- BIS service at src/services/bisService.ts
+- Sync API: POST /api/denied-party/sync?list=bis_entity_list or ?list=bis_denied or ?list=all
+- Status API: GET /api/denied-party/sync returns info for all lists
+- Search API: GET /api/denied-party?sourceList=bis_entity_list (or use without filter to search all)
+- P3-003 (UI) can now search across OFAC + BIS using the same /api/denied-party endpoint
+- Consider adding caching for consolidated.json since BIS lists change less frequently than OFAC
+
+### Iteration 15 - 2026-01-19
+- Story: P3-002
+- Status: Completed ✅
+
+### Iteration 15 - 2026-01-19 16:20
+- Story: P3-002
+- Duration: 296s
+- Status: Completed ✅
+
+---
+
+### Story P3-003 - January 19, 2026
+**What I Did:** Built denied party search UI with full-featured page at /dashboard/compliance/denied-party.
+
+**Implementation Details:**
+- Created: `src/app/(dashboard)/dashboard/compliance/denied-party/page.tsx` - Page wrapper
+- Created: `src/features/compliance/components/DeniedPartySearch.tsx` - Full search component (~800 lines)
+- Modified: `src/components/layouts/DashboardLayout.tsx` - Added Shield icon "Screening" nav item, updated getSelectedKey and getPageTitle
+
+**Key Features:**
+1. **Search Input:** Large search bar with debounced search (300ms), searches name and aliases
+2. **Filters:** Source list (OFAC SDN, BIS Entity List, BIS Denied Persons), country (17 sanctioned countries), entity type (individual/entity/vessel/aircraft)
+3. **Results Table:** Columns for name (with aliases count tooltip), source list tag (color-coded), country with flag, entity type, programs tags, Details button
+4. **Detail Modal:** Full party info including name, all aliases, entity type, source list, country, source ID, sanction programs, addresses, remarks, listed date, federal register citation
+5. **No Match State:** Green checkmark with "No Matches Found" message and "Lists Searched" info
+6. **Meta Info:** Shows count per list (OFAC SDN: X, BIS Entity: Y), last sync dates
+7. **Warning Alerts:** Orange warning banner when matches found explaining due diligence requirement
+
+**UI Components:**
+- LoadingState and EmptyState from shared components
+- Ant Design Table with pagination (25/50/100 page sizes), scroll={{ x: 800 }} for mobile
+- Color-coded Tags for source lists (red for OFAC, orange for BIS Entity, volcano for BIS Denied)
+- Tooltips on list tags explaining each list
+- Copy to clipboard for party name in modal
+
+**Patterns Found:**
+- Use SOURCE_LIST_INFO constant for list names, colors, and descriptions
+- Entity type icons: User for individual, Building2 for entity, Ship for vessel, Plane for aircraft
+- Country flag emoji generation using Unicode code point math: `char => String.fromCodePoint(127397 + char.charCodeAt(0))`
+- Filter state managed with separate useState for each filter, combined in fetch call
+- Active filter count displayed with Clear button
+
+**Gotchas:**
+- The /api/denied-party endpoint already supports search, pagination, and filtering - no new API needed
+- API returns `meta.countsByList` and `meta.lastSyncByList` for summary display
+- Must handle null countryCode/countryName gracefully in display
+- Entity type from DB is lowercase (individual, entity) - use capitalize CSS
+- sourcePrograms is array - show first 2 as tags with tooltip for rest
+
+**For Next Time:**
+- Page at /dashboard/compliance/denied-party
+- Component: DeniedPartySearch.tsx in src/features/compliance/components/
+- Navigation: "Screening" with Shield icon in sidebar (after Sourcing)
+- API: GET /api/denied-party with ?q=search&countryCode=XX&entityType=individual&sourceList=ofac_sdn
+- Consider adding fuzzy matching (Levenshtein distance) for better name matching
+- P3-004 (batch screening) can reuse the same DeniedPartySearch patterns
+
+### Iteration 16 - 2026-01-19
+- Story: P3-003
+- Status: Completed ✅
+
+### Iteration 16 - 2026-01-19 16:23
+- Story: P3-003
+- Duration: 215s
+- Status: Completed ✅
+
+---
+
+### Story P3-005 - January 19, 2026
+**What I Did:** Built ADD/CVD lookup page with search by HTS code and country filter, displaying duty exposure risk levels and linking to official resources.
+
+**Implementation Details:**
+- Created: `src/app/(dashboard)/dashboard/compliance/addcvd/page.tsx` - Page wrapper
+- Created: `src/features/compliance/components/ADCVDLookup.tsx` - Full lookup component (~680 lines)
+- Created: `src/app/api/adcvd/route.ts` - GET API for searching ADD/CVD orders
+- Modified: `src/data/adcvdOrders.ts` - Added export for ADCVDOrderInfo interface, added new fields (dutyRange, caseNumbers, notes), added helper functions (getAllADCVDOrders, getADCVDOrdersByCountry, getADCVDOrdersByHTS, getTopADCVDCountries, getHighestRiskCategories)
+- Modified: `src/components/layouts/DashboardLayout.tsx` - Added AlertTriangle icon "ADD/CVD" nav item
+
+**Key Features:**
+1. **Search & Filters:** HTS code input, country of origin dropdown (16 countries), product search
+2. **Risk Assessment Banner:** Color-coded risk level (high/medium/low/none) with shield icons based on HTS chapter
+3. **Results Table:** HTS prefix, product category with notes tooltip, affected country flags, estimated duty range, order count, Details button
+4. **Detail Modal:** Full order info with product category, HTS prefix (copyable), duty range, active orders count, affected countries with flags, example case numbers, notes
+5. **External Resources:** Links to CBP AD/CVD Search, ITC Orders Excel, ITA Searchable Database
+6. **Disclaimer:** Important note about manufacturer-specific rates
+
+**Patterns Found:**
+- Existing `adcvdOrders.ts` had `checkADCVDWarning` function - extended it with getter functions
+- Risk level determined by HTS chapter: 72/73 = high (steel), 76/85/40/44/48 = medium, orders found = low
+- Table columns with sortable order count column using `sorter` prop
+- External resources in a grid of styled anchor cards with icons and descriptions
+
+**Gotchas:**
+- ADD/CVD rates are manufacturer-specific (0%-500%+) - can only show estimated ranges
+- ADCVDOrderInfo was private interface, needed to export it for API type usage
+- The existing checkADCVDWarning uses `commonCountries` array, not a single country
+- Some orders don't have caseNumbers or dutyRange - handle undefined gracefully
+- Chapter 85 (electrical) has solar panels which have significant ADD/CVD exposure
+
+**For Next Time:**
+- Page at /dashboard/compliance/addcvd
+- API: GET /api/adcvd with ?htsCode=7208&countryCode=CN&search=steel
+- Component: ADCVDLookup.tsx in src/features/compliance/components/
+- Navigation: "ADD/CVD" with AlertTriangle icon in sidebar (after Screening)
+- Data source: src/data/adcvdOrders.ts - static data, not a database table
+- Consider syncing with ITA's searchable database for more comprehensive coverage
+- Could add "Check for my product" feature that uses classification result HTS code
+
+### Iteration 17 - 2026-01-19
+- Story: P3-005
+- Status: Completed ✅
+
+### Iteration 17 - 2026-01-19 16:29
+- Story: P3-005
+- Duration: 345s
+- Status: Completed ✅
+
+---
+
+### Story P2-003 - January 19, 2026
+**What I Did:** Added save and compare scenarios functionality to the Landed Cost Calculator.
+
+**Implementation Details:**
+- Modified: `src/features/compliance/components/LandedCostCalculator.tsx` - Added ~550 lines of save/compare functionality
+
+**Key Features:**
+
+1. **localStorage Persistence:**
+   - Custom `useLocalStorage` hook with SSR safety (checks window before accessing)
+   - Key: `sourcify_landed_cost_scenarios`
+   - `SavedScenario` interface: id, name, savedAt, result (full LandedCostResult)
+   - generateId() using timestamp + random suffix
+
+2. **Save Scenario:**
+   - Purple gradient "Save Scenario" button appears after calculation
+   - Modal with name input (auto-filled with "{HTS} from {Country}")
+   - Shows calculation summary (HTS, country, total cost, duty rate)
+   - Enter key to submit, max 100 chars
+   - Success toast with scenario name
+
+3. **Saved Scenarios Sidebar:**
+   - 3rd column on xl screens (3-column layout)
+   - Scrollable list with max-height
+   - Each card shows: name, country flag, total cost, date, HTS code, duty rate
+   - Hover reveals action buttons (load, delete)
+   - Click to load scenario into form
+   - Popconfirm for delete confirmation
+
+4. **Compare Mode:**
+   - Toggle button in header (purple when active)
+   - Selection panel: click scenarios to add/remove (max 3)
+   - Numbered selection indicators (1, 2, 3)
+   - Side-by-side comparison grid (2 or 3 columns based on selection)
+
+5. **Comparison View:**
+   - First scenario highlighted as "Base Scenario" (teal background)
+   - Metrics compared: Product Value, Total Duties, Duty Rate, Fees, Total Landed, Per Unit
+   - `getDifferenceIndicator()` shows differences with:
+     - Red ArrowUp for higher cost (bad)
+     - Green ArrowDown for lower cost (good)
+     - Percentage and absolute difference displayed
+   - Insights panel: shows which scenario has lowest cost and potential savings
+
+**Patterns Found:**
+- SSR-safe localStorage: useEffect to read on mount, callback with window check to write
+- Spread + sort pattern for non-mutating sort: `[...scenariosToCompare].sort()`
+- Conditional grid columns: `grid-cols-1 sm:grid-cols-${count}`
+- Badge component for count indicators (Ant Design)
+- Group hover opacity pattern: `opacity-0 group-hover:opacity-100`
+
+**Gotchas:**
+- localStorage not available during SSR - must guard with useEffect/window check
+- Max 3 scenarios for comparison (grid layout constraint)
+- Loading a scenario updates both form (setFieldsValue) and result state
+- Compare mode is a separate view (not modal) with its own layout
+- Responsive: 3-column on xl screens, 1-column on mobile
+
+**For Next Time:**
+- Component: LandedCostCalculator.tsx handles everything (no separate service)
+- Storage key: `sourcify_landed_cost_scenarios`
+- Interface: SavedScenario { id, name, savedAt, result }
+- Consider adding export scenarios to JSON/Excel feature
+- Could add "Copy scenario with changes" option
+- Database storage would enable cross-device sync (future enhancement)
+
+### Iteration 18 - 2026-01-19
+- Story: P2-003
+- Status: Completed ✅
+
+### Iteration 18 - 2026-01-19 16:34
+- Story: P2-003
+- Duration: 269s
+- Status: Completed ✅
+
+---
+
+### Story P3-004 - January 19, 2026
+**What I Did:** Added batch denied party screening capability with CSV upload, processing, results table, Excel export, and audit logging.
+
+**Implementation Details:**
+- Modified: `prisma/schema.prisma` - Added `batch_screening` to UsageFeature enum
+- Created: `src/app/api/denied-party/batch/route.ts` - POST endpoint for batch screening (~280 lines)
+- Modified: `src/features/compliance/components/DeniedPartySearch.tsx` - Added Tabs, batch screening UI (~500 lines of new code)
+
+**Key Features:**
+
+1. **Batch Screening API (POST /api/denied-party/batch):**
+   - Accepts array of `{ rowNumber, name, country? }` objects (max 1000)
+   - Screens each party against all active DeniedParty records
+   - Uses `contains` query for name matching, `hasSome` for alias matching
+   - Calculates match score (exact=100, alias=85, partial=10-80 based on word overlap)
+   - Status determined by top score: ≥90 = 'match', ≥60 = 'potential_match', else 'clear'
+   - Creates UsageLog audit entry with batch_screening feature
+   - Returns totalScreened, matchesFound, clearCount, potentialMatchCount, auditLogId
+
+2. **Batch Screening UI (Tab 2 of DeniedPartySearch):**
+   - 4-stage workflow: idle → preview → processing → complete
+   - CSV upload via Ant Design Upload.Dragger (drag-drop supported)
+   - Template download with sample data (name, country columns)
+   - Preview shows first 5 rows before processing
+   - Circular progress indicator during processing
+   - Results table with row number, screened name, status tag (red MATCH / orange POTENTIAL / green CLEAR), match count badge, top match info, Details button
+   - Row highlighting based on status (red bg for match, amber bg for potential)
+   - Summary stats cards: total screened, matches, potential, clear
+   - Excel export via exportService with comprehensive columns
+
+3. **Batch Result Detail Modal:**
+   - Shows screened party info and country filter
+   - Alert based on status (error for match, warning for potential, success for clear)
+   - List of all matches with entity icon, name, source list tag, aliases, country, programs
+   - Match score display (color-coded: red ≥90, amber ≥70, gray <70)
+   - Match type indicator (Exact, Alias, Partial)
+
+**Patterns Found:**
+- Tabs component for switching between modes (single search vs batch)
+- 4-stage workflow state machine for complex upload/process flows
+- Match scoring algorithm with different weights for exact/alias/partial matches
+- Audit logging using UsageLog model with feature enum
+- CSV parsing with quoted value handling (inQuotes flag pattern)
+- Badge component for count indicators (red for matches)
+- Row className function for conditional row styling in Table
+
+**Gotchas:**
+- UsageFeature enum must be updated in Prisma schema before using new feature type
+- Batch API processes sequentially (not parallel) for simplicity - could optimize with batching for large files
+- Match score is subjective - 90+ = definite match, 60-89 = potential, <60 = ignored
+- CSV template needs example rows for user reference
+- Empty names should be filtered out before screening
+
+**For Next Time:**
+- API: POST /api/denied-party/batch with `{ parties: Array<{ rowNumber, name, country? }> }`
+- Component: DeniedPartySearch.tsx handles both single search and batch via Tabs
+- Batch stage types: 'idle' | 'preview' | 'processing' | 'complete'
+- Match types: 'exact' | 'partial' | 'alias'
+- Audit log: UsageLog with feature=batch_screening, metadata includes stats and sample of party names
+- Consider adding fuzzy matching (Levenshtein distance) for better name matching in future iteration
+
+### Iteration 19 - 2026-01-19
+- Story: P3-004
+- Status: Completed ✅
+
+### Iteration 19 - 2026-01-19 16:40
+- Story: P3-004
+- Duration: 385s
+- Status: Completed ✅
+
+### Iteration 1 - 2026-01-19 16:48
+- Story: P3-006
+- Duration: 323s
+- Status: In Progress
+
+### Iteration 20 - 2026-01-19 16:48
+- Story: P3-006
+- Duration: 475s
+- Status: In Progress
+
+### Iteration 2 - 2026-01-19 16:51
+- Story: P3-006
+- Duration: 145s
+- Status: In Progress
+
+### Iteration 3 - 2026-01-19 16:51
+- Story: P3-006
+- Duration: 34s
+- Status: In Progress
+
+### Iteration 4 - 2026-01-19 16:54
+- Story: P3-006
+- Duration: 132s
+- Status: In Progress
+
+### Iteration 5 - 2026-01-19 16:55
+- Story: P3-006
+- Duration: 109s
+- Status: In Progress
+
+### Iteration 6 - 2026-01-19 16:57
+- Story: P3-006
+- Duration: 115s
+- Status: In Progress
+
+### Iteration 7 - 2026-01-19 17:01
+- Story: P3-006
+- Duration: 187s
+- Status: In Progress
+
+### Iteration 8 - 2026-01-19 17:03
+- Story: P3-006
+- Duration: 173s
+- Status: In Progress
+
+### Iteration 9 - 2026-01-19 17:08
+- Story: P3-006
+- Duration: 260s
+- Status: In Progress
+
+### Iteration 10 - 2026-01-19 17:09
+- Story: P3-006
+- Duration: 50s
+- Status: In Progress
+
+### Story P3-006 - 2026-01-19 17:15
+**What I Did:** Completed PGA (Partner Government Agency) requirements lookup feature. The implementation was mostly complete from previous iterations but had a critical bug - the frontend expected API data under `data.requirements` but the API returned it directly at `data` root level. Fixed the data structure alignment in PGALookup.tsx component.
+
+**Implementation Summary:**
+- Page: `/dashboard/compliance/pga` with PGALookup component
+- API: `/api/pga/route.ts` - handles HTS lookup, agency filter, search, flag details
+- Data: `src/data/pgaFlags.ts` - 13 PGA agencies, 30+ flag codes, HTS chapter mappings
+- Features: HTS code input, flag reference table with search/filter, flag detail modals, agency cards with websites, external resource links (ACE PGA Appendix, PGA Message Sets, CBP Portal)
+
+**Patterns Found:**
+- Static data files in `src/data/` for reference data (like PGA flags, ADD/CVD orders)
+- Chapter-level HTS mapping pattern: map 2-digit chapter to list of agencies/flags
+- Agency icons/colors mapping pattern: AGENCY_ICONS and AGENCY_COLORS records for consistent UI
+- API returns flat data structure with type guards (requirementLevel, hasRequirements flags)
+
+**Gotchas:**
+- API and frontend data structure mismatch: Frontend used `data.requirements?.X` but API returned `data.X` directly. Always verify API response shape matches frontend interface.
+- PGA requirements are chapter-level in this implementation, not 10-digit HTS specific. This is a simplification - real ACE PGA appendix has more granular mappings.
+- Agency codes in data may differ from display codes (USDA_APHIS vs USDA/APHIS) - need consistent mapping
+
+**For Next Time:**
+- Data file: `src/data/pgaFlags.ts` has PGA_AGENCIES, PGA_FLAGS, HTS_CHAPTER_PGA_MAP, helper functions
+- Component pattern: APIResponse interface should match actual API response shape
+- External resources: ACE PGA Appendix at cbp.gov/trade/ace/catair/appendix-pga
+- When frontend shows "unknown chapter" or missing data, check if API response structure matches interface
+
+### Iteration 1 - 2026-01-19 18:39
+- Story: P3-006
+- Duration: 211s
+- Status: Completed ✅
+
+### Iteration 2 - 2026-01-19 18:42
+- Story: P3-007
+- Duration: 216s
+- Status: In Progress
+
+### Iteration 3 - 2026-01-19 18:44
+- Story: P3-007
+- Duration: 107s
+- Status: In Progress
+
+### Iteration 4 - 2026-01-19 18:49
+- Story: P3-007
+- Duration: 295s
+- Status: In Progress
+
+### Iteration 5 - 2026-01-19 18:53
+- Story: P3-007
+- Duration: 241s
+- Status: In Progress
+
+### Iteration 6 - 2026-01-19 18:55
+- Story: P3-007
+- Duration: 139s
+- Status: In Progress
+
+### Iteration 7 - 2026-01-19 18:58
+- Story: P3-007
+- Duration: 118s
+- Status: In Progress
+
+### Iteration 8 - 2026-01-19 18:59
+- Story: P3-007
+- Duration: 95s
+- Status: In Progress
+
+### Iteration 9 - 2026-01-19 19:01
+- Story: P3-007
+- Duration: 116s
+- Status: In Progress
+
+### Iteration 10 - 2026-01-19 19:02
+- Story: P3-007
+- Duration: 44s
+- Status: In Progress

@@ -172,6 +172,7 @@ export async function POST(request: NextRequest) {
             latestClassification: body.latestClassification,
             isMonitored: body.isMonitored,
             isFavorite: body.isFavorite,
+            sourceSearchId: body.sourceSearchId,
         });
 
         return NextResponse.json({

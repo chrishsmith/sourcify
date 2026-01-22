@@ -146,6 +146,7 @@ enum UsageFeature {
   api_call
   export_csv
   export_pdf
+  batch_screening
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1172,4 +1173,220 @@ enum SyncStatus {
   running
   completed
   failed
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DENIED PARTY SCREENING
+// OFAC SDN, BIS Entity List, BIS Denied Persons, and other restricted party lists
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model DeniedParty {
+  id              String   @id @default(cuid())
+  
+  // Identifying information
+  name            String              // Primary name
+  aliases         String[]            // Alternative names/spellings
+  
+  // Entity type
+  entityType      DeniedPartyType     // individual, entity, vessel, aircraft
+  
+  // Location
+  countryCode     String?             // ISO 2-letter code
+  countryName     String?
+  addresses       String[]            // Full addresses
+  
+  // Identifiers
+  identifiers     Json?               // { type: "Passport", value: "ABC123", country: "RU" }[]
+  
+  // Source list information
+  sourceList      DeniedPartyList     // Which list this entry is from
+  sourceId        String?             // Original ID from source (e.g., SDN UID)
+  sourcePrograms  String[]            // OFAC programs (SDGT, CYBER2, etc.)
+  
+  // Additional details
+  remarks         String?  @db.Text   // Additional notes/remarks from source
+  federalRegister String?             // Legal citation
+  
+  // Status
+  isActive        Boolean   @default(true)
+  listedDate      DateTime?           // When added to list
+  delistedDate    DateTime?           // When removed from list (if ever)
+  
+  // Metadata
+  lastUpdated     DateTime  @default(now())  // Last time this record was updated
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([sourceList, sourceId])
+  @@index([name])
+  @@index([sourceList])
+  @@index([countryCode])
+  @@index([entityType])
+  @@index([isActive])
+  @@map("denied_party")
+}
+
+enum DeniedPartyType {
+  individual    // Natural person
+  entity        // Company, organization
+  vessel        // Ship
+  aircraft      // Airplane
+  unknown       // Type not specified
+}
+
+enum DeniedPartyList {
+  ofac_sdn          // OFAC Specially Designated Nationals
+  ofac_consolidated // OFAC Consolidated Non-SDN
+  bis_entity_list   // BIS Entity List
+  bis_denied        // BIS Denied Persons List
+  bis_unverified    // BIS Unverified List
+  ddtc_debarred     // State Dept ITAR Debarred
+  other
+}
+
+model DeniedPartySyncLog {
+  id              String   @id @default(cuid())
+  
+  // What was synced
+  sourceList      DeniedPartyList
+  sourceUrl       String?             // URL we downloaded from
+  
+  // Results
+  status          SyncStatus
+  totalRecords    Int       @default(0)
+  recordsCreated  Int       @default(0)
+  recordsUpdated  Int       @default(0)
+  recordsDeleted  Int       @default(0)
+  errors          Json?               // Array of parsing errors
+  
+  // Timing
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  
+  // The file/version info
+  fileChecksum    String?             // MD5/SHA of downloaded file
+  lastModified    DateTime?           // Last-Modified header from source
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([sourceList])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("denied_party_sync_log")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CBP RULINGS DATABASE
+// Classification rulings from CBP CROSS (Customs Rulings Online Search System)
+// Source: https://rulings.cbp.gov/
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model CBPRuling {
+  id                String   @id @default(cuid())
+  
+  // Ruling identification
+  rulingNumber      String   @unique    // e.g., "NY N123456", "HQ H123456"
+  rulingType        RulingType          // NY (New York), HQ (Headquarters), etc.
+  
+  // Classification details
+  htsCode           String?             // Primary HTS code (stored without dots)
+  htsCodeFormatted  String?             // HTS code with dots for display
+  htsCodes          String[]            // All HTS codes mentioned in ruling
+  
+  // Product and parties
+  productDescription String  @db.Text   // What the product is
+  issueDate         DateTime?           // When the ruling was issued
+  modifiedDate      DateTime?           // Last modification date
+  
+  // Ruling content
+  fullText          String   @db.Text   // Complete ruling text
+  summary           String?  @db.Text   // AI-generated or extracted summary
+  
+  // Legal references
+  tariffActCitations String[]          // Legal citations (e.g., "19 U.S.C. 1625")
+  crossReferences    String[]          // References to other rulings
+  
+  // Classification metadata
+  chapter           String?             // HTS chapter (2 digits)
+  heading           String?             // HTS heading (4 digits)
+  keywords          String[]            // Extracted keywords for search
+  
+  // Status
+  status            RulingStatus @default(active)
+  revokedBy         String?             // If revoked, which ruling supersedes
+  revokes           String[]            // Rulings this one revokes
+  
+  // Source metadata
+  sourceUrl         String?             // Direct URL to ruling on CBP site
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([rulingNumber])
+  @@index([htsCode])
+  @@index([chapter])
+  @@index([issueDate])
+  @@index([status])
+  @@index([keywords], type: Gin)
+  // Full-text search index added via migration (PostgreSQL tsvector)
+  @@map("cbp_ruling")
+}
+
+enum RulingType {
+  NY            // New York rulings
+  HQ            // Headquarters rulings  
+  CLA           // Classification rulings (legacy)
+  SLAC          // San Francisco Lab rulings
+  OTHER         // Other ruling types
+}
+
+enum RulingStatus {
+  active        // Currently valid
+  revoked       // Superseded by another ruling
+  modified      // Modified but still valid
+}
+
+model CBPRulingSyncLog {
+  id              String   @id @default(cuid())
+  
+  // Sync operation details
+  syncType        CBPSyncType         // full, incremental, targeted
+  
+  // Query parameters used
+  searchParams    Json?               // Search parameters used for this sync
+  
+  // Results
+  status          SyncStatus
+  totalRecords    Int       @default(0)
+  recordsCreated  Int       @default(0)
+  recordsUpdated  Int       @default(0)
+  recordsSkipped  Int       @default(0)
+  errors          Json?               // Array of errors
+  
+  // Progress tracking (for large syncs)
+  currentPage     Int       @default(0)
+  totalPages      Int       @default(0)
+  
+  // Timing
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  
+  // Notes
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("cbp_ruling_sync_log")
+}
+
+enum CBPSyncType {
+  full          // Sync all rulings
+  incremental   // Sync recent rulings only
+  targeted      // Sync specific HTS codes or ruling numbers
 }
