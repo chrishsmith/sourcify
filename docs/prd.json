@@ -1,537 +1,250 @@
 {
   "name": "Sourcify Trade Intelligence Platform",
-  "description": "Build the world's best trade intelligence platform combining AI-powered HTS classification, comprehensive duty calculation, trade intelligence, and compliance tools.",
-  "branchName": "feature/trade-intelligence-v1",
-  "version": "1.0.0",
+  "description": "Comprehensive trade intelligence platform competing with Datamyne + CustomsInfo. AI-powered classification, modern UX, SMB pricing.",
+  "sourceOfTruth": "prd-trade-intelligence.md",
+  "version": "2.0.0",
+  "lastUpdated": "2026-01-22",
   "phases": [
     {
-      "id": "phase-0",
-      "name": "Foundation & Polish",
-      "description": "Clean up existing features, establish patterns, fix bugs"
-    },
-    {
       "id": "phase-1",
-      "name": "Core Classification Excellence",
-      "description": "Make classification best-in-class with reasoning, bulk upload, exports"
+      "name": "Enhance Core (Public Data)",
+      "description": "Build features using free/public data sources",
+      "status": "complete"
     },
     {
       "id": "phase-2",
-      "name": "Landed Cost Calculator",
-      "description": "Complete duty calculation with landed cost, fees, scenarios"
+      "name": "Compliance Tools (Public Data)",
+      "description": "Add compliance features from public government data",
+      "status": "complete"
+    },
+    {
+      "id": "phase-monetization",
+      "name": "Monetization",
+      "description": "Enable revenue collection - Stripe, usage limits, feature gating",
+      "status": "in_progress"
     },
     {
       "id": "phase-3",
-      "name": "Compliance Tools",
-      "description": "Denied party screening, ADD/CVD, PGA, CBP rulings"
+      "name": "Trade Intelligence (Licensed Data)",
+      "description": "BOL shipment data, supplier discovery - requires $10K-50K/yr license",
+      "status": "future"
+    },
+    {
+      "id": "phase-4",
+      "name": "Company Intelligence (Licensed Data)",
+      "description": "Company profiles, contacts, hierarchy - requires $20K-80K/yr license",
+      "status": "future"
     }
   ],
-  "userStories": [
+  "completedFeatures": [
     {
-      "id": "P0-001",
-      "phase": "phase-0",
-      "title": "Fix saved products list page",
-      "description": "The My Products page should show a proper list of saved products with search, filter, and actions",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Products page at /dashboard/products shows all saved products",
-        "Each product card shows: name, HTS code, country, duty rate, date saved",
-        "User can search products by name or HTS code",
-        "User can delete a product",
-        "User can click a product to view details",
-        "Empty state shown when no products saved",
-        "Loading state while fetching"
-      ],
-      "technicalNotes": "Use existing SavedProduct model and /api/saved-products endpoints",
-      "passes": true,
-      "notes": "Implementation was already complete. Key components: ClassificationsTable.tsx handles list with search/delete/view, ProductDetailDrawer.tsx shows full details. API: /api/saved-products with GET/POST, /api/saved-products/[id] with GET/PATCH/DELETE. Service: src/services/savedProducts.ts. Uses formatHtsCode() from src/utils/htsFormatting.ts."
+      "id": "core-classification",
+      "name": "AI Classification Engine (V10)",
+      "description": "Semantic search over 27,061 HTS codes with embeddings, ~4s response time",
+      "phase": "phase-1"
     },
     {
-      "id": "P0-002",
-      "phase": "phase-0",
-      "title": "Save classification to My Products",
-      "description": "After classifying a product, user should be able to save it to their products list",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Classification result shows 'Save to My Products' button",
-        "Clicking save opens modal to confirm/edit product name",
-        "Product is saved with: name, description, HTS code, country, duty info",
-        "Success toast shown after saving",
-        "Button changes to 'Saved ✓' after successful save",
-        "Saved product links to search history record"
-      ],
-      "technicalNotes": "Connect ClassificationV10 component to SavedProduct API",
-      "passes": true,
-      "notes": "Added save functionality to ClassificationV10.tsx. Button shows 'Save to My Products' with Bookmark icon. Modal allows editing product name with pre-filled default from description. Saves via POST /api/saved-products with sourceSearchId linking to SearchHistory. Button changes to 'Saved ✓' (green) after success. Service updated in savedProducts.ts to accept sourceSearchId parameter."
+      "id": "core-tariff-registry",
+      "name": "Country Tariff Registry",
+      "description": "199 countries, 7 data sources (USITC, Federal Register, OFAC, FTA list, AD/CVD)",
+      "phase": "phase-1"
     },
     {
-      "id": "P0-003",
-      "phase": "phase-0",
-      "title": "Search history with re-run capability",
-      "description": "User should see their classification history and be able to re-run searches",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Classification history panel shows recent searches",
-        "Each entry shows: product description (truncated), HTS result, date, confidence",
-        "Clicking an entry loads the full result",
-        "Re-classify button re-runs the search with same inputs",
-        "User can delete history entries",
-        "History persists across sessions (stored in DB)"
-      ],
-      "technicalNotes": "Use existing SearchHistory model and SearchHistoryPanel component",
-      "passes": true,
-      "notes": "SearchHistoryPanel was mostly complete. Added Re-classify feature: 1) ReClassifyInput interface exported from SearchHistoryPanel, 2) onReClassify callback prop added to SearchHistoryPanel, 3) Re-classify button in actions dropdown and detail modal, 4) ClassificationV10LayoutB now accepts initialDescription/initialOrigin/initialMaterial/autoClassify props, 5) ClassificationsPageContent manages re-classify state and switches to Classify tab with auto-submit. Key files: SearchHistoryPanel.tsx (RotateCcw icon, handleReClassify, onReClassify prop), ClassificationV10LayoutB.tsx (ClassificationV10LayoutBProps, performClassification, auto-classify useEffects), ClassificationsPageContent.tsx (handleReClassify, reClassifyInput state)."
+      "id": "core-landed-cost",
+      "name": "Landed Cost Calculator",
+      "description": "Full breakdown with MPF, HMF, customs fees. Save/compare scenarios.",
+      "phase": "phase-1"
     },
     {
-      "id": "P0-004",
-      "phase": "phase-0",
-      "title": "Add global loading and error states",
-      "description": "All pages should have consistent loading spinners and error handling",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "All data-fetching pages show Spin component while loading",
-        "Error states show Alert with retry button",
-        "Empty states show appropriate message with action",
-        "Loading states are consistent across all pages"
-      ],
-      "technicalNotes": "Create reusable LoadingState, ErrorState, EmptyState components in src/components/shared/",
-      "passes": true,
-      "notes": "Created three reusable state components in src/components/shared/: LoadingState.tsx (teal spinner with message, supports card/fullHeight modes), ErrorState.tsx (error/warning/info types with retry button), EmptyState.tsx (preset icons for products/search/etc, action buttons with Link support). Also created SearchEmptyState helper. Updated ClassificationsTable to use new components. Exported all from shared/index.ts."
+      "id": "p1-trade-stats",
+      "name": "Trade Statistics Dashboard",
+      "description": "USITC DataWeb visualization - top sources, trends, country breakdown",
+      "phase": "phase-1"
     },
     {
-      "id": "P0-005",
-      "phase": "phase-0",
-      "title": "Fix mobile navigation and layout",
-      "description": "Ensure all pages work well on mobile devices",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Sidebar drawer opens/closes smoothly on mobile",
-        "All forms are usable on mobile (proper input sizes)",
-        "Classification results scroll properly on mobile",
-        "Tariff breakdown is readable on mobile",
-        "Tables become scrollable or stack on mobile",
-        "No horizontal overflow on any page"
-      ],
-      "technicalNotes": "Use Ant Design responsive utilities and test with Chrome DevTools mobile view",
-      "passes": true,
-      "notes": "Comprehensive mobile responsiveness update: 1) globals.css: Added mobile utilities (overflow prevention, touch-friendly input sizes 44px min-height, 16px font to prevent iOS zoom, card/modal/table padding adjustments, horizontal scroll helpers). 2) ClassificationV10.tsx: Form inputs stack on mobile (flex-col sm:flex-row), duty grid responsive (1 col on mobile, 3 on desktop), HTS code smaller text with word-break, decision questions stack on mobile, alternatives have compact layout. 3) ClassificationsTable.tsx: Added scroll={{ x: 800 }} for horizontal scroll, search bar stacks on mobile. 4) SearchHistoryPanel.tsx: Added scroll={{ x: 800 }}, responsive pagination. 5) TariffBreakdown.tsx: Tariff rows stack on mobile (flex-col sm:flex-row), text sizes adjust, total rate responsive. 6) BulkClassificationContent.tsx: Preview table scroll, buttons stack on mobile."
+      "id": "p1-fta-rules",
+      "name": "FTA Rules Engine",
+      "description": "14 FTA agreements, 30+ rules indexed by HTS code",
+      "phase": "phase-1"
     },
     {
-      "id": "P0-006",
-      "phase": "phase-0",
-      "title": "Set up Excel/CSV export service",
-      "description": "Create reusable export utilities for Excel and CSV downloads",
-      "priority": 3,
-      "acceptanceCriteria": [
-        "Export service exists at src/services/exportService.ts",
-        "exportToExcel function takes data array and column config",
-        "exportToCSV function takes data array",
-        "Both trigger browser download with proper filename",
-        "Works with classification results, product lists, etc."
-      ],
-      "technicalNotes": "Use xlsx (SheetJS) library for Excel generation",
-      "passes": true,
-      "notes": "Created comprehensive export service at src/services/exportService.ts. Features: exportToExcel (with column config), exportToExcelSimple (auto-detect columns), exportToCSV (simple), exportToCSVWithColumns (with transforms). Includes ExportPresets for common types (classificationResults, savedProducts, searchHistory, landedCost). QuickExport helper for one-liners. Updated BulkClassificationContent to use the new service. Handles proper CSV escaping, column widths, transforms, timestamps in filenames."
+      "id": "p1-fta-calc",
+      "name": "FTA Qualification Calculator",
+      "description": "BOM input, RVC calculation (4 methods), tariff shift analysis",
+      "phase": "phase-1"
     },
     {
-      "id": "P1-001",
-      "phase": "phase-1",
-      "title": "Add AI reasoning to classification results",
-      "description": "Show WHY the AI chose this classification with clear reasoning",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Classification result shows 'AI Reasoning' section",
-        "Reasoning explains: why this chapter, why this heading, why this code",
-        "Key factors highlighted (material, use, construction)",
-        "If 'Other' code, explain what was excluded",
-        "Reasoning is collapsible (expanded by default)",
-        "Reasoning formatted for readability (bullets, bold terms)"
-      ],
-      "technicalNotes": "Enhance classificationEngineV10 to include reasoning in response, update ClassificationV10 component",
-      "passes": true,
-      "notes": "Backend already had AIReasoning generation (generateAIReasoning function in classificationEngineV10.ts lines 1181-1343). Added UI display in ClassificationV10.tsx with collapsible panel (expanded by default), numbered steps for Chapter→Heading→Code reasoning, key factors grid with impact indicators (positive/neutral/uncertain), exclusions list for 'Other' codes, and confidence assessment. API already returned aiReasoning; updated to also return searchHistoryId for product save linking."
+      "id": "p1-hts-history",
+      "name": "Historical HTS Archives",
+      "description": "Code changes 2020-2025, forward/backward mapping, Federal Register links",
+      "phase": "phase-1"
     },
     {
-      "id": "P1-002",
-      "phase": "phase-1",
-      "title": "Build bulk classification UI",
-      "description": "User can upload CSV of products and classify them all at once",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Bulk upload page at /dashboard/classify/bulk",
-        "User can download CSV template with required columns",
-        "User can upload CSV file (drag-drop or file picker)",
-        "Preview shows first 5 rows before processing",
-        "Progress bar shows classification progress",
-        "Results table shows all products with HTS codes",
-        "User can download results as Excel",
-        "Errors shown inline for failed rows"
-      ],
-      "technicalNotes": "Use existing /api/classify/bulk endpoint, add UI components",
-      "passes": true,
-      "notes": "Created dedicated bulk page at /dashboard/classify/bulk with BulkClassificationContent component. Features: 4-stage workflow (idle→preview→processing→complete), CSV drag-drop upload with template download, 5-row preview before processing, circular progress bar with live stats, real-time results table with status/HTS/confidence/duty columns, Excel export via xlsx library, inline error display for failed rows. Uses V10 classification API directly. Updated ClassificationsPageContent to link to bulk page instead of modal. Component: src/features/compliance/components/BulkClassificationContent.tsx"
+      "id": "p1-pga",
+      "name": "PGA Requirements Lookup",
+      "description": "13 agencies, 30+ flags, chapter-level requirements",
+      "phase": "phase-1"
     },
     {
-      "id": "P1-003",
-      "phase": "phase-1",
-      "title": "Classification report PDF export",
-      "description": "User can export a professional PDF report of classification",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Export PDF button on classification results",
-        "PDF includes: product description, HTS code, full path, duty breakdown",
-        "PDF includes AI reasoning",
-        "PDF includes disclaimer text",
-        "PDF has Sourcify branding",
-        "PDF downloads with sensible filename"
-      ],
-      "technicalNotes": "Use @react-pdf/renderer for PDF generation",
-      "passes": true,
-      "notes": "Created pdfExportService.ts at src/services/pdfExportService.ts. Uses @react-pdf/renderer with createElement pattern for SSR compatibility. Page 1: Product info, HTS code, path, duty breakdown, disclaimer. Page 2 (if AI reasoning exists): chapter/heading/code reasoning, key factors, confidence. Added Export PDF button to ClassificationV10.tsx action buttons. Uses teal branding, professional layout. Filename format: sourcify-classification-{hts}-{product}-{date}.pdf"
+      "id": "p1-tariff-tracker",
+      "name": "Section 301/IEEPA Tracker",
+      "description": "Special tariffs by category, country, HTS. Federal Register links.",
+      "phase": "phase-1"
     },
     {
-      "id": "P1-004",
-      "phase": "phase-1",
-      "title": "Compare alternatives with duty rates",
-      "description": "Show duty rate comparison for all alternative classifications",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Alternative classifications show duty rate for each",
-        "Duty rates fetched for selected country of origin",
-        "Visual indicator if alternative has lower duty",
-        "User can click to see full duty breakdown for any alternative",
-        "Sort alternatives by confidence or by duty rate"
-      ],
-      "technicalNotes": "Fetch duty rates for top 5 alternatives in classification API",
-      "passes": true,
-      "notes": "Updated classificationEngineV10.ts to fetch duty rates for top 5 alternatives using parallel Promise.all. Alternative interface now includes effectiveNumeric and breakdown fields. ClassificationV10.tsx enhanced with: 1) Sort controls (confidence vs duty rate), 2) Lower Duty badge (green) when alternative has lower rate than primary, 3) Clickable duty buttons that open detailed breakdown modal, 4) Modal shows base MFN, all additional duties, total effective rate, and savings/additional vs primary comparison. Alternatives with lower duty are highlighted with green background."
+      "id": "p2-denied-party",
+      "name": "Denied Party Screening",
+      "description": "OFAC SDN, BIS Entity List, BIS Denied Persons. Single and batch screening.",
+      "phase": "phase-2"
     },
     {
-      "id": "P1-005",
-      "phase": "phase-1",
-      "title": "What if different country comparison",
-      "description": "Quick comparison of duties from different countries",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "After classification, show 'Compare Countries' button",
-        "Modal shows duty comparison for: China, Vietnam, India, Mexico, Thailand",
-        "Each country shows: effective rate, breakdown summary, savings vs current",
-        "Highlight best option (lowest duty)",
-        "User can add/remove countries to compare"
-      ],
-      "technicalNotes": "Use existing tariff registry to calculate rates for multiple countries",
-      "passes": true,
-      "notes": "Added country comparison modal to ClassificationV10.tsx (~250 lines). Uses existing /api/duty-comparison endpoint. Features: 1) Compare Countries button in action buttons section, 2) Modal with 18 available countries from COMPARISON_COUNTRIES array, 3) Default comparison: CN, VN, IN, MX, TH, 4) Country cards sorted by effective rate (lowest first), 5) Best option highlighted with green Award badge, 6) Current country selection marked with purple tag, 7) Duty breakdown tags (Base, FTA, IEEPA, §301, §232), 8) Savings vs current calculation (green for savings, red for higher), 9) Add/remove countries via Select dropdown with Update Comparison button. API: /api/duty-comparison uses getEffectiveTariff() from tariffRegistry service."
+      "id": "p2-addcvd",
+      "name": "ADD/CVD Lookup",
+      "description": "20+ product categories, risk levels, case numbers, external links",
+      "phase": "phase-2"
     },
     {
-      "id": "P2-001",
-      "phase": "phase-2",
-      "title": "Build landed cost calculator page",
-      "description": "Dedicated page for calculating total landed cost of imports",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Landed cost page at /dashboard/duties/calculator",
-        "Input fields: HTS code, country, product value, quantity",
-        "Input fields: shipping cost, insurance cost",
-        "Calculate button triggers calculation",
-        "Results show: duties, fees, total landed cost",
-        "Per-unit cost shown if quantity > 1"
-      ],
-      "technicalNotes": "Create new page and API endpoint for landed cost",
-      "passes": true,
-      "notes": "Created comprehensive landed cost calculator. Page: /dashboard/duties/calculator. Component: src/features/compliance/components/LandedCostCalculator.tsx (~530 lines). API: /api/landed-cost (POST). Features: Form with HTS code, country (18 options), product value, quantity, shipping/insurance costs. Results show duties breakdown (base MFN + additional), fees breakdown (MPF + HMF), and total landed cost with per-unit when qty>1. Uses existing tariffRegistry service. Added menu item to DashboardLayout."
+      "id": "p2-alerts",
+      "name": "Compliance Alerts System",
+      "description": "Tariff alerts by HTS/country, alert history, notification preferences",
+      "phase": "phase-2"
     },
     {
-      "id": "P2-002",
-      "phase": "phase-2",
-      "title": "Add customs fees to calculation",
-      "description": "Include MPF and HMF in landed cost calculation",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Merchandise Processing Fee (MPF) calculated correctly",
-        "MPF: 0.3464% of value, min $31.67, max $614.35",
-        "Harbor Maintenance Fee (HMF) calculated for ocean shipments",
-        "HMF: 0.125% of value",
-        "Fees shown as separate line items in breakdown",
-        "Toggle for ocean vs air shipment (affects HMF)"
-      ],
-      "technicalNotes": "Add fee calculations to landed cost service",
-      "passes": true,
-      "notes": "Implemented alongside P2-001. MPF: 0.3464% with $31.67 min and $614.35 max. HMF: 0.125% for ocean only. API handles calculations in /api/landed-cost. UI shows MPF and HMF as separate line items in Customs Fees section with info tooltips explaining each fee. Ocean/Air toggle using Switch component with Anchor/Plane icons - disables HMF for air shipments."
+      "id": "additional-bulk",
+      "name": "Bulk Classification",
+      "description": "CSV upload, progress tracking, Excel export of results",
+      "phase": "phase-1"
     },
     {
-      "id": "P2-003",
-      "phase": "phase-2",
-      "title": "Save and compare scenarios",
-      "description": "User can save cost scenarios and compare them",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Save scenario button stores current calculation",
-        "Saved scenarios shown in sidebar",
-        "Compare mode shows 2-3 scenarios side by side",
-        "Highlight differences between scenarios",
-        "Delete saved scenarios"
-      ],
-      "technicalNotes": "Store scenarios in localStorage or user preferences",
-      "passes": true,
-      "notes": "Added save/compare functionality to LandedCostCalculator.tsx (~550 lines of new code). Features: 1) useLocalStorage hook for SSR-safe persistence with key 'sourcify_landed_cost_scenarios', 2) SavedScenario interface with id/name/savedAt/result, 3) Save Scenario button (purple gradient) opens modal with name input and summary preview, 4) Saved scenarios sidebar (3rd column on xl screens) with scrollable list, 5) Compare mode with scenario selection (2-3 scenarios), 6) Side-by-side comparison grid with base scenario highlighted in teal, 7) getDifferenceIndicator shows red/green arrows with percentage/absolute differences, 8) Insights panel shows lowest cost scenario and potential savings, 9) Load scenario feature auto-fills form, 10) Delete with Popconfirm confirmation. UI uses responsive xl:grid-cols-3 layout."
+      "id": "additional-export",
+      "name": "PDF/Excel/CSV Export",
+      "description": "Classification reports, product lists, search history export",
+      "phase": "phase-1"
     },
     {
-      "id": "P3-001",
-      "phase": "phase-3",
-      "title": "Ingest OFAC SDN list",
-      "description": "Download and parse OFAC Specially Designated Nationals list",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Service to download OFAC SDN list (XML or CSV)",
-        "Parse and store in database table",
-        "Track last update timestamp",
-        "Manual sync button for admins",
-        "Store: name, aliases, type, country, IDs"
-      ],
-      "technicalNotes": "OFAC provides SDN list at https://www.treasury.gov/ofac/downloads/sdn.csv",
-      "passes": true,
-      "notes": "Created comprehensive OFAC SDN ingestion system. Database: Added DeniedParty model (name, aliases, entityType, countryCode, countryName, addresses, identifiers JSON, sourceList, sourceId, sourcePrograms, remarks, isActive, listedDate) and DeniedPartySyncLog model for tracking sync history. Service: src/services/ofacService.ts downloads 3 CSV files in parallel (sdn.csv, alt.csv, add.csv), parses and merges data, handles upsert with deduplication, marks removed entries as inactive. API: POST /api/denied-party/sync triggers sync, GET /api/denied-party/sync returns status and history, GET /api/denied-party lists/searches parties. Parses identifiers (DOB, Passport, IDs) from OFAC remarks field."
-    },
-    {
-      "id": "P3-002",
-      "phase": "phase-3",
-      "title": "Ingest BIS restricted party lists",
-      "description": "Download and parse BIS Entity List and Denied Persons",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Download BIS Entity List",
-        "Download BIS Denied Persons List",
-        "Parse and store in same denied party table",
-        "Tag each entry with source list",
-        "Track last update timestamp"
-      ],
-      "technicalNotes": "BIS lists available at https://www.bis.doc.gov/",
-      "passes": true,
-      "notes": "Created bisService.ts at src/services/bisService.ts. Uses Trade.gov Consolidated Screening List API (includes both BIS lists). Functions: syncBISEntityList(), syncBISDeniedPersons(), syncAllBISLists(). Uses same DeniedParty model with sourceList enum (bis_entity_list, bis_denied). Updated /api/denied-party/sync to accept list param: POST ?list=bis_entity_list or ?list=all. GET returns status for all lists. Each sync creates DeniedPartySyncLog entry. Data source: https://api.trade.gov/static/consolidated_screening_list/consolidated.json"
-    },
-    {
-      "id": "P3-003",
-      "phase": "phase-3",
-      "title": "Build denied party search UI",
-      "description": "User interface for searching denied party lists",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Denied party page at /dashboard/compliance/denied-party",
-        "Search input for company/person name",
-        "Optional country filter",
-        "Results show matches with: name, list source, country",
-        "Click result to see full details",
-        "Clear indication if NO matches found",
-        "Show which lists were searched"
-      ],
-      "technicalNotes": "Create search endpoint with fuzzy matching",
-      "passes": true,
-      "notes": "Created denied party search page at /dashboard/compliance/denied-party. Component: DeniedPartySearch.tsx (~800 lines). Features: 1) Search input for name/company/alias with debounce, 2) Filters for source list (OFAC/BIS), country (17 common sanctioned countries), entity type (individual/entity/vessel/aircraft), 3) Results table with name, aliases count, source list tag, country, programs, and Details button, 4) Detail modal showing full party info (name, aliases, addresses, identifiers, programs, remarks, federal register), 5) Green checkmark 'No Matches Found' state when search returns empty, 6) Lists searched shown in meta info from API, 7) Warning alerts for matches. Added Shield icon navigation item 'Screening' to DashboardLayout.tsx. Uses existing /api/denied-party endpoint which already supports search, pagination, and filtering."
-    },
-    {
-      "id": "P3-004",
-      "phase": "phase-3",
-      "title": "Batch denied party screening",
-      "description": "Screen multiple parties at once via CSV upload",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Upload CSV with party names",
-        "Process all rows against all lists",
-        "Results show: screened count, matches found",
-        "Download results as Excel with match details",
-        "Audit log entry created for batch screening"
-      ],
-      "technicalNotes": "Create batch endpoint, use background job for large files",
-      "passes": true,
-      "notes": "Added batch screening feature to DeniedPartySearch.tsx via Tabs component. Tab 1: Single Search (existing). Tab 2: Batch Screening with 4-stage workflow (idle→preview→processing→complete). Features: 1) CSV upload with drag-drop and template download, 2) Preview of first 5 rows before processing, 3) Circular progress during screening, 4) Results table showing status (MATCH/POTENTIAL/CLEAR), match count, top match, 5) Excel export via exportService with comprehensive columns, 6) Batch result detail modal, 7) Summary cards (total/matches/potential/clear). API: POST /api/denied-party/batch - screens parties against all lists, returns results with match scores (exact/alias/partial), creates audit log entry via UsageLog model with batch_screening feature. Added batch_screening to UsageFeature enum in Prisma schema."
-    },
-    {
-      "id": "P3-005",
-      "phase": "phase-3",
-      "title": "Build ADD/CVD lookup",
-      "description": "Look up antidumping and countervailing duty cases",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "ADD/CVD page at /dashboard/compliance/addcvd",
-        "Search by HTS code",
-        "Filter by country of origin",
-        "Results show active cases with: product, country, duty rates",
-        "Link to ITA for full case details",
-        "Indicate if HTS code has potential ADD/CVD exposure"
-      ],
-      "technicalNotes": "Use existing ADD/CVD data in adcvdOrders.ts, enhance with API",
-      "passes": true,
-      "notes": "Created ADD/CVD lookup page at /dashboard/compliance/addcvd. Component: ADCVDLookup.tsx (~680 lines). API: /api/adcvd GET endpoint with htsCode, countryCode, and search params. Enhanced adcvdOrders.ts with: ADCVDOrderInfo export (added dutyRange, caseNumbers, notes fields), getAllADCVDOrders(), getADCVDOrdersByCountry(), getADCVDOrdersByHTS(), getTopADCVDCountries(), getHighestRiskCategories(). Features: 1) HTS code search with risk level assessment (high/medium/low/none), 2) Country filter (16 countries with active orders), 3) Product search, 4) Results table with HTS prefix, product category, affected countries (flags), estimated duty range, order count, 5) Detail modal with case numbers, notes, duty ranges, 6) External resource links (CBP AD/CVD Search, ITC Orders Excel, ITA Searchable Database), 7) Risk alert banner showing exposure level. Navigation: AlertTriangle icon 'ADD/CVD' in sidebar."
-    },
-    {
-      "id": "P3-006",
-      "phase": "phase-3",
-      "title": "Build PGA requirements lookup",
-      "description": "Show Partner Government Agency requirements for HTS codes",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "PGA lookup at /dashboard/compliance/pga",
-        "Enter HTS code (10-digit)",
-        "Show list of PGA flags and what they mean",
-        "Show which agencies have requirements (FDA, EPA, etc.)",
-        "Link to agency resources",
-        "Explain common PGA codes (FD2, EP5, etc.)"
-      ],
-      "technicalNotes": "Build PGA database from ACE PGA Appendix",
-      "passes": true,
-      "notes": "Complete implementation. Page: /dashboard/compliance/pga. Component: src/features/compliance/components/PGALookup.tsx (900+ lines). API: src/app/api/pga/route.ts. Data: src/data/pgaFlags.ts (13 agencies, 30+ flags, chapter mappings). Features: HTS code lookup with chapter-level requirements, flag reference table with search/filter by agency, flag detail modal with requirements and common products, agency cards with websites, external resource links (ACE PGA Appendix, PGA Message Sets, CBP Portal). Fixed API response structure mismatch (data returned at root level, not under 'requirements' key)."
-    },
-    {
-      "id": "P3-007",
-      "phase": "phase-3",
-      "title": "Index CBP rulings database",
-      "description": "Ingest and index CBP classification rulings for search",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Scraper/ingester for rulings.cbp.gov",
-        "Store ruling: number, date, HTS code, product, full text",
-        "Index for full-text search",
-        "At least 10,000 recent rulings indexed",
-        "Daily/weekly update job"
-      ],
-      "technicalNotes": "CBP rulings available at https://rulings.cbp.gov/",
-      "passes": false,
-      "notes": "DEFERRED: Complex web scraping - needs manual implementation"
-    },
-    {
-      "id": "P3-008",
-      "phase": "phase-3",
-      "title": "Build CBP rulings search UI",
-      "description": "User interface for searching CBP rulings",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Rulings search at /dashboard/compliance/rulings",
-        "Search by keyword in ruling text",
-        "Search by HTS code",
-        "Filter by date range",
-        "Results show: ruling #, date, product, HTS code (snippet)",
-        "Click to view full ruling text",
-        "Link to original on CBP site"
-      ],
-      "technicalNotes": "Use PostgreSQL full-text search or add search index",
-      "passes": false,
-      "notes": "DEFERRED: Complex web scraping - needs manual implementation"
-    },
-    {
-      "id": "P1-006",
-      "phase": "phase-1",
-      "title": "Build Trade Statistics Dashboard",
-      "description": "Visualize USITC trade data with interactive dashboards for import/export trends",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Trade statistics page at /dashboard/intelligence/trade-stats",
-        "Top 10 import sources by HTS code (bar chart)",
-        "Trade volume/value trends over time (line chart)",
-        "Country breakdown for selected HTS (pie chart)",
-        "Year-over-year growth comparison",
-        "Filter by HTS chapter, date range, country",
-        "Export chart data to Excel"
-      ],
-      "technicalNotes": "Use existing USITC DataWeb API integration, Ant Design Charts or Recharts",
-      "passes": true,
-      "notes": "Implementation was mostly complete from previous iterations. Created page at /dashboard/intelligence/trade-stats/page.tsx. Added navigation item with BarChart3 icon to DashboardLayout.tsx. Component: TradeStatsDashboard at src/features/intelligence/components/TradeStatsDashboard.tsx (670 lines). API: /api/trade-stats using usitcDataWeb service. Features: horizontal bar chart for top 10 sources, area chart for trends over time (toggle view), pie chart for market share, YoY growth comparison table, HTS chapter dropdown with 10 popular chapters, multi-select country filter, Excel export via exportService. Uses Recharts for visualization. Sample data provided when USITC_DATAWEB_API_KEY is not set."
-    },
-    {
-      "id": "P1-007",
-      "phase": "phase-1",
-      "title": "Build FTA Rules Engine",
-      "description": "Index 300+ FTA rules of origin by HTS code for quick lookup",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "FTA rules page at /dashboard/compliance/fta-rules",
-        "Search by HTS code to see applicable FTAs",
-        "Each FTA shows: rule of origin text, qualifying criteria",
-        "Support USMCA, CAFTA-DR, Korea, Australia, Singapore, etc.",
-        "Show RVC threshold and/or tariff shift requirements",
-        "Link to full FTA text on USTR website",
-        "Database table for FTA rules with HTS mappings"
-      ],
-      "technicalNotes": "Parse FTA annexes from USTR PDFs, store in FtaRule table with htsPrefix and ruleType fields",
-      "passes": true,
-      "notes": "Complete implementation. Data: src/data/ftaRules.ts with 14 FTA agreements (USMCA, KORUS, CAFTA-DR, AUSFTA, SFTA, etc.) and 30+ rules covering chapters 29, 30, 39, 44, 48, 61, 62, 64, 71, 73, 84, 85, 87, 90, 94, 95. Each rule includes ruleType (tariff_shift, rvc, rvc_or_shift, etc.), tariffShift type (CC, CTH, CTSH), rvcThreshold, rvcMethod, additionalRequirements, and official ruleText. API: /api/fta-rules (GET) with htsCode, ftaCode, countryCode params. Component: FTARulesLookup.tsx (~700 lines) with HTS search, country filter (20 FTA partners), FTA dropdown, results table with rule type/shift/RVC tags, detail modal with full rule text and requirements explanation, collapsible reference sections for tariff shift and RVC methods. Navigation: Handshake icon 'FTA Rules' in sidebar. External links to USTR FTA Portal, CBP FTA Resources, USITC HTS Database."
-    },
-    {
-      "id": "P1-008",
-      "phase": "phase-1",
-      "title": "Build FTA Qualification Calculator",
-      "description": "Help users determine if their product qualifies for FTA preferential rates based on Bill of Materials",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "FTA calculator at /dashboard/compliance/fta-calculator",
-        "User enters HTS code and selects FTA (e.g., USMCA)",
-        "System shows applicable rule of origin",
-        "User inputs Bill of Materials with: component, HTS, origin country, value",
-        "Calculator determines: RVC percentage, tariff shift compliance",
-        "Clear pass/fail result with explanation",
-        "Show duty savings if qualified vs MFN rate",
-        "Save BOM for future reference"
-      ],
-      "technicalNotes": "Build on FTA Rules Engine (P1-007), RVC formula: (Transaction Value - Non-Originating Materials) / Transaction Value * 100",
-      "passes": true,
-      "notes": "Complete implementation. Page: /dashboard/compliance/fta-calculator. Component: src/features/compliance/components/FTAQualificationCalculator.tsx (~1150 lines). API: /api/fta-calculator (POST for calculation, GET for FTA list). Features: 1) Product info card (HTS code, FTA selection, transaction value), 2) BOM management with add/edit/delete components (name, HTS, origin country, value), 3) Auto-determines originating status based on FTA countries, 4) RVC calculation with circular progress (Transaction/Net Cost/Build-Down/Build-Up methods), 5) Tariff shift analysis table showing CC/CTH/CTSH/CTI compliance per component, 6) Pass/fail result card with green/red styling, 7) Duty savings display (MFN vs FTA rate), 8) Save BOM to localStorage with load/delete, 9) Quick reference panels. Navigation: ClipboardCheck icon 'FTA Calculator' in DashboardLayout.tsx."
-    },
-    {
-      "id": "P1-009",
-      "phase": "phase-1",
-      "title": "Build Historical HTS Archives",
-      "description": "Track HTS code changes over time to help users map old codes to new ones",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "HTS history page at /dashboard/compliance/hts-history",
-        "Enter old HTS code to see current equivalent",
-        "Enter current HTS code to see previous versions",
-        "Show effective dates for each change",
-        "Store HTS revisions from 2020-present minimum",
-        "API endpoint for programmatic lookup",
-        "Indicate if code was split, merged, or renamed"
-      ],
-      "technicalNotes": "Use existing HtsRevision model, parse USITC change notices",
-      "passes": true,
-      "notes": "Complete implementation. Page: /dashboard/compliance/hts-history. Component: src/features/compliance/components/HTSHistoryLookup.tsx (~700 lines). API: /api/hts-history (GET with code, year, chapter params). Data: src/data/htsCodeChanges.ts with 15+ HTS code changes from 2020-2025 (splits, merges, renames, additions, deletions, rate changes, description updates). Features: 1) Code Lookup tab - enter HTS to see forward mappings (old→new) and backward mappings (new←old) with Timeline history, 2) Browse All Changes tab - filterable table by year/chapter with change type tags, expandable rows for descriptions/notes, Federal Register links, 3) Stats cards showing total changes/years covered/chapters affected/change types, 4) External resource links to USITC HTS Database, Federal Register ITC, CBP Rulings. Change types with colored tags: split (blue), merge (purple), rename (cyan), added (green), deleted (red), rate_change (orange), description_update (gray). Navigation: History icon 'HTS History' in sidebar."
-    },
-    {
-      "id": "P1-010",
-      "phase": "phase-1",
-      "title": "Build Section 301/IEEPA Tariff Tracker",
-      "description": "Dedicated page to track current special tariffs with exclusions and effective dates",
-      "priority": 1,
-      "acceptanceCriteria": [
-        "Tariff tracker page at /dashboard/compliance/tariff-tracker",
-        "Section 301 lists breakdown (List 1-4A/B with rates)",
-        "IEEPA tariffs by country (CN, MX, CA)",
-        "Section 232 steel/aluminum rates",
-        "Each tariff shows: rate, effective date, applicable HTS chapters",
-        "Search by HTS code to see all applicable special tariffs",
-        "Show active exclusions if any",
-        "Links to Federal Register notices"
-      ],
-      "technicalNotes": "Use existing tariff registry data, add Federal Register links",
-      "passes": true,
-      "notes": "Complete implementation. Page: /dashboard/compliance/tariff-tracker. Component: src/features/compliance/components/TariffTrackerContent.tsx (~865 lines). API: /api/tariff-tracker (GET with category/country/htsCode/status filters). Data: src/data/specialTariffs.ts with Section 301 lists (1-4A/B), IEEPA programs (baseline, fentanyl, reciprocal by country), Section 232 (steel/aluminum/auto). Features: 1) Summary stats cards (program counts by category), 2) Search by HTS code to see applicable tariffs, 3) Country filter with 18 options, 4) Category filter (Section 301/IEEPA/Section 232), 5) Active-only toggle, 6) Calculated total tariff when HTS+country selected with breakdown, 7) Collapsible panels for each category with detail tables, 8) IEEPA reciprocal rates by country visual grid (color-coded by severity), 9) Detail modal with Federal Register links, Executive Orders, and legal references, 10) Export to Excel, 11) External resources links to Federal Register, USTR, CBP, USITC, Commerce. Navigation: ListChecks icon 'Tariff Tracker' in sidebar."
-    },
-    {
-      "id": "P1-011",
-      "phase": "phase-1",
-      "title": "Build Compliance Alert System",
-      "description": "Notify users when tariff rates change for their saved products",
-      "priority": 2,
-      "acceptanceCriteria": [
-        "Alert preferences in user settings",
-        "Option to receive: email digest (weekly), in-app notifications, both",
-        "Alerts trigger for: rate changes, new exclusions, expiring programs",
-        "Alert history visible in dashboard",
-        "Click alert to see affected product and details",
-        "Unsubscribe option per alert type",
-        "Batch processing for efficiency"
-      ],
-      "technicalNotes": "Use existing TariffAlert model, add email integration with Resend/SendGrid, daily cron job for digest",
-      "passes": true,
-      "notes": "Complete implementation. Page: /dashboard/compliance/alerts. Component: src/features/compliance/components/ComplianceAlerts.tsx (~900 lines). API: /api/tariff-alerts (GET/POST), /api/tariff-alerts/[id] (GET/PATCH/DELETE), /api/tariff-alerts/events (GET). Features: 1) My Alerts tab - table with HTS code, country, alert type (ANY_CHANGE/INCREASE_ONLY/DECREASE_ONLY/THRESHOLD), current rate, active toggle, delete action, 2) Alert History tab - table with date, rate change visualization, reason, notification status (sent/pending), 3) Preferences tab - email notifications toggle with frequency (instant/daily/weekly), in-app notifications toggle, alert triggers (increases/decreases toggles), minimum change threshold percentage. Uses existing TariffAlert and TariffAlertEvent Prisma models. Create Alert modal with HTS code input, optional country filter, alert type selection with threshold for THRESHOLD type. Stats cards show active/total alerts, recent events, notifications sent. Preferences stored in localStorage. Note: Email integration info message - requires Resend/SendGrid server integration for actual delivery."
+      "id": "additional-country-compare",
+      "name": "Country Comparison",
+      "description": "What-if different country analysis, duty savings calculation",
+      "phase": "phase-1"
     }
-  ]
+  ],
+  "currentWork": [
+    {
+      "id": "monetization-stripe",
+      "name": "Stripe Integration",
+      "description": "Checkout, subscription webhooks, billing portal",
+      "phase": "phase-monetization",
+      "priority": 1,
+      "status": "not_started"
+    },
+    {
+      "id": "monetization-limits",
+      "name": "Usage Limits",
+      "description": "5 classifications/day for free tier, enforcement",
+      "phase": "phase-monetization",
+      "priority": 2,
+      "status": "not_started"
+    },
+    {
+      "id": "monetization-gating",
+      "name": "Feature Gating",
+      "description": "Lock Pro features (sourcing, FTA calc, exports) behind paywall",
+      "phase": "phase-monetization",
+      "priority": 3,
+      "status": "not_started"
+    },
+    {
+      "id": "monetization-upsell",
+      "name": "Upsell Teasers",
+      "description": "Show upgrade prompts when free users hit limits or try Pro features",
+      "phase": "phase-monetization",
+      "priority": 4,
+      "status": "not_started"
+    }
+  ],
+  "deferred": [
+    {
+      "id": "p2-cbp-rulings",
+      "name": "CBP Rulings Search",
+      "description": "Index rulings.cbp.gov database",
+      "phase": "phase-2",
+      "reason": "Complex web scraping required - deferred until manual implementation"
+    }
+  ],
+  "future": [
+    {
+      "id": "p3-bol-data",
+      "name": "BOL Shipment Data",
+      "description": "US import/export shipment records",
+      "phase": "phase-3",
+      "cost": "$10K-50K/yr",
+      "providers": ["ImportGenius", "ImportKey", "Panjiva"]
+    },
+    {
+      "id": "p3-supplier-discovery",
+      "name": "Supplier Discovery",
+      "description": "Find suppliers by product/HTS from BOL data",
+      "phase": "phase-3",
+      "requires": "p3-bol-data"
+    },
+    {
+      "id": "p3-competitor-analysis",
+      "name": "Competitor Analysis",
+      "description": "Who imports what from whom",
+      "phase": "phase-3",
+      "requires": "p3-bol-data"
+    },
+    {
+      "id": "p4-company-profiles",
+      "name": "Company Profiles",
+      "description": "Revenue, employees, corporate hierarchy",
+      "phase": "phase-4",
+      "cost": "$20K-80K/yr",
+      "providers": ["D&B", "ZoomInfo"]
+    },
+    {
+      "id": "p4-contacts",
+      "name": "Contact Database",
+      "description": "Decision-maker emails and phones",
+      "phase": "phase-4",
+      "cost": "$10K-30K/yr",
+      "providers": ["ZoomInfo", "Apollo", "Lusha"]
+    }
+  ],
+  "pricingTiers": {
+    "free": {
+      "price": 0,
+      "limits": {
+        "classificationsPerDay": 5,
+        "savedProducts": 10,
+        "alerts": 1
+      },
+      "features": ["Basic classification", "Trade stats (limited)", "ADD/CVD lookup"]
+    },
+    "pro": {
+      "price": 99,
+      "limits": {
+        "classificationsPerDay": "unlimited",
+        "savedProducts": 100,
+        "alerts": 25
+      },
+      "features": ["Everything in Free", "Sourcing intelligence", "FTA qualification", "Denied party screening", "Compliance alerts", "Export (PDF/Excel)"]
+    },
+    "business": {
+      "price": 299,
+      "limits": {
+        "classificationsPerDay": "unlimited",
+        "savedProducts": "unlimited",
+        "alerts": "unlimited",
+        "bulkUpload": 500,
+        "apiCalls": 1000,
+        "teamMembers": 5
+      },
+      "features": ["Everything in Pro", "Bulk classification", "API access", "Team collaboration", "Priority support"]
+    },
+    "enterprise": {
+      "price": "custom",
+      "features": ["Everything in Business", "BOL data (Phase 3)", "Company intelligence (Phase 4)", "White-label", "Dedicated support", "Custom integrations"]
+    }
+  }
 }

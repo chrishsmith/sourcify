@@ -1,9 +1,12 @@
 # PRD: Trade Intelligence & Competitive Features
 
 > **Created:** January 8, 2026  
-> **Status:** DRAFT  
+> **Updated:** January 22, 2026  
+> **Status:** ACTIVE (Source of Truth)  
 > **Owner:** Product  
-> **Related:** `COMPETITIVE_ANALYSIS_DATAMYNE.md` (competitor research)
+> **Related:** `competitive-analysis-datamyne.md` (competitor research)
+
+**This document is the source of truth for Sourcify's product vision and feature roadmap. All other docs should align to this.**
 
 ---
 
@@ -66,51 +69,55 @@ Transform Sourcify from a **duty calculation tool** into a **comprehensive trade
 ### Phase 1: Enhance Core (Q1 2026) - LOW COST
 *Build on what we have*
 
-| Feature | Description | Effort | Value |
-|---------|-------------|--------|-------|
-| **Trade Statistics Dashboard** | Visualize USITC data we already have | M | High |
-| **FTA Rules Engine** | Index 300+ FTA rules by HTS code | L | High |
-| **FTA Qualification Calculator** | "Do I qualify?" based on BOM | M | Very High |
-| **Historical HTS Archives** | Archive HTS changes over time | S | Medium |
-| **PGA Requirements Lookup** | Build PGA flag database | S | Medium |
+| Feature | Description | Effort | Value | Status |
+|---------|-------------|--------|-------|--------|
+| **Trade Statistics Dashboard** | Visualize USITC data we already have | M | High | ✅ Done |
+| **FTA Rules Engine** | Index 300+ FTA rules by HTS code | L | High | ✅ Done |
+| **FTA Qualification Calculator** | "Do I qualify?" based on BOM | M | Very High | ✅ Done |
+| **Historical HTS Archives** | Archive HTS changes over time | S | Medium | ✅ Done |
+| **PGA Requirements Lookup** | Build PGA flag database | S | Medium | ✅ Done |
 
-**Data Sources:** Public/free (USITC, USTR, CBP, FDA/EPA)
+**Data Sources:** Public/free (USITC, USTR, CBP, FDA/EPA)  
+**Phase 1 Status: COMPLETE** ✅
 
 ### Phase 2: Compliance Tools (Q2 2026) - LOW COST
 *Add compliance features from public data*
 
-| Feature | Description | Effort | Value |
-|---------|-------------|--------|-------|
-| **Denied Party Screening** | Search OFAC/BIS lists | M | High |
-| **ADD/CVD Database** | Active orders by HTS + country | M | High |
-| **CBP Rulings Search** | Index rulings.cbp.gov | L | High |
-| **Section 301/IEEPA Tracker** | Current special tariffs | S | High |
-| **Compliance Alerts** | Notify on tariff changes | M | Medium |
+| Feature | Description | Effort | Value | Status |
+|---------|-------------|--------|-------|--------|
+| **Denied Party Screening** | Search OFAC/BIS lists | M | High | ✅ Done |
+| **ADD/CVD Database** | Active orders by HTS + country | M | High | ✅ Done |
+| **CBP Rulings Search** | Index rulings.cbp.gov | L | High | ⏸️ Deferred |
+| **Section 301/IEEPA Tracker** | Current special tariffs | S | High | ✅ Done |
+| **Compliance Alerts** | Notify on tariff changes | M | Medium | ✅ Done |
 
-**Data Sources:** Public/free (OFAC, BIS, CBP, USTR)
+**Data Sources:** Public/free (OFAC, BIS, CBP, USTR)  
+**Phase 2 Status: 80% COMPLETE** (CBP Rulings deferred - requires complex scraping)
 
 ### Phase 3: Trade Intelligence (Q3-Q4 2026) - MEDIUM COST
 *Licensed data for competitive intelligence*
 
-| Feature | Description | Effort | Cost/Year |
-|---------|-------------|--------|-----------|
-| **BOL Shipment Data** | US import/export shipments | L | $10K-50K |
-| **Supplier Discovery** | Find suppliers by product | M | (included) |
-| **Competitor Analysis** | Who imports what from whom | M | (included) |
-| **Trade Trend Charts** | Volume/value over time | M | (included) |
+| Feature | Description | Effort | Cost/Year | Status |
+|---------|-------------|--------|-----------|--------|
+| **BOL Shipment Data** | US import/export shipments | L | $10K-50K | 🔲 Not Started |
+| **Supplier Discovery** | Find suppliers by product | M | (included) | 🔲 Not Started |
+| **Competitor Analysis** | Who imports what from whom | M | (included) | 🔲 Not Started |
+| **Trade Trend Charts** | Volume/value over time | M | (included) | 🔲 Not Started |
 
-**Data Sources:** ImportGenius, ImportKey, or similar
+**Data Sources:** ImportGenius, ImportKey, or similar  
+**Phase 3 Status: NOT STARTED** (Requires data license investment)
 
 ### Phase 4: Company Intelligence (2027+) - HIGH COST
 *Premium company data*
 
-| Feature | Description | Effort | Cost/Year |
-|---------|-------------|--------|-----------|
-| **Company Profiles** | Revenue, employees, hierarchy | M | $20K-80K |
-| **Contact Database** | Decision-maker emails/phones | M | $10K-30K |
-| **Corporate Hierarchy** | Parent/subsidiary relationships | M | (included) |
+| Feature | Description | Effort | Cost/Year | Status |
+|---------|-------------|--------|-----------|--------|
+| **Company Profiles** | Revenue, employees, hierarchy | M | $20K-80K | 🔲 Not Started |
+| **Contact Database** | Decision-maker emails/phones | M | $10K-30K | 🔲 Not Started |
+| **Corporate Hierarchy** | Parent/subsidiary relationships | M | (included) | 🔲 Not Started |
 
-**Data Sources:** D&B, ZoomInfo, Apollo
+**Data Sources:** D&B, ZoomInfo, Apollo  
+**Phase 4 Status: NOT STARTED** (Future - depends on Phase 3 success)
 
 ---
 
@@ -194,16 +201,16 @@ Transform Sourcify from a **duty calculation tool** into a **comprehensive trade
 
 ### Build (Free/Public Data)
 
-| Capability | Source | Effort | Maintenance |
-|------------|--------|--------|-------------|
-| HTS schedules | USITC | Done ✅ | Low |
-| Trade statistics | USITC API | Done ✅ | Low |
-| FTA rules text | USTR | Medium | Low |
-| CBP rulings | rulings.cbp.gov | Medium | Medium |
-| Denied party lists | OFAC/BIS | Medium | Medium |
-| PGA requirements | ACE appendix | Small | Low |
-| ADD/CVD orders | ITA | Small | Medium |
-| Federal Register | federalregister.gov | Medium | Medium |
+| Capability | Source | Effort | Maintenance | Status |
+|------------|--------|--------|-------------|--------|
+| HTS schedules | USITC | Done | Low | ✅ Done |
+| Trade statistics | USITC API | Done | Low | ✅ Done |
+| FTA rules text | USTR | Medium | Low | ✅ Done |
+| CBP rulings | rulings.cbp.gov | Medium | Medium | ⏸️ Deferred |
+| Denied party lists | OFAC/BIS | Medium | Medium | ✅ Done |
+| PGA requirements | ACE appendix | Small | Low | ✅ Done |
+| ADD/CVD orders | ITA | Small | Medium | ✅ Done |
+| Federal Register | federalregister.gov | Medium | Medium | ✅ Done |
 
 ### Buy (Licensed Data)
 
@@ -242,16 +249,16 @@ Transform Sourcify from a **duty calculation tool** into a **comprehensive trade
 |------|-------|--------------|
 | Free | $0 | + Trade stats dashboard (basic) |
 | Pro | $99/mo | + FTA qualification, compliance tools |
-| **Intelligence** | $299/mo | + BOL data, supplier discovery |
+| **Business** | $299/mo | + BOL data, supplier discovery |
 | Enterprise | Custom | + Company data, contacts, API |
 
 ### Revenue Model for Licensed Data
 
 | Data Cost | Required Subscribers | Break-even |
 |-----------|---------------------|------------|
-| $10K/yr BOL | 3 Intelligence users | Month 4 |
-| $30K/yr BOL | 9 Intelligence users | Month 4 |
-| $50K/yr Company | 14 Intelligence users | Month 4 |
+| $10K/yr BOL | 3 Business users | Month 4 |
+| $30K/yr BOL | 9 Business users | Month 4 |
+| $50K/yr Company | 14 Business users | Month 4 |
 
 ---
 
@@ -317,22 +324,28 @@ Transform Sourcify from a **duty calculation tool** into a **comprehensive trade
 
 ---
 
-## 10. NEXT STEPS
+## 10. CURRENT STATUS & NEXT STEPS
 
-### Immediate (This Week)
-1. [ ] Review this PRD with team
-2. [ ] Prioritize Phase 1 features
-3. [ ] Estimate dev effort for FTA qualification calculator
+### Completed ✅
+- [x] Phase 1: All features built (Trade Stats, FTA Rules, FTA Calc, HTS History, PGA)
+- [x] Phase 2: Most features built (Denied Party, ADD/CVD, Tariff Tracker, Alerts)
+- [x] Core infrastructure (Classification V10, Tariff Registry, Landed Cost)
 
-### Short-term (This Month)
-1. [ ] Prototype trade stats dashboard
-2. [ ] Research FTA rules data structure
-3. [ ] Evaluate denied party data feeds
+### In Progress 🟡
+- [ ] Monetization infrastructure (Stripe, usage limits, feature gating)
 
-### Medium-term (This Quarter)
-1. [ ] Ship Phase 1 features
-2. [ ] Measure adoption/engagement
-3. [ ] Decide on Phase 3 data licensing
+### Deferred ⏸️
+- [ ] CBP Rulings Search (complex web scraping required)
+
+### Next Steps (Priority Order)
+1. **Stripe Integration** - Enable payment collection
+2. **Usage Limits** - Enforce free tier limits (5 classifications/day)
+3. **Feature Gating** - Lock Pro features (sourcing, FTA calc, exports)
+4. **Upsell Teasers** - Show "upgrade to unlock" in free tier
+
+### Future (Requires Investment Decision)
+1. **Phase 3 Data License** - Evaluate BOL providers (ImportKey ~$10K/yr)
+2. **Phase 4 Company Data** - Only if Phase 3 proves demand
 
 ---
 
@@ -363,27 +376,74 @@ Transform Sourcify from a **duty calculation tool** into a **comprehensive trade
 
 ## APPENDIX B: Competitive Feature Matrix
 
-| Feature | Datamyne | CustomsInfo | Sourcify Now | Sourcify Planned |
-|---------|----------|-------------|--------------|------------------|
-| HTS lookup | ❌ | ✅ | ✅ | ✅ |
-| AI classification | ❌ | ⚠️ Basic | ✅ | ✅ |
-| Classification reasoning | ❌ | ❌ | ✅ | ✅ |
-| Duty calculation | ❌ | ❌ | ✅ | ✅ |
-| Landed cost | ❌ | ❌ | ✅ | ✅ |
-| Special tariffs (301/IEEPA) | ❌ | ❌ | ✅ | ✅ |
-| FTA rules lookup | ❌ | ✅ | ❌ | ✅ Phase 1 |
-| FTA qualification calc | ❌ | ❌ | ❌ | ✅ Phase 1 |
-| Trade statistics | ⚠️ | ⚠️ | ⚠️ | ✅ Phase 1 |
-| Denied party screening | ⚠️ Basic | ⚠️ Basic | ❌ | ✅ Phase 2 |
-| ADD/CVD lookup | ❌ | ✅ | ❌ | ✅ Phase 2 |
-| CBP rulings | ❌ | ✅ | ❌ | ✅ Phase 2 |
-| BOL shipment data | ✅ | ❌ | ❌ | ⚠️ Phase 3 |
-| Company profiles | ✅ | ❌ | ❌ | ⚠️ Phase 4 |
-| Contact database | ✅ | ❌ | ❌ | ⚠️ Phase 4 |
-| Modern UX | ❌ | ❌ | ✅ | ✅ |
-| SMB pricing | ❌ | ❌ | ✅ | ✅ |
+| Feature | Datamyne | CustomsInfo | Sourcify Status |
+|---------|----------|-------------|-----------------|
+| HTS lookup | ❌ | ✅ | ✅ Done |
+| AI classification | ❌ | ⚠️ Basic | ✅ Done |
+| Classification reasoning | ❌ | ❌ | ✅ Done |
+| Duty calculation | ❌ | ❌ | ✅ Done |
+| Landed cost | ❌ | ❌ | ✅ Done |
+| Special tariffs (301/IEEPA) | ❌ | ❌ | ✅ Done |
+| FTA rules lookup | ❌ | ✅ | ✅ Done |
+| FTA qualification calc | ❌ | ❌ | ✅ Done |
+| Trade statistics | ⚠️ | ⚠️ | ✅ Done |
+| Denied party screening | ⚠️ Basic | ⚠️ Basic | ✅ Done |
+| ADD/CVD lookup | ❌ | ✅ | ✅ Done |
+| CBP rulings | ❌ | ✅ | ⏸️ Deferred |
+| BOL shipment data | ✅ | ❌ | 🔲 Phase 3 |
+| Company profiles | ✅ | ❌ | 🔲 Phase 4 |
+| Contact database | ✅ | ❌ | 🔲 Phase 4 |
+| Modern UX | ❌ | ❌ | ✅ Done |
+| SMB pricing | ❌ | ❌ | ✅ Done |
 
 ---
 
-*Document version: 1.0*
-*Last updated: January 8, 2026*
+## APPENDIX C: What's Built (Current State)
+
+### Core Platform
+- AI-powered HTS classification (V10 semantic search engine)
+- 27,061 HTS codes with embeddings
+- Tariff registry (199 countries, 7 data sources)
+- Base MFN + Section 301 + IEEPA + Fentanyl + Section 232 tariffs
+
+### Compliance Tools (Phase 1-2 Complete)
+- Trade Statistics Dashboard with USITC DataWeb integration
+- FTA Rules Engine (14 FTAs, 30+ rules)
+- FTA Qualification Calculator (BOM input, RVC calculation)
+- Historical HTS Archives (2020-2025 changes)
+- PGA Requirements Lookup (13 agencies, 30+ flags)
+- Denied Party Screening (OFAC SDN, BIS Entity List, BIS Denied Persons)
+- Batch Denied Party Screening (CSV upload)
+- ADD/CVD Lookup (20+ product categories)
+- Section 301/IEEPA Tariff Tracker
+- Compliance Alerts System
+
+### Additional Features
+- Landed Cost Calculator with customs fees (MPF, HMF)
+- Save/Compare cost scenarios
+- Bulk Classification (CSV upload)
+- PDF/Excel/CSV export
+- Alternative classifications with duty comparison
+- Country comparison ("what if different country")
+
+---
+
+## APPENDIX D: What's Next
+
+### Immediate Priorities (Monetization)
+1. **Stripe Integration** - Accept payments
+2. **Usage Limits** - 5 classifications/day for free tier
+3. **Feature Gating** - Lock Pro features behind paywall
+4. **Upsell Teasers** - Show value to free users
+
+### Deferred (Technical Complexity)
+- **CBP Rulings Search** - Requires complex web scraping
+
+### Future (Requires Investment)
+- **Phase 3: BOL Data** - Requires $10K-50K/yr data license
+- **Phase 4: Company Intel** - Requires $20K-80K/yr data license
+
+---
+
+*Document version: 2.0*
+*Last updated: January 22, 2026*

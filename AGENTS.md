@@ -2,16 +2,41 @@
 
 This file contains important context for AI agents working on the Sourcify codebase.
 
+## Documentation Hierarchy
+
+| Document | Purpose |
+|----------|---------|
+| `docs/prd-trade-intelligence.md` | **SOURCE OF TRUTH** - Vision, features, status |
+| `docs/prd.json` | Task tracking (what's done, what's next) |
+| `docs/architecture.md` | Technical architecture |
+| `docs/product-roadmap.md` | Quick reference roadmap |
+| `docs/competitive-analysis-datamyne.md` | Competitor research |
+
 ## Project Overview
 
 Sourcify is a trade intelligence platform that helps importers:
 1. **Classify products** - AI-powered HTS code classification
 2. **Calculate duties** - Full duty breakdown including special tariffs
 3. **Find suppliers** - Discover and compare global suppliers
-4. **Stay compliant** - Denied party screening, ADD/CVD lookup, etc.
+4. **Stay compliant** - Denied party screening, ADD/CVD lookup, FTA qualification, etc.
 
 **Competition:** Descartes Datamyne ($10K+/yr) and Descartes CustomsInfo ($10K+/yr)
 **Our advantage:** Modern UX, AI reasoning, SMB pricing ($0-$299/mo), no demos required
+
+## Current Status
+
+**Phase 1-2 (Public Data): COMPLETE**
+- AI Classification (V10 semantic search)
+- Tariff Registry (199 countries)
+- Trade Statistics Dashboard
+- FTA Rules Engine + Qualification Calculator
+- Denied Party Screening (OFAC, BIS)
+- ADD/CVD Lookup
+- PGA Requirements
+- Tariff Tracker
+- Compliance Alerts
+
+**Next: Monetization (Stripe, usage limits, feature gating)**
 
 ## Architecture
 
@@ -271,4 +296,38 @@ npx prisma migrate deploy   # Apply migrations in prod
 
 ---
 
-*Last updated: January 19, 2026*
+## Additional Compliance Tools
+
+### FTA Rules & Qualification
+- **Data:** `src/data/ftaRules.ts` - 14 FTAs, 30+ rules
+- **API:** `/api/fta-rules` (GET), `/api/fta-calculator` (POST)
+- **Pages:** `/dashboard/compliance/fta-rules`, `/dashboard/compliance/fta-calculator`
+- **Components:** `FTARulesLookup.tsx`, `FTAQualificationCalculator.tsx`
+
+### PGA Requirements
+- **Data:** `src/data/pgaFlags.ts` - 13 agencies, 30+ flags
+- **API:** `/api/pga` (GET)
+- **Page:** `/dashboard/compliance/pga`
+- **Component:** `PGALookup.tsx`
+
+### Historical HTS Archives
+- **Data:** `src/data/htsCodeChanges.ts` - 2020-2025 changes
+- **API:** `/api/hts-history` (GET)
+- **Page:** `/dashboard/compliance/hts-history`
+- **Component:** `HTSHistoryLookup.tsx`
+
+### Tariff Tracker (301/IEEPA/232)
+- **Data:** `src/data/specialTariffs.ts` - All special tariff programs
+- **API:** `/api/tariff-tracker` (GET)
+- **Page:** `/dashboard/compliance/tariff-tracker`
+- **Component:** `TariffTrackerContent.tsx`
+
+### Trade Statistics
+- **Service:** `src/services/usitcDataWeb.ts` - USITC DataWeb integration
+- **API:** `/api/trade-stats` (GET)
+- **Page:** `/dashboard/intelligence/trade-stats`
+- **Component:** `TradeStatsDashboard.tsx`
+
+---
+
+*Last updated: January 22, 2026*
