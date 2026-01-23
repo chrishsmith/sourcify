@@ -56,6 +56,7 @@
 - PDF/Excel/CSV Export
 - Country Comparison
 - Alternative Classifications with Duty Comparison
+- Navigation Consolidation (17 → 8 items, expandable sub-menus)
 
 ---
 

@@ -1,22 +1,41 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Tabs, Button, Typography } from 'antd';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Upload as UploadIcon, History, Bookmark, Zap } from 'lucide-react';
 import { ClassificationsTable } from '@/features/compliance/components/ClassificationsTable';
 import ClassificationV10LayoutB from '@/features/compliance/components/ClassificationV10LayoutB';
 import { ClassificationResultDisplay } from '@/features/compliance/components/ClassificationResult';
 import { SearchHistoryPanel, ReClassifyInput } from '@/features/compliance/components/SearchHistoryPanel';
+import { BulkClassificationContent } from '@/features/compliance/components/BulkClassificationContent';
 import { getClassificationById } from '@/services/classification/history';
 import type { ClassificationResult } from '@/types/classification.types';
 
 const { Title, Text } = Typography;
 
 export const ClassificationsPageContent = () => {
-    const [activeTab, setActiveTab] = useState('classify');
-    const [viewingResult, setViewingResult] = useState<ClassificationResult | null>(null);
+    const searchParams = useSearchParams();
     const router = useRouter();
+    
+    // Derive initial tab from URL params
+    const initialTab = useMemo(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['classify', 'bulk', 'history', 'saved'].includes(tabParam)) {
+            return tabParam;
+        }
+        return 'classify';
+    }, [searchParams]);
+    
+    const [activeTab, setActiveTab] = useState(initialTab);
+    const [viewingResult, setViewingResult] = useState<ClassificationResult | null>(null);
+    
+    // Sync activeTab when URL params change
+    useEffect(() => {
+        if (initialTab !== activeTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps
     
     // Re-classify state
     const [reClassifyInput, setReClassifyInput] = useState<ReClassifyInput | null>(null);
@@ -34,7 +53,17 @@ export const ClassificationsPageContent = () => {
     };
 
     const handleBulkClassify = () => {
-        router.push('/dashboard/classify/bulk');
+        setActiveTab('bulk');
+        const params = new URLSearchParams(searchParams);
+        params.set('tab', 'bulk');
+        router.replace(`/dashboard/classifications?${params.toString()}`, { scroll: false });
+    };
+    
+    const handleTabChange = (key: string) => {
+        setActiveTab(key);
+        const params = new URLSearchParams(searchParams);
+        params.set('tab', key);
+        router.replace(`/dashboard/classifications?${params.toString()}`, { scroll: false });
     };
 
     const handleReClassify = useCallback((input: ReClassifyInput) => {
@@ -68,11 +97,21 @@ export const ClassificationsPageContent = () => {
             ),
         },
         {
+            key: 'bulk',
+            label: (
+                <span className="flex items-center gap-2">
+                    <UploadIcon size={16} className="text-purple-500" />
+                    Bulk
+                </span>
+            ),
+            children: <BulkClassificationContent />,
+        },
+        {
             key: 'history',
             label: (
                 <span className="flex items-center gap-2">
                     <History size={16} className="text-slate-500" />
-                    Search History
+                    History
                 </span>
             ),
             children: <SearchHistoryPanel onReClassify={handleReClassify} />,
@@ -131,7 +170,7 @@ export const ClassificationsPageContent = () => {
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 w-full">
                 <Tabs
                     activeKey={activeTab}
-                    onChange={setActiveTab}
+                    onChange={handleTabChange}
                     items={items}
                     className="w-full [&_.ant-tabs-content]:w-full [&_.ant-tabs-tabpane]:w-full"
                 />

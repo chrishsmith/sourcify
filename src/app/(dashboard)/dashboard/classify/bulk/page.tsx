@@ -1,12 +1,6 @@
-import React from 'react';
-import { Metadata } from 'next';
-import { BulkClassificationContent } from '@/features/compliance/components/BulkClassificationContent';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-    title: 'Bulk Classification - Sourcify',
-    description: 'Upload a CSV to classify multiple products at once',
-};
-
-export default function BulkClassifyPage() {
-    return <BulkClassificationContent />;
+// Redirect to consolidated classify page with bulk tab
+export default function BulkClassifyRedirect() {
+    redirect('/dashboard/classifications?tab=bulk');
 }

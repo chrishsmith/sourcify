@@ -425,6 +425,7 @@ Transform Sourcify from a **duty calculation tool** into a **comprehensive trade
 - PDF/Excel/CSV export
 - Alternative classifications with duty comparison
 - Country comparison ("what if different country")
+- Navigation consolidation (17 → 8 items with expandable sub-menus)
 
 ---
 

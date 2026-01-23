@@ -48,6 +48,7 @@ We help SMB importers:
 | Compliance Alerts | ✅ Done |
 | Bulk Classification | ✅ Done |
 | PDF/Excel Export | ✅ Done |
+| Navigation Consolidation | ✅ Done |
 
 ### 🟡 Monetization: In Progress
 
